@@ -1,0 +1,20 @@
+# Ignore Python bytecode files
+*.pyc
+*.pyo
+__pycache__/
+*__init__.py
+
+# Ignore virtual environment directories
+.venv/
+.env/
+
+# Ignore other common files and directories
+*.log
+
+# Ignore custom folders
+.vscode
+dep
+tools
+docs
+src/fief/
+src/database/mock_data

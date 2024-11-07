@@ -1,0 +1,12 @@
+beanie
+fastapi
+fastapi_mqtt
+fastapi_users_db_beanie
+fief_client
+motor
+pydantic
+PyJWT
+pymongo
+python-dotenv
+starlette
+uvicorn
