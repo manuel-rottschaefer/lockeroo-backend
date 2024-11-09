@@ -13,8 +13,10 @@ __pycache__/
 
 # Ignore custom folders
 .vscode
+.idea
 dep
 tools
 docs
+environments
 src/fief/
 src/database/mock_data
