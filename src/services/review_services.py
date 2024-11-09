@@ -1,26 +1,33 @@
-'''
+"""
 This file contains the services for the review endpoints.
-'''
+"""
 
 # Basics
 from datetime import datetime
 
 # Types
+from uuid import UUID
 from typing import Optional
 from beanie import PydanticObjectId as ObjId
+
 # FastAPI
 from fastapi import HTTPException
+
+# Entities
+from src.entities.session_entity import Session
+
 # Nodels
 from src.models.review_models import ReviewModel
 from src.models.session_models import SessionModel, SessionStates
+
 # Services
-from ..services.exceptions import ServiceExceptions
-from ..services.logging_services import logger
+from src.services.exceptions import ServiceExceptions
+from src.services.logging_services import logger
 
 
-async def handle_review_submission(session_id: ObjId, user_id: ObjId,
+async def handle_review_submission(session_id: ObjId, user_id: UUID,
                                    experience_rating: int, cleanliness_rating: int, details: str):
-    '''Submit a review for a session'''
+    """Submit a review for a session."""
     # 1: Get session
     session: SessionModel = await SessionModel.find_one(
         SessionModel.id == session_id,
@@ -47,13 +54,24 @@ async def handle_review_submission(session_id: ObjId, user_id: ObjId,
     ).insert()
 
 
-async def get_session_review(session_id: ObjId, _user_id: ObjId) -> Optional[ReviewModel]:
-    '''Return a review for a session from the database'''
+async def get_session_review(session_id: ObjId, user_id: UUID) -> Optional[ReviewModel]:
+    """Return a review for a session from the database."""
+    # 1: Find the review entry
     review: ReviewModel = await ReviewModel.find_one(
         ReviewModel.assigned_session == session_id
     )
     if not review:
         logger.info(ServiceExceptions.REVIEW_NOT_FOUND, session=session_id)
         return None
+
+    # 2: Find the assigned session
+    session: Session = Session().fetch(review.assigned_session)
+    if not session:
+        logger.warning(
+            f'Session {review.assigned_session} does not exist, but should.')
+        return None
+    if session.assigned_user != user_id:
+        raise HTTPException(
+            status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
 
     return review

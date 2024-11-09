@@ -1,4 +1,4 @@
-'''This file is used to create a MQTT client instance.'''
+"""This file is used to create a MQTT client instance."""
 
 from fastapi_mqtt import FastMQTT, MQTTConfig
 import logging

@@ -1,6 +1,6 @@
-'''
+"""
 This module contains the services for the station model.
-'''
+"""
 
 # Basics
 from datetime import datetime
@@ -24,13 +24,13 @@ from src.models.station_models import (StationLockers, StationModel, StationStat
                                        StationView, TerminalStates, StationMaintenance)
 
 # Services
-from ..services.exceptions import ServiceExceptions
-from ..services.logging_services import logger
+from src.services.exceptions import ServiceExceptions
+from src.services.logging_services import logger
 
 
 async def discover(lat: float, lon: float, radius,
                    amount) -> List[StationView]:
-    '''Return a list of stations within a given range around a location'''
+    """Return a list of stations within a given range around a location"""
     stations: List[StationView] = StationModel.find(
         Near(StationModel.location, lat, lon, max_distance=radius)
     ).limit(amount)
@@ -40,7 +40,7 @@ async def discover(lat: float, lon: float, radius,
 
 
 async def get_details(call_sign: str) -> StationView:
-    '''Get detailed information about a station'''
+    """Get detailed information about a station"""
 
     # Get station data from the database
     station = await StationModel.find_one(StationModel.call_sign == call_sign)
@@ -52,8 +52,8 @@ async def get_details(call_sign: str) -> StationView:
 
 
 async def set_state(self: StationModel, station_state: StationStates):
-    '''Update the state of a locker. No checks are performed here,
-    as the request is assumed to be valid.'''
+    """Update the state of a locker. No checks are performed here,
+    as the request is assumed to be valid."""
     self.station_state = station_state
     await self.replace()
     logger.info("Station %s state set to {\
@@ -62,7 +62,7 @@ async def set_state(self: StationModel, station_state: StationStates):
 
 
 async def get_locker_overview(call_sign: StationModel) -> StationLockers:
-    '''Determine for each locker type if it is available at the given station'''
+    """Determine for each locker type if it is available at the given station"""
 
     # 1: Check whether the station exists
     station: Station = await Station().fetch(call_sign=call_sign)
@@ -90,10 +90,10 @@ async def get_locker_overview(call_sign: StationModel) -> StationLockers:
 
 
 async def handle_terminal_action_report(call_sign: str) -> None:
-    '''This handler processes reports of completed actions at a station.
+    """This handler processes reports of completed actions at a station.
         It verifies the authenticity of the report and then updates the state
         values for the station and the assigned session as well as notifies
-        the client so that the user can proceed. '''
+        the client so that the user can proceed. """
     # 1: Find station by call sign
     station: Station = await Station().fetch(call_sign=call_sign)
     if not station:
@@ -131,8 +131,7 @@ async def handle_terminal_action_report(call_sign: str) -> None:
     # 6: Instruct the locker to open
     await locker.instruct_unlock()
 
-    # 7: Create an action
-    # TODO: here?
+    # TODO: 7: Create an action here?
 
     # 7: Set the queue item to completed
     queue: QueueItem = await QueueItem().fetch(session_id=session.id)
@@ -140,8 +139,8 @@ async def handle_terminal_action_report(call_sign: str) -> None:
 
 
 async def handle_terminal_mode_confirmation(call_sign: str, _mode: str):
-    '''This handler processes reports of stations whose terminals entered an active state.
-    It verifies the authenticity and then notifies the client about the new state.'''
+    """This handler processes reports of stations whose terminals entered an active state.
+    It verifies the authenticity and then notifies the client about the new state."""
     # 1: Get the station object
     station: StationModel = await StationModel.find_one(
         StationModel.call_sign == call_sign
@@ -154,8 +153,8 @@ async def handle_terminal_mode_confirmation(call_sign: str, _mode: str):
 async def create_maintenance_event(call_sign: str,
                                    scheduled_ts: datetime,
                                    _assigned_person: str) -> StationMaintenance:
-    '''Insert a maintenance event in the database.'''
-    # TODO: Get station here
+    """Insert a maintenance event in the database."""
+    # TODO: move to maintenance router and use station entity
     # 1: Get the station object
     station: StationModel = await StationModel.find_one(
         StationModel.call_sign == call_sign

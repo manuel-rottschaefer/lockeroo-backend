@@ -1,6 +1,6 @@
-'''
+"""
 This module contains the services for the locker management.
-'''
+"""
 
 # Basics
 import asyncio
@@ -18,14 +18,14 @@ from src.models.locker_models import LockerModel, LockerStates
 from src.models.session_models import SessionModel, SessionStates
 from src.models.station_models import StationModel
 # Services
-from ..services.logging_services import logger
-from ..services.exceptions import ServiceExceptions
-from ..services.action_services import create_action
+from src.services.logging_services import logger
+from src.services.exceptions import ServiceExceptions
+from src.services.action_services import create_action
 
 
 async def find_available_locker(
         station_id: ObjId, locker_type: str) -> LockerModel:
-    '''This methods handles the locker selection process at a station'''
+    """This methods handles the locker selection process at a station"""
     # Try to find a locker that suits all requirements
     # TODO: Prioritize open lockers from expired sessions
     locker: LockerModel = await LockerModel.find(
@@ -42,8 +42,8 @@ async def find_available_locker(
 
 
 async def handle_lock_report(call_sign: str, locker_index: int) -> None:
-    # TODO: Different logging escalation for station reports??
-    '''Process and verify a station report that a locker has been closed'''
+    # TODO: Adjust logging escalation level for station reports??
+    """Process and verify a station report that a locker has been closed"""
     # 1: Find the station to get its ID
     station = Station(await StationModel.find_one(StationModel.call_sign == call_sign))
     if not station:
@@ -90,7 +90,7 @@ async def handle_lock_report(call_sign: str, locker_index: int) -> None:
 
 
 async def handle_unlock_confirmation(station_callsign: str, locker_index: int) -> None:
-    '''Process and verify a station report that a locker has been closed'''
+    """Process and verify a station report that a locker has been closed"""
 
     # 1: Find the station to get its ID
     station: Station = await Station().fetch(call_sign=station_callsign)

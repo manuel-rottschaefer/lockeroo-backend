@@ -1,6 +1,6 @@
-'''
+"""
 This file contains the services for the actions.
-'''
+"""
 
 # Basics
 from datetime import datetime
@@ -12,12 +12,12 @@ from src.models.action_models import ActionModel
 from src.models.session_models import SessionStates
 
 # Services
-from ..services.logging_services import logger
+from src.services.logging_services import logger
 
 
 async def create_action(session_id: ObjId,
                         action_type: SessionStates) -> ActionModel:
-    '''Create a new action entry'''
+    """Create a new action entry"""
     new_action = await ActionModel(
         assigned_session=session_id,
         action_type=action_type,

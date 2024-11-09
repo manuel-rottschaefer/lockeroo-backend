@@ -1,6 +1,6 @@
-'''
+"""
 This module contains the logging configuration for the API.
-'''
+"""
 
 # Basics
 from typing import Union
@@ -11,7 +11,7 @@ from datetime import datetime
 from beanie import PydanticObjectId as ObjId
 
 # Service exceptions
-from ..services.exceptions import ServiceExceptions
+from src.services.exceptions import ServiceExceptions
 
 # UNIX_TS = (datetime.now() - datetime(1970, 1, 1)).total_seconds()
 LOGFILE = f"src/logs/{datetime.today().strftime('%Y-%m-%d')}.log"
@@ -29,22 +29,22 @@ logging.basicConfig(
 
 
 class LoggingService:
-    '''A central logging service that handles custom error and
-     debug messages as well as defined service exceptions.'''
+    """A central logging service that handles custom error and
+     debug messages as well as defined service exceptions."""
 
     def __init__(self):
         self.logging = logging.getLogger(__name__)
 
     def debug(self, message: str):
-        '''Pass message to default logger with level DEBUG'''
+        """Pass message to default logger with level DEBUG"""
         self.logging.debug(message)
 
     def warning(self, message: str):
-        '''Pass message to default logger with level DEBUG'''
+        """Pass message to default logger with level DEBUG"""
         self.logging.warning(message)
 
     def error(self, message: str):
-        '''Pass message to default logger with level ERROR'''
+        """Pass message to default logger with level ERROR"""
         self.logging.error(message)
 
     def info(self, exception: ServiceExceptions,  # pylint: disable=too-many-arguments
@@ -53,10 +53,10 @@ class LoggingService:
              locker: Union[str, ObjId] = '',
              user: Union[str, ObjId] = '',
              detail: str = ''):
-        '''As the info level is for strictly defined service exceptions,
+        """As the info level is for strictly defined service exceptions,
         it does not accept regular strings as messages.
         The method also only accepts basic information about an incident
-        as all details can be looked up in the FastApi log'''
+        as all details can be looked up in the FastApi log"""
         ### Stations ###
         if exception == ServiceExceptions.STATION_NOT_FOUND:
             self.logging.info("Could not find station '%s'.", station)
@@ -123,8 +123,13 @@ logging.getLogger('pymongo.topology').setLevel(logging.WARNING)
 logging.getLogger('pymongo.connection').setLevel(logging.WARNING)
 logging.getLogger('pymongo.serverSelection').setLevel(logging.WARNING)
 logging.getLogger('pymongo.command').setLevel(logging.WARNING)
+logging.getLogger('dotenv').setLevel(logging.ERROR)
+
+# print([name for name, logger in logging.Logger.manager.loggerDict.items()
+#      if isinstance(logger, logging.Logger)])
+
 
 # Seperate entries
-logging.debug('')
+logging.info('---------------------------------------------------------------')
 
 logger = LoggingService()

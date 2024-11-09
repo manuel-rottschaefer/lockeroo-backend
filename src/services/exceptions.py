@@ -1,12 +1,38 @@
-'''
+"""
 This module contains custom exceptions for the services.
-'''
+"""
 
+# Basics
+from functools import wraps
 from enum import Enum
+
+# Exceptions
+from fastapi import HTTPException
+
+
+def handle_exceptions(logger):
+    """Handle FastAPI Endpoint Exceptions."""
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            try:
+                return await func(*args, **kwargs)
+            except HTTPException as e:
+                logger.error(f"HTTPException: {e.detail}")
+                raise e
+            except Exception as e:
+                logger.error(f"Unhandled exception: {str(e)}")
+                raise HTTPException(
+                    status_code=500, detail="Internal Server Error") from e
+        return wrapper
+    return decorator
 
 
 class ServiceExceptions(Enum):
-    '''Custom exceptions for the session services'''
+    """Custom exceptions for the session services"""
+
+    # Generics
+    NOT_AUTHORIZED = 'not_authorized'
 
     # Stations
     STATION_NOT_FOUND = "station_not_found"

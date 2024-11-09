@@ -1,6 +1,6 @@
-'''
+"""
 This module contains the services for the user model.
-'''
+"""
 
 # from fastapi_users import FastAPIUsers
 # from fastapi_users.authentication import
@@ -14,7 +14,7 @@ from src.models.session_models import SessionModel, SessionStates
 from src.models.account_models import AccountModel
 
 # Services
-from ..services.logging_services import logger
+from src.services.logging_services import logger
 
 SECRET = "SECRET"
 
@@ -36,7 +36,7 @@ user_db = BeanieUserDatabase(AccountModel)
 
 
 async def has_active_session(user_id: ObjId) -> bool:
-    '''Check if the given user has an active session'''
+    """Check if the given user has an active session"""
     accepted_session_states = [
         SessionStates.COMPLETED, SessionStates.CANCELLED]
 
