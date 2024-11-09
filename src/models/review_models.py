@@ -1,6 +1,6 @@
-'''
+"""
 Review Models
-'''
+"""
 
 # Types
 import dataclasses
@@ -18,7 +18,7 @@ from pydantic import Field
 
 
 class ReviewModel(Document):  # pylint: disable=too-many-ancestors
-    '''Representation of a review in the database'''
+    """Representation of a review in the database"""
 
     # Identification
     id: Optional[ObjId] = Field(None, alias="_id")
@@ -38,12 +38,12 @@ class ReviewModel(Document):  # pylint: disable=too-many-ancestors
 
     @dataclasses.dataclass
     class Settings:
-        '''Name in database'''
+        """Name in database"""
         name = "reviews"
 
 
 class ReviewView(View):  # pylint: disable=too-many-ancestors
-    '''View of the Review Model'''
+    """View of the Review Model"""
 
     # Identification
     id: Optional[ObjId] = Field(None, alias="_id")

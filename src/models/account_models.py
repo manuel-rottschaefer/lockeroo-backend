@@ -1,6 +1,6 @@
-'''
+"""
 User Models
-'''
+"""
 
 # Types
 import dataclasses
@@ -20,7 +20,7 @@ from pydantic import Field
 
 
 class AuthMethod(str, Enum):
-    '''Types of supported auth methods'''
+    """Types of supported auth methods"""
 
     EMAIL = "email"
     GOOGLE = "google"
@@ -28,7 +28,7 @@ class AuthMethod(str, Enum):
 
 
 class AccountModel(BeanieBaseUser, Document):  # pylint: disable=too-many-ancestors
-    '''Representation of a user in the database'''
+    """Representation of a user in the database"""
 
     # Identification
     id: Optional[ObjId] = Field(None, alias="_id")
@@ -51,7 +51,7 @@ class AccountModel(BeanieBaseUser, Document):  # pylint: disable=too-many-ancest
 
     @dataclasses.dataclass
     class Settings:
-        '''Name in database'''
+        """Name in database"""
 
         name = "users"
 
@@ -65,7 +65,7 @@ class AccountSummary(View):
 
 
 class AccountCreate(BeanieBaseUser):
-    '''View after creation of a user'''
+    """View after creation of a user"""
 
     firstName: str
     lastName: str
@@ -75,7 +75,7 @@ class AccountCreate(BeanieBaseUser):
 
 
 class AccountUpdate(BeanieBaseUser):
-    '''View after update of a user'''
+    """View after update of a user"""
 
     firstName: Optional[str] = None
     lastName: Optional[str] = None

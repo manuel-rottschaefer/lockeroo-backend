@@ -1,6 +1,6 @@
-'''
+"""
 Station Models
-'''
+"""
 
 # Types
 from enum import Enum
@@ -14,11 +14,11 @@ from beanie import Document, View, Replace, after_event
 from beanie import PydanticObjectId as ObjId
 
 # Services
-from ..services.mqtt_services import fast_mqtt
+from src.services.mqtt_services import fast_mqtt
 
 
 class StationStates(str, Enum):
-    '''States for a station'''
+    """States for a station"""
 
     AVAILABLE = "available"  # Station terminal is passive and waiting for sessions
     MAINTENANCE = "maintenance"  # Station terminal is offline for maintenance
@@ -26,7 +26,7 @@ class StationStates(str, Enum):
 
 
 class TerminalStates(str, Enum):
-    '''States for a terminal'''
+    """States for a terminal"""
 
     IDLE = "idle"  # Terminal is idle
     VERIFICATION = "verification"  # Terminal is in verification mode
@@ -35,7 +35,7 @@ class TerminalStates(str, Enum):
 
 
 class StationModel(Document):  # pylint: disable=too-many-ancestors
-    '''Representation of a station in the database'''
+    """Representation of a station in the database"""
 
     # Identification
     id: Optional[ObjId] = Field(None, alias="_id")
@@ -77,26 +77,26 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
 
     @after_event(Replace)
     def notify_station_state(self):
-        '''Send an update message regarding the session state to the mqtt broker.'''
+        """Send an update message regarding the session state to the mqtt broker."""
         fast_mqtt.publish(
             f"stations/{self.id}/state", self.station_state.value)
 
     ### State broadcasting ###
     @after_event(Replace)
     def notify_terminal_state(self):
-        '''Send an update message regarding the session state to the mqtt broker.'''
+        """Send an update message regarding the session state to the mqtt broker."""
         fast_mqtt.publish(
             f"stations/{self.id}/terminal", self.terminal_state.value)
 
     @dataclasses.dataclass
     class Settings:
-        '''Name in database'''
+        """Name in database"""
 
         name = "stations"
 
 
 class StationView(View):
-    '''Public representation of a station'''
+    """Public representation of a station"""
 
     # Identification
     id: Optional[ObjId] = Field(None, alias="_id")
@@ -122,12 +122,12 @@ class StationView(View):
     nearby_public_transit: Optional[str]
 
     async def get_locker_availability(self, station_services):
-        '''Get the availability of lockers at the station'''
+        """Get the availability of lockers at the station"""
         return await station_services.get_locker_availability(self)
 
 
 class StationLockers(View):
-    '''Availability of each locker type at a station'''
+    """Availability of each locker type at a station"""
 
     small: bool
     medium: bool
@@ -135,7 +135,7 @@ class StationLockers(View):
 
 
 class StationMaintenanceStates(str, Enum):
-    '''All possible states of a station maintenance event'''
+    """All possible states of a station maintenance event"""
 
     SCHEDULED = "scheduled"
     ACTIVE = "active"
@@ -145,7 +145,7 @@ class StationMaintenanceStates(str, Enum):
 
 
 class StationMaintenance(Document):  # pylint: disable=too-many-ancestors
-    '''Entity of a station mainentance event'''
+    """Entity of a station mainentance event"""
 
     id: Optional[ObjId] = Field(None, alias="_id")
 
@@ -166,6 +166,6 @@ class StationMaintenance(Document):  # pylint: disable=too-many-ancestors
     )
 
     class Settings:
-        '''Name in Database'''
+        """Name in Database"""
 
         name = "maintenance"

@@ -1,8 +1,8 @@
-'''
+"""
 This module describes the database model for actions, which are representations
 of events related to a sessionthat are seperately to provide
 detailed session history data and better understand special cases.
-'''
+"""
 
 # Basics
 from datetime import datetime
@@ -20,14 +20,13 @@ from src.models.session_models import SessionStates
 
 
 class ActionModel(Document):  # pylint: disable=too-many-ancestors
-    '''Database representation of a action'''
+    """Database representation of a action"""
 
     # Identification
     id: ObjId = Field(alias="_id", default=None)
     assigned_session: ObjId = Field(
         None, description="The session to which this action belongs."
     )
-    # assigned_user: ObjId
 
     # Action Properties
     timestamp: datetime = Field(
@@ -37,22 +36,18 @@ class ActionModel(Document):  # pylint: disable=too-many-ancestors
 
     @dataclasses.dataclass
     class Settings:
-        '''Name in database'''
+        """Name in database"""
 
         name = "actions"
 
 
 class ActionView(View):  # pylint: disable=too-many-ancestors
-    '''Database representation of a action'''
+    """Database representation of a action"""
 
     # Identification
     id: ObjId = Field(alias="_id", default=None)
     assigned_session: ObjId = Field(
         None, description="The assigned session to this action."
-    )
-    assigned_user: ObjId = Field(
-        None,
-        description="The assigned user to the session of this action. Is this even required?",
     )
 
     # Action Properties
@@ -65,6 +60,6 @@ class ActionView(View):  # pylint: disable=too-many-ancestors
 
     @dataclasses.dataclass
     class Settings:
-        '''Name in database'''
+        """Name in database"""
 
         name = "actions"

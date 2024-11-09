@@ -1,9 +1,9 @@
-'''This module declares the models for bills.
+"""This module declares the models for bills.
     The goal is to seperate the payment/billing process from the session internally,
     making additional features easier to implement.
     A bill is only issued after a completed session,
     it is not meant for use within an active session
-'''
+"""
 
 # Basics
 from datetime import datetime
@@ -19,7 +19,7 @@ from beanie import PydanticObjectId as ObjId
 
 
 class BillPaymentMethods(Enum, str):
-    '''Enumeration of available payment methods'''
+    """Enumeration of available payment methods"""
 
     TERMINAL = "terminal"
     PAYPAL = "paypal"
@@ -27,8 +27,8 @@ class BillPaymentMethods(Enum, str):
 
 
 class BillModel(Document):
-    '''Representation of a bill in the database.
-    A session may only have one connected bill'''
+    """Representation of a bill in the database.
+    A session may only have one connected bill"""
 
     ### Identification ###
     id: Optional[ObjId] = Field(None, alias="_id")

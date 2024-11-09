@@ -1,6 +1,6 @@
-'''
+"""
     Session Models
-'''
+"""
 
 # Basics
 from datetime import datetime
@@ -8,19 +8,20 @@ from enum import Enum
 
 # Types
 from typing import Optional
-import dataclasses
+from uuid import UUID
 from pydantic import Field
+import dataclasses
 
 # Beanie
 from beanie import Document, View, Replace, after_event
 from beanie import PydanticObjectId as ObjId
 
 # Services
-from ..services.mqtt_services import fast_mqtt
+from src.services.mqtt_services import fast_mqtt
 
 
 class SessionTypes(str, Enum):
-    '''All possible types of session (services)'''
+    """All possible types of session (services)"""
     PERSONAL = "personal"
     DROPOFF = "dropOff"
     CLICKCOLLECT = "clickCollect"
@@ -29,7 +30,7 @@ class SessionTypes(str, Enum):
 
 
 class SessionStates(str, Enum):
-    '''All possible states a session can be in'''
+    """All possible states a session can be in"""
     # Session created and assigned to locker. Awaiting payment selection
     CREATED = "created"
     # Payment method has been selected, now awaiting request to open locker
@@ -66,21 +67,21 @@ class SessionStates(str, Enum):
 
 
 class SessionPaymentTypes(str, Enum):
-    '''All possible payment methods'''
+    """All possible payment methods"""
     TERMINAL = "terminal"
     ONLINE = "online"
 
 
 class SessionModel(Document):  # pylint: disable=too-many-ancestors
-    '''Representation of a session in the database.
-         All relevant timestamps are stored in actions.'''
+    """Representation of a session in the database.
+         All relevant timestamps are stored in actions."""
     ### Identification ###
     id: Optional[ObjId] = Field(None, alias="_id")
     assigned_station: ObjId = Field(
         None, description="The assigned station to this session.")
     assigned_locker: ObjId = Field(
         None, description="The assigned locker to this station.")
-    assigned_user: ObjId = Field(
+    assigned_user: UUID = Field(
         None, description="The assigned user to this station.")
 
     ### Session Properties ###
@@ -98,23 +99,23 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     ### Status Broadcasting ###
     @after_event(Replace)
     def notify_state(self):
-        '''Send an update message regarding the session state to the mqtt broker.'''
+        """Send an update message regarding the session state to the mqtt broker."""
         fast_mqtt.publish(f"sessions/{self.id}/notify",
                           self.session_state.value, qos=1)
 
     @dataclasses.dataclass
     class Settings:
-        '''Name in Database'''
+        """Name in Database"""
         name = "sessions"
 
     @dataclasses.dataclass
     class Config:
-        '''Configurations'''
+        """Configurations"""
         arbitrary_types_allowed = True
 
 
 class SessionView(View):
-    '''Used for serving information about an active session'''
+    """Used for serving information about an active session"""
     # Identification
     id: ObjId
     assigned_station: ObjId = Field(
@@ -128,12 +129,12 @@ class SessionView(View):
 
     @dataclasses.dataclass
     class Config:
-        '''Alias for _id'''
+        """Alias for _id"""
         from_attributes = True
 
 
 class CompletedSession(View):
-    '''Used for serving information about a completed session'''
+    """Used for serving information about a completed session"""
     id: Optional[ObjId] = Field(None, alias="_id")
     station: ObjId
     locker: Optional[int] = None
@@ -151,5 +152,5 @@ class CompletedSession(View):
 
     @dataclasses.dataclass
     class Config:
-        '''Alias for _id'''
+        """Alias for _id"""
         from_attributes = True

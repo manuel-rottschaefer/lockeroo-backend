@@ -1,6 +1,6 @@
-'''
+"""
 Queue Item Models
-'''
+"""
 
 # Types
 from enum import Enum
@@ -14,11 +14,11 @@ from beanie import Document, Replace, after_event
 from beanie import PydanticObjectId as ObjId
 
 # Logging
-from ..services.logging_services import logger
+from src.services.logging_services import logger
 
 
 class QueueStates(str, Enum):
-    '''States for a terminal queue'''
+    """States for a terminal queue"""
     QUEUED = "queued"               # Session is queued for verification/payment
     PENDING = "pending"             # Session is awaiting verification/payment
     COMPLETED = "completed"         # Session has been verified/paid
@@ -26,9 +26,9 @@ class QueueStates(str, Enum):
 
 
 class QueueItemModel(Document):  # pylint: disable=too-many-ancestors
-    '''Queue of session awaiting verification / payment at a station terminal.
+    """Queue of session awaiting verification / payment at a station terminal.
         The position of each queued session is determined dynamically
-        by its state and time of registration'''
+        by its state and time of registration"""
     id: Optional[ObjId] = Field(None, alias="_id")
 
     assigned_session: ObjId
@@ -38,11 +38,11 @@ class QueueItemModel(Document):  # pylint: disable=too-many-ancestors
 
     @after_event(Replace)
     def report_state(self):
-        '''Log database operation.'''
+        """Log database operation."""
         logger.debug(f"Queue item for session '{
                      self.assigned_session}' updated to state '{self.queue_state}'.")
 
     @dataclass
     class Settings:
-        '''Name in database'''
+        """Name in database"""
         name = "queue"

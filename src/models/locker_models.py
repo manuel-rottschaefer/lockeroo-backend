@@ -1,6 +1,6 @@
-'''
+"""
 Locker Models
-'''
+"""
 
 # Types
 import dataclasses
@@ -18,25 +18,32 @@ from beanie import PydanticObjectId as ObjId
 from pydantic import BaseModel, Field
 
 # Logging
-from ..services.logging_services import logger
+from src.services.logging_services import logger
 
 
 class LockerStates(str, Enum):
-    '''States of a locker'''
+    """States of a locker"""
     LOCKED = 'locked'
     UNLOCKED = 'unlocked'
 
 
+class LockerTypes(str, Enum):
+    """Types of lockers"""
+    SMALL = 'small'
+    MEDIUM = 'medium'
+    LARGE = 'large'
+
+
 class PricingModel(BaseModel):
-    '''Pricing Models for Lockers'''
+    """Pricing Models for Lockers"""
     basePrice: int                  # Minimum price for a session
     # Price per minute after base period (ct)
     minuteRate: float
     maxPrice: int                   # Maximum price to pay, after that locker is emptied
 
 
-class LockerTypes(BaseModel):
-    '''Locker Type / Version'''
+class LockerType(BaseModel):
+    """Locker Type / Version"""
     name: str                       # Name of the Type of Locker
     description: str                # Examples of Luggage or other suitable items
     size: Tuple[int, int, int]      # Physical size of the locker
@@ -45,7 +52,7 @@ class LockerTypes(BaseModel):
 
 
 class LockerModel(Document):  # pylint: disable=too-many-ancestors
-    '''Representation of a single locker in the database'''
+    """Representation of a single locker in the database"""
     ### Identification ###
     id: Optional[ObjId] = Field(
         None, alias="_id", description='ObjectID in the database')
@@ -53,7 +60,7 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
                                   description='Station this locker belongs to')
 
     #### Locker Properties ###
-    locker_type: LockerTypes
+    locker_type: LockerType
     station_index: int = Field(
         ..., description='Index of the locker in the station (Also printed on the doors)')
 
@@ -71,11 +78,11 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
 
     @after_event(Replace)
     def log_db_ops(self):
-        '''Log the Database operation for debugging purposes.'''
+        """Log the Database operation for debugging purposes."""
         logger.debug(f"Locker {self.id} is has been reported as '{
                      self.reported_state}'.")
 
     @dataclasses.dataclass
     class Settings:
-        '''Name in database'''
+        """Name in database"""
         name = "lockers"
