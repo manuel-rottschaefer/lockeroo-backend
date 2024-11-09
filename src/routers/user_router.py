@@ -1,12 +1,10 @@
-'''
+"""
 This file contains the user routes for the FastAPI application.
-'''
+"""
 
 from fastapi import APIRouter
 
 # Models
-from models.account_models import UserModel
-from services.users_services import fastapi_users
 
 user_router = APIRouter()
 
@@ -38,5 +36,5 @@ user_router = APIRouter()
 # description='Get detailed information about a station'
 # )
 # async def get_station_details(call_sign: str) -> StationView:
-#   '''Get detailed information about a station'''
+#   """Get detailed information about a station"""
 #    return await station_services.get_details(call_sign)

@@ -1,6 +1,6 @@
-'''
+"""
 This file contains the router for the account related endpoints
-'''
+"""
 
 # Types
 from typing import List
@@ -12,14 +12,14 @@ from src.models.session_models import CompletedSession
 from src.models.account_models import AccountSummary
 
 # Initialize the router
-accountRouter = APIRouter()
+account_router = APIRouter()
 
 
-@accountRouter.get('/history',
-                   response_model=List[CompletedSession],
-                   description='Get session details')
+@account_router.get('/history',
+                    response_model=List[CompletedSession],
+                    description='Get session details')
 async def get_account_history(user_id: str, count: int):
-    '''Get a list of completed sessions of this account'''
+    """Get a list of completed sessions of this account"""
 
     # Get station data from the database
     session_data = await CompletedSession.find(
@@ -32,9 +32,9 @@ async def get_account_history(user_id: str, count: int):
     return session_data
 
 
-@accountRouter.get('/summary',
-                   response_model=AccountSummary,
-                   description='Get a quick summary of the user activity')
+@account_router.get('/summary',
+                    response_model=AccountSummary,
+                    description='Get a quick summary of the user activity')
 async def get_account_summary(_user_id: str):
-    '''Return user summary'''
+    """Return user summary"""
     return None
