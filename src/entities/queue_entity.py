@@ -1,6 +1,6 @@
-'''
+"""
     Queue Utils Module
-'''
+"""
 
 # Basics
 from typing import List, Optional
@@ -11,23 +11,25 @@ from beanie import PydanticObjectId as ObjId
 # Entities
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
+from src.entities.payment_entity import Payment
 # Models
 from src.models.session_models import SessionStates
 from src.models.queue_models import QueueItemModel, QueueStates
+from src.models.payment_models import PaymentModel, PaymentStates
 # Services
-from ..services.logging_services import logger
-from ..services.exceptions import ServiceExceptions
+from src.services.logging_services import logger
+from src.services.exceptions import ServiceExceptions
 
 
 class QueueItem():
-    '''Add behaviour to a queue Entity.'''
+    """Add behaviour to a queue Entity."""
 
     def __getattr__(self, name):
-        '''Delegate attribute access to the internal document.'''
+        """Delegate attribute access to the internal document."""
         return getattr(self.document, name)
 
     def __setattr__(self, name, value):
-        '''Delegate attribute setting to the internal document, except for 'document' itself.'''
+        """Delegate attribute setting to the internal document, except for 'document' itself."""
         if name == "document":
             # Directly set the 'document' attribute on the instance
             super().__setattr__(name, value)
@@ -41,7 +43,7 @@ class QueueItem():
 
     @classmethod
     async def fetch(cls, session_id: ObjId):
-        '''Get the latest queue item of a session.'''
+        """Get the latest queue item of a session."""
         # 1: Create the instance
         instance = cls()
 
@@ -58,7 +60,7 @@ class QueueItem():
 
     @classmethod
     async def create(cls, station_id: ObjId, session_id: ObjId):
-        '''Create a new queue item and insert it into the database.'''
+        """Create a new queue item and insert it into the database."""
         instance = cls()
         instance.document = QueueItemModel(
             assigned_session=session_id,
@@ -77,7 +79,7 @@ class QueueItem():
 
     @classmethod
     async def get_next_in_line(cls, station_id: ObjId):
-        '''Create a Queue Item from the next item in the queue.'''
+        """Create a Queue Item from the next item in the queue."""
         instance = cls()
         # 1: Find the next queued session item
         next_item: Optional[QueueItemModel] = await QueueItemModel.find(
@@ -99,31 +101,36 @@ class QueueItem():
 
     @property
     async def is_next(self) -> bool:
-        '''Check wether this queue item is next in line.'''
+        """Check wether this queue item is next in line."""
         next_item = await QueueItem().get_next_in_line(self.document.assigned_station)
         return next_item.id == self.document.id
 
     @property
     async def session(self) -> Session:
-        '''Get the session assigned to this queue item.'''
+        """Get the session assigned to this queue item."""
         return await Session().fetch(session_id=self.document.assigned_session)
 
     ### State management ###
 
     async def set_state(self, new_state: QueueStates):
-        '''Set the state of this queue item.'''
+        """Set the state of this queue item."""
         self.document.queue_state = new_state
         await self.document.replace()
 
     ### Session runner ###
 
     async def activate(self) -> None:
-        '''Activate the assigned session and set this queue item as completed.'''
+        """Activate the assigned session and set this queue item as completed."""
         # 1: Move session into next
         session: Session = await self.session
         await session.set_state(await session.next_state)
 
-        # 2: Update state of station if desired
+        # 2: If the session is pending payment, activate it
+        if session.session_state == SessionStates.PAYMENT_PENDING:
+            payment: Payment = await Payment.fetch(session_id=session.id)
+            await payment.activate()
+
+        # 3: If the session is pending verification, update the terminal state
         station_relevant_states: List[SessionStates] = [
             SessionStates.VERIFICATION_PENDING,
             SessionStates.PAYMENT_PENDING
@@ -137,22 +144,20 @@ class QueueItem():
         await self.document.replace()
 
     async def register_expiration(self, seconds: int, state: SessionStates):
-        '''Register an expiration handler. This waits until the expiration duration has passed and then fires up the expiration handler.'''
+        """Register an expiration handler. This waits until the expiration duration has passed and then fires up the expiration handler."""
         # 1 Register the expiration handler
         await asyncio.sleep(int(seconds))
 
-        # 2: Update the own object. This is required.
-        queue_item = QueueItem(await QueueItemModel.get(self.document.id))
-
         # 2: After the expiration time, fire up the expiration handler if requred
-        if queue_item.document.queue_state == QueueStates.PENDING:
+        await self.document.sync()
+        if self.document.queue_state == QueueStates.PENDING:
             await self.handle_expiration(state)
 
     async def handle_expiration(self, state: SessionStates) -> None:
-        '''Checks wether the session has entered a state where the user needs to conduct an
+        """Checks wether the session has entered a state where the user needs to conduct an
         action within a limited time. If that time has been exceeded but the action has not been
         completed, the session has to be expired and the user needs to request a new one
-        '''
+        """
         # 1: Set Session and queue state to expired
         session: Session = await self.session
 

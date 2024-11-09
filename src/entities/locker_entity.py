@@ -1,4 +1,4 @@
-'''Utilities for the locker model'''
+"""Utilities for the locker model"""
 
 # Types
 from beanie import PydanticObjectId as ObjId
@@ -7,19 +7,19 @@ from beanie import PydanticObjectId as ObjId
 from src.models.locker_models import LockerModel, LockerStates
 
 # Services
-from ..services.logging_services import logger
-from ..services.mqtt_services import fast_mqtt
+from src.services.logging_services import logger
+from src.services.mqtt_services import fast_mqtt
 
 
 class Locker():
-    '''Add behaviour to a locker instance.'''
+    """Add behaviour to a locker instance."""
 
     def __getattr__(self, name):
-        '''Delegate attribute access to the internal document'''
+        """Delegate attribute access to the internal document"""
         return getattr(self.document, name)
 
     def __setattr__(self, name, value):
-        '''Delegate attribute setting to the internal document, except for 'document' itself'''
+        """Delegate attribute setting to the internal document, except for 'document' itself"""
         if name == "document":
             # Directly set the 'document' attribute on the instance
             super().__setattr__(name, value)
@@ -38,7 +38,7 @@ class Locker():
         station_id: ObjId = None,
         index: int = None
     ):
-        '''Create a Locker instance and fetch the object asynchronously.'''
+        """Create a Locker instance and fetch the object asynchronously."""
         instance = cls()
 
         if locker_id is not None:
@@ -57,11 +57,11 @@ class Locker():
         return instance
 
     async def set_state(self, state: LockerStates):
-        '''Update the reported (actual) locker state'''
+        """Update the reported (actual) locker state"""
         self.document.reported_state = state
         await self.document.replace()
 
     async def instruct_unlock(self):
-        '''Send a message to the station to unlock the locker.'''
+        """Send a message to the station to unlock the locker."""
         fast_mqtt.publish(
             f'stations/{self.document.parent_station}/locker/instruct', 'UNLOCK')

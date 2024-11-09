@@ -1,4 +1,4 @@
-'''Utilities for the station model'''
+"""Utilities for the station model"""
 
 # Basics
 from beanie import PydanticObjectId as ObjId
@@ -12,21 +12,21 @@ from src.models.station_models import StationModel, StationStates, TerminalState
 from src.models.locker_models import LockerModel
 
 # Services
-from ..services.exceptions import ServiceExceptions
+from src.services.exceptions import ServiceExceptions
 
 # Logging
-from ..services.logging_services import logger
+from src.services.logging_services import logger
 
 
 class Station():
-    '''Adds behaviour for a station instance.'''
+    """Adds behaviour for a station instance."""
 
     def __getattr__(self, name):
-        '''Delegate attribute access to the internal document.'''
+        """Delegate attribute access to the internal document."""
         return getattr(self.document, name)
 
     def __setattr__(self, name, value):
-        '''Delegate attribute setting to the internal document, except for 'document' itself'''
+        """Delegate attribute setting to the internal document, except for 'document' itself"""
         if name == "document":
             # Directly set the 'document' attribute on the instance
             super().__setattr__(name, value)
@@ -40,7 +40,7 @@ class Station():
 
     @classmethod
     async def fetch(cls, station_id: ObjId = None, call_sign: str = None):
-        '''Create a Station instance and fetch the object asynchronously.'''
+        """Create a Station instance and fetch the object asynchronously."""
         instance = cls()
 
         if station_id is not None:
@@ -60,7 +60,7 @@ class Station():
     ### Attributes ###
     @property
     async def total_completed_session_count(self) -> int:
-        '''Get the total amount of sessions conducted at this station, without active ones.'''
+        """Get the total amount of sessions conducted at this station, without active ones."""
         session_count: int = await SessionModel.find(
             SessionModel.assigned_station == self.document.id,
             SessionModel.session_state == SessionStates.COMPLETED
@@ -69,7 +69,7 @@ class Station():
 
     @property
     async def active_session_count(self) -> int:
-        '''Get the total amount of currently active stations at this station.'''
+        """Get the total amount of currently active stations at this station."""
         session_count: int = await SessionModel.find(
             SessionModel.assigned_station == self.document.id,
             SessionModel.session_state != SessionStates.COMPLETED
@@ -79,7 +79,7 @@ class Station():
     ### Locker management ###
 
     async def get_locker(self, index: int) -> Locker:
-        '''Find a locker at a station by index.'''
+        """Find a locker at a station by index."""
         # 1: Find the locker
         return Locker(await
                       LockerModel.find_one(
@@ -89,7 +89,7 @@ class Station():
                       )
 
     async def find_available_locker(self, locker_type: str) -> LockerModel:
-        '''This methods handles the locker selection process at a station.'''
+        """This methods handles the locker selection process at a station."""
         # Try to find a locker that suits all requirements
         # TODO: Prioritize open lockers from expired sessions
         locker: LockerModel = await LockerModel.find(
@@ -110,8 +110,8 @@ class Station():
     async def set_station_state(
         self: StationModel, new_state: StationStates
     ) -> StationStates:
-        '''Update the state of a station.
-        No checks are performed here, as the request is assumed to be valid.'''
+        """Update the state of a station.
+        No checks are performed here, as the request is assumed to be valid."""
         self.document.station_state = new_state
         await self.replace(skip_actions=['notify_terminal_state'])
         logger.debug("Station '%s' state set to '%s'.",
@@ -121,7 +121,7 @@ class Station():
     async def set_terminal_state(
         self: StationModel, terminal_state: TerminalStates = None, session_state: SessionStates = None
     ) -> StationStates:
-        '''Update the terminal state of a station. This function either accepts a TerminalState or a SessionState. '''
+        """Update the terminal state of a station. This function either accepts a TerminalState or a SessionState. """
         if terminal_state is None and session_state is not None:
             session_to_terminal_map: dict[SessionStates, TerminalStates] = {
                 SessionStates.VERIFICATION_PENDING: TerminalStates.VERIFICATION,
@@ -139,8 +139,13 @@ class Station():
         )
         return terminal_state
 
+    async def activate_payment(self):
+        """Activate a payment process at the station."""
+        self.document.terminal_state = TerminalStates.PAYMENT
+        await self.document.replace(skip_actions=['notify_station_state'])
+
     async def increase_completed_sessions_count(self: StationModel):
-        '''Increase the count of completed sessions at the station.
-        No checks are performed here, as the request is assumed to be valid.'''
+        """Increase the count of completed sessions at the station.
+        No checks are performed here, as the request is assumed to be valid."""
         self.document.total_sessions += 1
         await self.replace()
