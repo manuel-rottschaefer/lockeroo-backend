@@ -18,5 +18,6 @@ dep
 tools
 docs
 environments
-src/fief/
-src/database/mock_data
+mosquitto
+fief
+tools/mock_data
