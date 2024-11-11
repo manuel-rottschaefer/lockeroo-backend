@@ -125,11 +125,10 @@ logging.getLogger('pymongo.serverSelection').setLevel(logging.WARNING)
 logging.getLogger('pymongo.command').setLevel(logging.WARNING)
 logging.getLogger('dotenv').setLevel(logging.ERROR)
 
-# print([name for name, logger in logging.Logger.manager.loggerDict.items()
-#      if isinstance(logger, logging.Logger)])
-
-
 # Seperate entries
 logging.info('---------------------------------------------------------------')
 
 logger = LoggingService()
+
+# logger.debug(str([name for name, logger in logging.Logger.manager.loggerDict.items()
+#     if isinstance(logger, logging.Logger)]))

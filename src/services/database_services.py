@@ -72,8 +72,6 @@ async def restore_mock_data(directory):
                     await collection.insert_one(data)
 
 load_dotenv(dotenv_path='environments/.env')
-print(f"mongodb+srv://{os.getenv('DB_USER')
-                       }:{os.getenv('DB_PASS')}@{os.getenv('DB_HOST')}")
 
 URI = f"mongodb+srv://{os.getenv('DB_USER')
                        }:{os.getenv('DB_PASS')}@{os.getenv('DB_HOST')}"

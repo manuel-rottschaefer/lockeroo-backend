@@ -41,7 +41,7 @@ from .exceptions import ServiceExceptions
 async def get_details(session_id: ObjId, user_id: UUID) -> Optional[SessionView]:
     """Get the details of a session."""
     session: Session = Session(await SessionModel.get(session_id))
-    if session.assigned_user != user_id:
+    if str(session.assigned_user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -51,7 +51,7 @@ async def get_details(session_id: ObjId, user_id: UUID) -> Optional[SessionView]
 async def get_session_history(session_id: ObjId, user_id: UUID) -> Optional[List[ActionModel]]:
     """Get all actions of a session."""
     session: Session = Session(await SessionModel.get(session_id))
-    if session.assigned_user != user_id:
+    if str(session.assigned_user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -140,7 +140,7 @@ async def handle_payment_selection(
 
     # 2: Check if the session exists
     session: Session = Session(await SessionModel.get(session_id))
-    if session.assigned_user != user_id:
+    if str(session.assigned_user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -161,12 +161,13 @@ async def handle_payment_selection(
 
 
 async def handle_verification_request(
-    session_id: ObjId, user_id: UUID
+    session_id: ObjId,
+    user_id: UUID
 ) -> Optional[SessionView]:
     """Enter the verification queue of a session"""
     # 1: Find the session
     session: Session = Session(await SessionModel.get(session_id))
-    if session.assigned_user != user_id:
+    if str(session.assigned_user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -192,10 +193,7 @@ async def handle_verification_request(
     await session.set_state(SessionStates.VERIFICATION_QUEUED, notify=False)
 
     # 5: Create a queue item at this station
-    queue: QueueItem = await QueueItem().create(station.id, session.id)
-    # Wait 120 seconds until the session expires
-    asyncio.create_task(queue.register_expiration(
-        os.getenv('VERIFICATION_EXPIRATION'), SessionStates.PAYMENT_SELECTED))
+    await QueueItem().create(station.id, session.id)
 
     # 6: Log a queueVerification action
     await create_action(session.id, SessionStates.VERIFICATION_QUEUED)
@@ -209,7 +207,7 @@ async def handle_hold_request(session_id: ObjId, user_id: UUID) -> Optional[Sess
     """
     # 1: Find the session and check wether it belongs to the user
     session: Session = Session(await SessionModel.get(session_id))
-    if session.assigned_user != user_id:
+    if str(session.assigned_user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -218,11 +216,9 @@ async def handle_hold_request(session_id: ObjId, user_id: UUID) -> Optional[Sess
     if session.session_state != SessionStates.ACTIVE:
         logger.info(ServiceExceptions.WRONG_SESSION_STATE,
                     session=session_id, detail=session.session_state.value)
-        print('raising')
         raise HTTPException(
             status_code=400, detail=ServiceExceptions.WRONG_SESSION_STATE.value
         )
-    print(session.payment_method)
     # 3: Check wether the user has chosen the app method for payment.
     if session.payment_method == SessionPaymentTypes.TERMINAL:
         logger.info(ServiceExceptions.PAYMENT_METHOD_NOT_AVAILABLE,
@@ -245,7 +241,7 @@ async def handle_payment_request(session_id: ObjId, user_id: UUID) -> Optional[S
     """Put the station into payment mode"""
     # 1: Find the session and check wether it belongs to the user
     session: Session = await Session().fetch(session_id=session_id)
-    if session.assigned_user != user_id:
+    if str(session.assigned_user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -276,10 +272,7 @@ async def handle_payment_request(session_id: ObjId, user_id: UUID) -> Optional[S
     await Payment().create(session_id=session.id)
 
     # 5: Create a queue item and execute if it is next in the queue
-    queue: QueueItem = await QueueItem().create(station.id, session.id)
-    # Wait 120 seconds until the session expires
-    asyncio.create_task(queue.register_expiration(
-        os.getenv('PAYMENT_EXPIRATON'), SessionStates.ACTIVE))
+    await QueueItem().create(station.id, session.id)
 
     # 6: Log the request
     await create_action(session.id, SessionStates.PAYMENT_QUEUED)
@@ -295,7 +288,7 @@ async def handle_cancel_request(session_id: ObjId, user_id: UUID) -> Optional[Se
     """
     # 1: Find the session and check wether it belongs to the user
     session: Session = Session(await SessionModel.get(session_id))
-    if session.assigned_user != user_id:
+    if str(session.assigned_user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
