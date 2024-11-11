@@ -123,8 +123,8 @@ class Station():
         """Update the terminal state of a station. This function either accepts a TerminalState or a SessionState. """
         if terminal_state is None and session_state is not None:
             session_to_terminal_map: dict[SessionStates, TerminalStates] = {
-                SessionStates.VERIFICATION_PENDING: TerminalStates.VERIFICATION,
-                SessionStates.PAYMENT_PENDING: TerminalStates.PAYMENT
+                SessionStates.VERIFICATION: TerminalStates.VERIFICATION,
+                SessionStates.PAYMENT: TerminalStates.PAYMENT
             }
             if session_state in session_to_terminal_map:
                 terminal_state = session_to_terminal_map[session_state]

@@ -30,17 +30,13 @@ class SessionTypes(str, Enum):
 
 
 class SessionStates(str, Enum):
-    # TODO: seperate session state and queue state
     """All possible states a session can be in."""
     # Session created and assigned to locker. Awaiting payment selection
     CREATED = "created"
     # Payment method has been selected, now awaiting request to open locker
-    # for stowing
     PAYMENT_SELECTED = "payment_selected"
-    # Verification at the terminal is queued
-    VERIFICATION_QUEUED = "verification_queued"
     # Terminal is awaiting verification
-    VERIFICATION_PENDING = "verification"
+    VERIFICATION = "verification"
     # Locker opened for the first time, stashing underway. This phase may only
     # last 3 minutes max
     STASHING = 'stashing'
@@ -48,22 +44,18 @@ class SessionStates(str, Enum):
     ACTIVE = "active"
     # Locker opened for retriving stuff (only digital payment)
     HOLD = "hold"
-    # Locker is closed/opened and payment is queued
-    PAYMENT_QUEUED = "payment_queued"
     # Payment is pending at the terminal
-    PAYMENT_PENDING = "payment"
+    PAYMENT = "payment"
     # Locker opens a last time for retrieval
     RETRIEVAL = "retrieval"
     # Session has been completed (paid for, locker closed)
     COMPLETED = "completed"
-
     # Session has been canceled, no active time, no payment
     CANCELLED = "cancelled"
     # Session has expired but locker remained open
     STALE = 'stale'
     # Session has expired due to exceeded time windows
     EXPIRED = "expired"
-
     # Only for logging purposes
     SUBSCRIBED = "subscribed"
     UNSUBSCRIBED = "unsubscribed"
@@ -87,6 +79,9 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     assigned_user: UUID = Field(
         None, description="The assigned user to this station.")
 
+    created_ts: datetime = Field(
+        datetime.now(), description="Datetime of session creation")
+
     ### Session Properties ###
     session_type: SessionTypes = Field(
         default=SessionTypes.PERSONAL, description="The type of session service.\
@@ -98,8 +93,6 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     ### State management ###
     session_state: SessionStates = Field(
         default=SessionStates.CREATED, description="The current, internal set session state.")
-    is_queued: bool = Field(
-        False, description="Whether the session is currently in a queue or not.")
 
     ### Status Broadcasting ###
     @after_event(Replace)

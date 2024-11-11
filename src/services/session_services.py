@@ -188,14 +188,15 @@ async def handle_verification_request(
             status_code=500, detail=ServiceExceptions.STATION_NOT_FOUND.value
         )
 
-    # 4: If all checks pass, set the session to verification queued
-    await session.set_state(SessionStates.VERIFICATION_QUEUED, notify=False)
-
     # 5: Create a queue item at this station
-    await QueueItem().create(station.id, session.id)
+    await QueueItem().create(
+        station_id=station.id,
+        session_id=session.id,
+        next_state=SessionStates.VERIFICATION,
+        timeout_state=SessionStates.PAYMENT_SELECTED)
 
     # 6: Log a queueVerification action
-    await create_action(session.id, SessionStates.VERIFICATION_QUEUED)
+    await create_action(session.id, SessionStates.VERIFICATION)
 
     return session
 
@@ -264,17 +265,19 @@ async def handle_payment_request(session_id: ObjId, user_id: UUID) -> Optional[S
             status_code=500, detail=ServiceExceptions.STATION_NOT_FOUND.value
         )
 
-    # 4: If all checks pass, set the session to verification queued
-    await session.set_state(SessionStates.PAYMENT_QUEUED)
-
     # 5: Create a payment object
     await Payment().create(session_id=session.id)
 
     # 5: Create a queue item and execute if it is next in the queue
-    await QueueItem().create(station.id, session.id)
+    await QueueItem().create(
+        station_id=station.id,
+        session_id=session.id,
+        next_state=SessionStates.PAYMENT,
+        timeout_state=session.session_state
+    )
 
     # 6: Log the request
-    await create_action(session.id, SessionStates.PAYMENT_QUEUED)
+    await create_action(session.id, SessionStates.PAYMENT)
 
     return session
 
@@ -295,8 +298,7 @@ async def handle_cancel_request(session_id: ObjId, user_id: UUID) -> Optional[Se
     accepted_states: list = [
         SessionStates.CREATED,
         SessionStates.PAYMENT_SELECTED,
-        SessionStates.VERIFICATION_QUEUED,
-        SessionStates.VERIFICATION_PENDING,
+        SessionStates.VERIFICATION,
         SessionStates.STASHING,
     ]
     if session.session_state not in accepted_states:

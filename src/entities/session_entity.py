@@ -80,7 +80,7 @@ class Session():
             assigned_station=station_id,
             assigned_locker=locker_id,
             state=SessionStates.CREATED,
-            createdTS=datetime.now(),
+            created_ts=datetime.now(),
         )
         await instance.document.insert()
         return instance
@@ -118,7 +118,7 @@ class Session():
 
         hold_states: List[SessionStates] = [
             SessionStates.HOLD,
-            SessionStates.PAYMENT_QUEUED,
+            SessionStates.PAYMENT,
         ]
 
         # Sum up time between all locked cycles
@@ -145,13 +145,11 @@ class Session():
         """Return the next logical state of the session."""
         state_map: dict[SessionStates, SessionStates] = {
             SessionStates.CREATED: SessionStates.PAYMENT_SELECTED,
-            SessionStates.PAYMENT_SELECTED: SessionStates.VERIFICATION_QUEUED,
-            SessionStates.VERIFICATION_QUEUED: SessionStates.VERIFICATION_PENDING,
-            SessionStates.VERIFICATION_PENDING: SessionStates.STASHING,
+            SessionStates.PAYMENT_SELECTED: SessionStates.VERIFICATION,
+            SessionStates.VERIFICATION: SessionStates.STASHING,
             SessionStates.STASHING: SessionStates.ACTIVE,
-            SessionStates.ACTIVE: SessionStates.PAYMENT_QUEUED,
-            SessionStates.PAYMENT_QUEUED: SessionStates.PAYMENT_PENDING,
-            SessionStates.PAYMENT_PENDING: SessionStates.RETRIEVAL,
+            SessionStates.ACTIVE: SessionStates.PAYMENT,
+            SessionStates.PAYMENT: SessionStates.RETRIEVAL,
             SessionStates.RETRIEVAL: SessionStates.COMPLETED,
         }
         return state_map.get(self.session_state)

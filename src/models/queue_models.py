@@ -32,16 +32,9 @@ class QueueStates(str, Enum):
     EXPIRED = "expired"             # Session has expired
 
 
-EXPIRATION_STATE_MAP: Dict[SessionStates, SessionStates] = {
-    # TODO: Queue has to be able to requeue again
-    SessionStates.VERIFICATION_PENDING: SessionStates.VERIFICATION_QUEUED,
-    SessionStates.PAYMENT_PENDING: SessionStates.PAYMENT_QUEUED,
-    SessionStates.STASHING: SessionStates.STALE,
-}
-
 EXPIRATION_DURATIONS: Dict[SessionStates, int] = {
-    SessionStates.VERIFICATION_PENDING: os.getenv('VERIFICATION_EXPIRATION'),
-    SessionStates.PAYMENT_PENDING: os.getenv('PAYMENT_EXPIRATION'),
+    SessionStates.VERIFICATION: os.getenv('VERIFICATION_EXPIRATION'),
+    SessionStates.PAYMENT: os.getenv('PAYMENT_EXPIRATION'),
 }
 
 
@@ -51,13 +44,32 @@ class QueueItemModel(Document):  # pylint: disable=too-many-ancestors
         by its state and time of registration"""
     id: Optional[ObjId] = Field(None, alias="_id")
 
-    assigned_session: ObjId
-    assigned_station: ObjId
-    queue_state: QueueStates
-    registered_ts: datetime
+    assigned_session: ObjId = Field(
+        None, description="The session this queue item handles.")
+    assigned_station: ObjId = Field(
+        None, description="The station assigned to the related session.")
+
+    queue_state: QueueStates = Field(
+        QueueStates.QUEUED, description='State of the queue item. Not related to the session state.')
+
+    queued_state: SessionStates = Field(
+        SessionStates.EXPIRED, description="The next state of the queued session after activation.")
+
+    # TODO: Required?
+    timeout_state: SessionStates = Field(
+        SessionStates.EXPIRED, description="The state of the session after expiration of a queue.")
+
+    registered_ts: datetime = Field(
+        datetime.now(), description="The datetime when the queue item was created.")
+
+    activated_ts: Optional[datetime] = Field(
+        None, description="The datetime when the queue item was activated.")
+
+    completed: Optional[datetime] = Field(
+        None, description="The datetime when the queue item was completed or expired.")
 
     @after_event(Replace)
-    def report_state(self):
+    def report_state(self) -> None:
         """Log database operation."""
         logger.debug(f"Queue item '{self.id}' set to state {
                      self.queue_state}.")

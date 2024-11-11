@@ -121,8 +121,8 @@ async def handle_station_lock_report(
     report: str = payload.decode('utf-8')
 
     logger.debug(
-        (f"Received '{report.lower()}' report from locker '{locker_index}'"
-         " at station '{station_code}'.")
+        (f"Received '{report.lower()}' report from locker '{
+         locker_index}' at station '{station_code}'.")
     )
 
     if report == "UNLOCKED":

@@ -8,6 +8,7 @@ from datetime import datetime
 # Beanie
 from beanie import PydanticObjectId as ObjId
 from beanie import SortDirection
+from beanie.operators import In
 # Entities
 from src.entities.session_entity import Session
 from src.entities.locker_entity import Locker
@@ -46,13 +47,13 @@ class Payment():
         # 2: Check wether there exists an active payment
         active_payment: PaymentModel = await PaymentModel.find(
             PaymentModel.assigned_session == session_id,
-            PaymentModel.state == PaymentStates.PENDING
-        ).first_or_none()
+            In(PaymentModel.state, [
+               PaymentStates.SCHEDULED, PaymentStates.PENDING])
+        ).sort((PaymentModel.last_updated, SortDirection.DESCENDING)).first_or_none()
 
         last_payment: PaymentModel = await PaymentModel.find(
-            PaymentModel.assigned_session == session_id,
-            PaymentModel.state == PaymentStates.COMPLETED
-        ).sort(PaymentModel.last_updated, SortDirection.DESCENDING).first_or_none()
+            PaymentModel.assigned_session == session_id
+        ).sort((PaymentModel.last_updated, SortDirection.DESCENDING)).first_or_none()
 
         if active_payment:
             instance.document = active_payment
@@ -79,7 +80,6 @@ class Payment():
 
     async def activate(self):
         """Activate this payment."""
-        logger.debug('ACTIVATED payment')
         self.document.state = PaymentStates.PENDING
         await self.document.replace()
 

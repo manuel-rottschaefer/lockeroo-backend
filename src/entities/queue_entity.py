@@ -6,16 +6,16 @@
 from typing import List, Optional
 from datetime import datetime
 import asyncio
-import os
 # Beanie
 from beanie import PydanticObjectId as ObjId
+from beanie import SortDirection
 # Entities
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
 from src.entities.payment_entity import Payment
 # Models
 from src.models.session_models import SessionStates
-from src.models.queue_models import QueueItemModel, QueueStates, EXPIRATION_STATE_MAP, EXPIRATION_DURATIONS
+from src.models.queue_models import QueueItemModel, QueueStates, EXPIRATION_DURATIONS
 # Services
 from src.services.logging_services import logger
 from src.services.exceptions import ServiceExceptions
@@ -48,9 +48,13 @@ class QueueItem():
         instance = cls()
 
         # 2: Look for the latest queue item
+        # TODO: This is seriously fucked up
         queue_item: QueueItemModel = await QueueItemModel.find(
             QueueItemModel.assigned_session == session_id
-        ).sort(-QueueItemModel.registered_ts).first_or_none()
+        ).sort((QueueItemModel.registered_ts, SortDirection.DESCENDING)).first_or_none()
+
+        logger.debug(f'Latest queue item: {
+                     queue_item.id} for session {session_id}')
 
         if queue_item:
             instance.document = queue_item
@@ -59,13 +63,25 @@ class QueueItem():
             return None
 
     @classmethod
-    async def create(cls, station_id: ObjId, session_id: ObjId):
-        """Create a new queue item and insert it into the database."""
+    async def create(cls,
+                     station_id: ObjId,
+                     session_id: ObjId,
+                     next_state: SessionStates,
+                     timeout_state: SessionStates = SessionStates.EXPIRED
+                     ):
+        """Create a new queue item and insert it into the database.
+        :param session_id: The session to be queued
+        :param station_id: The station assigned to the queued session
+        :param next_state: The next state the session will have after queue activation
+        :param timeout_state: The state the session will have after expiring once.
+        """
         instance = cls()
         instance.document = QueueItemModel(
             assigned_session=session_id,
             assigned_station=station_id,
             queue_state=QueueStates.QUEUED,
+            queued_state=next_state,
+            timeout_state=timeout_state,
             registered_ts=datetime.now(),
         )
         await instance.document.insert()
@@ -85,7 +101,7 @@ class QueueItem():
         next_item: Optional[QueueItemModel] = await QueueItemModel.find(
             QueueItemModel.assigned_station == station_id,
             QueueItemModel.queue_state == QueueStates.QUEUED,
-        ).sort(QueueItemModel.registered_ts).first_or_none()
+        ).sort(-QueueItemModel.registered_ts).first_or_none()
 
         if not next_item:
             logger.info("No queued session at station '%s'.", station_id)
@@ -103,7 +119,6 @@ class QueueItem():
     async def is_next(self) -> bool:
         """Check wether this queue item is next in line."""
         next_item = await QueueItem().get_next_in_line(self.document.assigned_station)
-        print(next_item.id, self.document.id)
         return next_item.id == self.document.id
 
     @property
@@ -124,17 +139,17 @@ class QueueItem():
         """Activate the assigned session and set this queue item as completed."""
         # 1: Move session into next
         session: Session = await self.session
-        await session.set_state(await session.next_state)
+        await session.set_state(self.document.queued_state)
 
         # 2: If the session is pending payment, activate it
-        if session.session_state == SessionStates.PAYMENT_PENDING:
+        if session.session_state == SessionStates.PAYMENT:
             payment: Payment = await Payment.fetch(session_id=session.id)
             await payment.activate()
 
         # 3: If the session is pending verification, update the terminal state
         station_relevant_states: List[SessionStates] = [
-            SessionStates.VERIFICATION_PENDING,
-            SessionStates.PAYMENT_PENDING
+            SessionStates.VERIFICATION,
+            SessionStates.PAYMENT
         ]
         if session.session_state in station_relevant_states:
             station: Station = await Station().fetch(session.assigned_station)
@@ -144,18 +159,10 @@ class QueueItem():
         self.document.queue_state = QueueStates.PENDING
         await self.document.replace()
 
-        # Check how often this session has already expired
-        expiration_count: int = await QueueItemModel.find(
-            QueueItemModel.assigned_session == session.id, QueueItemModel.queue_state == QueueStates.EXPIRED).count()
-
-        next_state: SessionStates = EXPIRATION_STATE_MAP[session.session_state]
-        if expiration_count:
-            next_state = SessionStates.EXPIRED
-
         # 5: Create an expiration handler
         asyncio.create_task(self.register_expiration(
             seconds=EXPIRATION_DURATIONS[session.session_state],
-            state=next_state
+            state=self.document.timeout_state
         ))
 
     async def register_expiration(self,
@@ -205,4 +212,6 @@ class QueueItem():
         # 6: Otherwise, create a new queue item
         await QueueItem().create(
             station_id=session.assigned_station,
-            session_id=session.id)
+            session_id=session.id,
+            next_state=self.queued_state,
+        )

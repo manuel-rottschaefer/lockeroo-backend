@@ -9,6 +9,7 @@ from typing import List
 # API services
 from fastapi import HTTPException
 from beanie.operators import In, Near
+from beanie import SortDirection
 
 # Entities
 from src.entities.station_entity import Station
@@ -110,11 +111,13 @@ async def handle_terminal_action_report(call_sign: str) -> None:
 
     # 3: Find the session that is awaiting verification / payment
     accepted_session_states = [
-        SessionStates.VERIFICATION_PENDING, SessionStates.PAYMENT_PENDING]
-    session: Session = Session(await SessionModel.find_one(
+        SessionStates.VERIFICATION, SessionStates.PAYMENT]
+    session: Session = Session(await SessionModel.find(
         SessionModel.assigned_station == station.id,
-        In(SessionModel.session_state, accepted_session_states))
-    )
+        In(SessionModel.session_state, accepted_session_states)
+    ).sort(
+        (SessionModel.created_ts, SortDirection.DESCENDING)
+    ).first_or_none())
     if not session.exists:
         logger.info(ServiceExceptions.SESSION_NOT_FOUND, station=call_sign)
         return
