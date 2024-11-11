@@ -3,8 +3,10 @@ Queue Item Models
 """
 
 # Types
+import os
+from dotenv import load_dotenv
 from enum import Enum
-from typing import Optional
+from typing import Optional, Dict
 from datetime import datetime
 from dataclasses import dataclass
 from pydantic import Field
@@ -13,8 +15,13 @@ from pydantic import Field
 from beanie import Document, Replace, after_event
 from beanie import PydanticObjectId as ObjId
 
+# Models
+from src.models.session_models import SessionStates
+
 # Logging
 from src.services.logging_services import logger
+
+load_dotenv('environments/.env')
 
 
 class QueueStates(str, Enum):
@@ -23,6 +30,19 @@ class QueueStates(str, Enum):
     PENDING = "pending"             # Session is awaiting verification/payment
     COMPLETED = "completed"         # Session has been verified/paid
     EXPIRED = "expired"             # Session has expired
+
+
+EXPIRATION_STATE_MAP: Dict[SessionStates, SessionStates] = {
+    # TODO: Queue has to be able to requeue again
+    SessionStates.VERIFICATION_PENDING: SessionStates.VERIFICATION_QUEUED,
+    SessionStates.PAYMENT_PENDING: SessionStates.PAYMENT_QUEUED,
+    SessionStates.STASHING: SessionStates.STALE,
+}
+
+EXPIRATION_DURATIONS: Dict[SessionStates, int] = {
+    SessionStates.VERIFICATION_PENDING: os.getenv('VERIFICATION_EXPIRATION'),
+    SessionStates.PAYMENT_PENDING: os.getenv('PAYMENT_EXPIRATION'),
+}
 
 
 class QueueItemModel(Document):  # pylint: disable=too-many-ancestors

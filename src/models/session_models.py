@@ -58,6 +58,8 @@ class SessionStates(str, Enum):
 
     # Session has been canceled, no active time, no payment
     CANCELLED = "cancelled"
+    # Session has expired but locker remained open
+    STALE = 'stale'
     # Session has expired due to exceeded time windows
     EXPIRED = "expired"
 
