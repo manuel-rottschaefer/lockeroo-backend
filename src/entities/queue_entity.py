@@ -93,8 +93,8 @@ class QueueItem():
 
         instance.document = next_item
         logger.debug(
-            f"Identified session '{next_item.assigned_session}' in queue at station '{
-                station_id}' as next in line."
+            f"Session '{next_item.assigned_session}' identified as next in queue at station '{
+                station_id}'."
         )
 
         return instance
@@ -103,7 +103,8 @@ class QueueItem():
     async def is_next(self) -> bool:
         """Check wether this queue item is next in line."""
         next_item = await QueueItem().get_next_in_line(self.document.assigned_station)
-        return next_item.id, self.document.id
+        print(next_item.id, self.document.id)
+        return next_item.id == self.document.id
 
     @property
     async def session(self) -> Session:
@@ -143,23 +144,32 @@ class QueueItem():
         self.document.queue_state = QueueStates.PENDING
         await self.document.replace()
 
+        # Check how often this session has already expired
+        expiration_count: int = await QueueItemModel.find(
+            QueueItemModel.assigned_session == session.id, QueueItemModel.queue_state == QueueStates.EXPIRED).count()
+
+        next_state: SessionStates = EXPIRATION_STATE_MAP[session.session_state]
+        if expiration_count:
+            next_state = SessionStates.EXPIRED
+
         # 5: Create an expiration handler
-        # TODO: dynamic expiration duration
-        # TODO: dyanmic expiration resulting state
         asyncio.create_task(self.register_expiration(
-            EXPIRATION_DURATIONS[session.session_state],
-            EXPIRATION_STATE_MAP[session.session_state]
+            seconds=EXPIRATION_DURATIONS[session.session_state],
+            state=next_state
         ))
 
-    async def register_expiration(self, seconds: int, state: SessionStates):
+    async def register_expiration(self,
+                                  seconds: int,
+                                  state: SessionStates):
         """Register an expiration handler. This waits until the expiration duration has passed and then fires up the expiration handler."""
-        logger.debug(f"Registered expiration after {
-                     seconds} seconds for session '{self.assigned_session}'.")
+        logger.debug(f"Session '{self.assigned_session}' will expire in {
+                     seconds} seconds.")
         # 1 Register the expiration handler
         await asyncio.sleep(int(seconds))
 
         # 2: After the expiration time, fire up the expiration handler if requred
         await self.document.sync()
+        # TODO: The queue state is sometimes not updated to completed here.
         if self.document.queue_state == QueueStates.PENDING:
             await self.handle_expiration(state)
 
@@ -168,21 +178,31 @@ class QueueItem():
         action within a limited time. If that time has been exceeded but the action has not been
         completed, the session has to be expired and the user needs to request a new one
         """
+        logger.debug(f"Session '{self.assigned_session}' expired.")
         # 1: Set Session and queue state to expired
         session: Session = await self.session
 
         # 2: If this session has already timed out once, expire it now.
         # The user then has to start a new session again.
-        if await session.timeout_amount > 0:
-            state = SessionStates.EXPIRED
+        # if await session.timeout_amount > 0:
+        #    state = SessionStates.EXPIRED
 
-        # 3: Update session and queue item states
-        await session.set_state(state, True)
+        # 3: Set the queue state of this item to expired
         await self.set_state(QueueStates.EXPIRED)
 
-        # 4: Create a logging message
-        logger.info(
-            ServiceExceptions.SESSION_EXPIRED,
-            session=session.id,
-            detail=session.session_state,
-        )
+        # 4: Update the session state and create a new queue item
+        await session.set_state(state, True)
+
+        # 5: End the queue flow here if the session has expired or is stale.
+        if state in [SessionStates.EXPIRED, SessionStates.STALE]:
+            logger.info(
+                ServiceExceptions.SESSION_EXPIRED,
+                session=session.id,
+                detail=session.session_state,
+            )
+            return
+
+        # 6: Otherwise, create a new queue item
+        await QueueItem().create(
+            station_id=session.assigned_station,
+            session_id=session.id)

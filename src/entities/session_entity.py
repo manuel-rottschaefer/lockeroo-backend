@@ -83,10 +83,6 @@ class Session():
             createdTS=datetime.now(),
         )
         await instance.document.insert()
-        logger.debug(
-            f"Created session '{instance.id}' for user '{
-                user_id}' at station '{station_id}'"
-        )
         return instance
 
     ### Calculated Properties ###
@@ -147,7 +143,7 @@ class Session():
     @property
     async def next_state(self):
         """Return the next logical state of the session."""
-        state_map: dict = {
+        state_map: dict[SessionStates, SessionStates] = {
             SessionStates.CREATED: SessionStates.PAYMENT_SELECTED,
             SessionStates.PAYMENT_SELECTED: SessionStates.VERIFICATION_QUEUED,
             SessionStates.VERIFICATION_QUEUED: SessionStates.VERIFICATION_PENDING,
@@ -170,7 +166,7 @@ class Session():
                 await self.document.replace(skip_actions=[After])
 
             logger.debug(
-                f"Session '{self.id}' updated to state '{self.session_state}'."
+                f"Session '{self.id}' updated to state {self.session_state}."
             )
 
         except (ValueError, TypeError) as e:
@@ -194,14 +190,13 @@ class Session():
 
     async def register_expiration(self, seconds: int):
         """Register an expiration handler. This waits until the expiration duration has passed and then fires up the expiration handler."""
+        # TODO: this method is defined for queue items and sessions, should we unify it?
         # 1 Register the expiration handler
         await asyncio.sleep(int(seconds))
 
         # 2: After the expiration time, fire up the expiration handler if required
         await self.document.sync()
         pending_states: List[SessionStates] = {
-            SessionStates.VERIFICATION_PENDING,
-            SessionStates.PAYMENT_PENDING,
             SessionStates.STASHING,
             SessionStates.HOLD,
             SessionStates.RETRIEVAL
@@ -226,7 +221,6 @@ class Session():
 
         # 3: Update session and queue item states
         await self.set_state(state_map[self.session_state], True)
-        await self.set_state(QueueStates.EXPIRED)
 
         # 4: Create a logging message
         logger.info(

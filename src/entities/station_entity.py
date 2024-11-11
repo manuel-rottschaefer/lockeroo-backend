@@ -102,7 +102,6 @@ class Station():
                         station=self.id)
             return None
 
-        logger.debug(f"Identified locker at station '{self.id}'")
         return locker[0]
 
     ### Terminal setters ###
@@ -114,8 +113,8 @@ class Station():
         No checks are performed here, as the request is assumed to be valid."""
         self.document.station_state = new_state
         await self.replace(skip_actions=['notify_terminal_state'])
-        logger.debug("Station '%s' state set to '%s'.",
-                     self.call_sign, self.station_state.value)
+        logger.debug(f"Station '{self.call_sign}' state set to {
+                     self.station_state}.")
         return new_state
 
     async def set_terminal_state(
