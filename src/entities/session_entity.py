@@ -65,6 +65,7 @@ class Session():
             raise HTTPException(
                 status_code=404, detail=ServiceExceptions.SESSION_NOT_FOUND.value
             )
+        return instance
 
     @classmethod
     async def create(

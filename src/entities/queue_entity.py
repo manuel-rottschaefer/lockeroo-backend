@@ -6,6 +6,7 @@
 from typing import List, Optional
 from datetime import datetime
 import asyncio
+import os
 # Beanie
 from beanie import PydanticObjectId as ObjId
 # Entities
@@ -14,8 +15,7 @@ from src.entities.station_entity import Station
 from src.entities.payment_entity import Payment
 # Models
 from src.models.session_models import SessionStates
-from src.models.queue_models import QueueItemModel, QueueStates
-from src.models.payment_models import PaymentModel, PaymentStates
+from src.models.queue_models import QueueItemModel, QueueStates, EXPIRATION_STATE_MAP, EXPIRATION_DURATIONS
 # Services
 from src.services.logging_services import logger
 from src.services.exceptions import ServiceExceptions
@@ -103,7 +103,7 @@ class QueueItem():
     async def is_next(self) -> bool:
         """Check wether this queue item is next in line."""
         next_item = await QueueItem().get_next_in_line(self.document.assigned_station)
-        return next_item.id == self.document.id
+        return next_item.id, self.document.id
 
     @property
     async def session(self) -> Session:
@@ -139,12 +139,22 @@ class QueueItem():
             station: Station = await Station().fetch(session.assigned_station)
             await station.set_terminal_state(session_state=session.session_state)
 
-        # 3: Set this item as pending
+        # 4: Set this item as pending
         self.document.queue_state = QueueStates.PENDING
         await self.document.replace()
 
+        # 5: Create an expiration handler
+        # TODO: dynamic expiration duration
+        # TODO: dyanmic expiration resulting state
+        asyncio.create_task(self.register_expiration(
+            EXPIRATION_DURATIONS[session.session_state],
+            EXPIRATION_STATE_MAP[session.session_state]
+        ))
+
     async def register_expiration(self, seconds: int, state: SessionStates):
         """Register an expiration handler. This waits until the expiration duration has passed and then fires up the expiration handler."""
+        logger.debug(f"Registered expiration after {
+                     seconds} seconds for session '{self.assigned_session}'.")
         # 1 Register the expiration handler
         await asyncio.sleep(int(seconds))
 
