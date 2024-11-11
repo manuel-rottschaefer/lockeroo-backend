@@ -1,6 +1,7 @@
 """Main backend file"""
 
 # Standard imports
+import os
 from contextlib import asynccontextmanager
 
 # API services
@@ -64,5 +65,6 @@ app.include_router(admin_router, prefix='/admin',
                    tags=['Administrative endpoints'])
 
 if __name__ == "__main__":
+    os.system('clear')
     # Run the server
     uvicorn.run(app, host="0.0.0.0", port=80, reload=True, log_config=None)

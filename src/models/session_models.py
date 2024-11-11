@@ -30,7 +30,8 @@ class SessionTypes(str, Enum):
 
 
 class SessionStates(str, Enum):
-    """All possible states a session can be in"""
+    # TODO: seperate session state and queue state
+    """All possible states a session can be in."""
     # Session created and assigned to locker. Awaiting payment selection
     CREATED = "created"
     # Payment method has been selected, now awaiting request to open locker
@@ -69,7 +70,7 @@ class SessionStates(str, Enum):
 
 
 class SessionPaymentTypes(str, Enum):
-    """All possible payment methods"""
+    """All possible payment methods."""
     TERMINAL = "terminal"
     ONLINE = "online"
 
@@ -97,6 +98,8 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     ### State management ###
     session_state: SessionStates = Field(
         default=SessionStates.CREATED, description="The current, internal set session state.")
+    is_queued: bool = Field(
+        False, description="Whether the session is currently in a queue or not.")
 
     ### Status Broadcasting ###
     @after_event(Replace)

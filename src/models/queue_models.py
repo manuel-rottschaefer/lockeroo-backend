@@ -59,8 +59,8 @@ class QueueItemModel(Document):  # pylint: disable=too-many-ancestors
     @after_event(Replace)
     def report_state(self):
         """Log database operation."""
-        logger.debug(f"Queue item for session '{
-                     self.assigned_session}' updated to state '{self.queue_state}'.")
+        logger.debug(f"Queue item '{self.id}' set to state {
+                     self.queue_state}.")
 
     @dataclass
     class Settings:
