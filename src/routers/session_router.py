@@ -30,7 +30,9 @@ session_router = APIRouter()
 
 @session_router.get('/{session_id}/details',
                     response_model=SessionView,
-                    description='Get the details of a session including (active) time, current price and locker state.')
+                    description=('Get the details of a session including (active) time,'
+                                 'current price and locker state.')
+                    )
 @handle_exceptions(logger)
 @require_auth
 async def get_session_details(
