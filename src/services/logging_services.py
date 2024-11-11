@@ -24,7 +24,7 @@ logging.basicConfig(
     format="{asctime} - {levelname} - {message}",
     style="{",
     level=logging.DEBUG,
-    datefmt="%Y-%m-%d %H:%M",
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 
 
@@ -52,7 +52,7 @@ class LoggingService:
              station: Union[str, ObjId] = '',
              locker: Union[str, ObjId] = '',
              user: Union[str, ObjId] = '',
-             detail: str = ''):
+             detail: str = ''):   # pylint: disable=too-many-arguments
         """As the info level is for strictly defined service exceptions,
         it does not accept regular strings as messages.
         The method also only accepts basic information about an incident

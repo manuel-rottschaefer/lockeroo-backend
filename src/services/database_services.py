@@ -71,10 +71,11 @@ async def restore_mock_data(directory):
                     data = convert_oid(data)
                     await collection.insert_one(data)
 
+
 load_dotenv(dotenv_path='environments/.env')
 
 URI = f"mongodb+srv://{os.getenv('DB_USER')
                        }:{os.getenv('DB_PASS')}@{os.getenv('DB_HOST')}"
 client = AsyncIOMotorClient(URI)
-# await restore_mock_data("src/database/mock_data")
+
 db = client["Lockeroo"]

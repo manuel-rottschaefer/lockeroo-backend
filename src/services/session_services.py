@@ -1,9 +1,5 @@
 """This module handles all session related services."""
 
-# Basics
-import asyncio
-import os
-
 # Typing
 from typing import List, Optional
 from uuid import UUID
@@ -110,6 +106,9 @@ async def handle_creation_request(
     session: Session = await Session.create(user_id=user_id,
                                             locker_id=locker.id,
                                             station_id=station.id)
+    logger.debug(
+        f"Created session '{session.id}' at locker '{locker.id}'."
+    )
 
     # 7: Log the action
     await create_action(session.id, SessionStates.CREATED)
