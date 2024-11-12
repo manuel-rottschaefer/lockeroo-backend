@@ -1,6 +1,4 @@
-"""
-User Models
-"""
+"""User Models."""
 
 # Types
 import dataclasses

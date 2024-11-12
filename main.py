@@ -29,7 +29,6 @@ from src.routers.admin_router import admin_router
 @asynccontextmanager
 async def _lifespan(_fastapi_app: FastAPI):
     """Context manager for the application lifespan"""
-    load_dotenv(dotenv_path='environments/.env')
     await database.setup()
     await fast_mqtt.mqtt_startup()
     # Wait until server shutdown
@@ -53,6 +52,9 @@ app = FastAPI(
     #    "url": "https://www.apache.org/licenses/LICENSE-2.0.html",
     # },
     lifespan=_lifespan)
+
+# Load dotenv config
+load_dotenv('environments/.env')
 
 # Include routers
 app.include_router(stationRouter, prefix="/stations", tags=["Stations"])

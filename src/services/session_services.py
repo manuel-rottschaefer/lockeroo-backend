@@ -27,6 +27,9 @@ from src.models.session_models import (
 from src.models.station_models import StationStates
 from src.models.action_models import ActionModel
 
+# Config
+from src.config.config import locker_config
+
 # Services
 from .users_services import has_active_session
 from .action_services import create_action
@@ -63,7 +66,7 @@ async def handle_creation_request(
     """Create a locker session for the user
     at the given station matching the requested locker type."""
     # 1: Check if the locker type exists
-    if locker_type not in ["small", "medium", "large"]:
+    if locker_type.value not in list(locker_config.keys()):
         logger.debug("Locker type {locker_type} does not exist.")
         raise HTTPException(
             status_code=404, detail=ServiceExceptions.INVALID_LOCKER_TYPE.value
@@ -192,8 +195,9 @@ async def handle_verification_request(
     await QueueItem().create(
         station_id=station.id,
         session_id=session.id,
-        next_state=SessionStates.VERIFICATION,
-        timeout_state=SessionStates.PAYMENT_SELECTED)
+        queued_state=SessionStates.VERIFICATION,
+        timeout_state=SessionStates.PAYMENT_SELECTED
+    )
 
     # 6: Log a queueVerification action
     await create_action(session.id, SessionStates.VERIFICATION)
@@ -272,7 +276,7 @@ async def handle_payment_request(session_id: ObjId, user_id: UUID) -> Optional[S
     await QueueItem().create(
         station_id=station.id,
         session_id=session.id,
-        next_state=SessionStates.PAYMENT,
+        queued_state=SessionStates.PAYMENT,
         timeout_state=session.session_state
     )
 

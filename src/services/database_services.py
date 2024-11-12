@@ -73,7 +73,6 @@ async def restore_mock_data(directory):
 
 
 load_dotenv(dotenv_path='environments/.env')
-
 URI = f"mongodb+srv://{os.getenv('DB_USER')
                        }:{os.getenv('DB_PASS')}@{os.getenv('DB_HOST')}"
 client = AsyncIOMotorClient(URI)

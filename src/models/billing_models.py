@@ -1,8 +1,9 @@
-"""This module declares the models for bills.
-    The goal is to seperate the payment/billing process from the session internally,
-    making additional features easier to implement.
-    A bill is only issued after a completed session,
-    it is not meant for use within an active session
+"""
+This module declares the models for bills.
+The goal is to seperate the payment/billing process from the session internally,
+making additional features easier to implement.
+A bill is only issued after a completed session,
+it is not meant for use within an active session
 """
 
 # Basics

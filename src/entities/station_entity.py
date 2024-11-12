@@ -94,7 +94,7 @@ class Station():
         # TODO: Prioritize open lockers from expired sessions
         locker: LockerModel = await LockerModel.find(
             LockerModel.parent_station == self.id,
-            LockerModel.locker_type.name == locker_type
+            LockerModel.locker_type == locker_type
         ).sort(LockerModel.total_session_count).limit(1).to_list()
 
         if not locker:
