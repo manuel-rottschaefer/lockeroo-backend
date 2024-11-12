@@ -5,6 +5,7 @@
 # Basics
 from typing import Optional
 from datetime import datetime
+from src.config.config import locker_config
 # Beanie
 from beanie import PydanticObjectId as ObjId
 from beanie import SortDirection
@@ -74,13 +75,14 @@ class Payment():
             last_updated=datetime.now()
         )
         await instance.document.insert()
-        logger.debug(f"Add payment entry for session '{session_id}'.")
-
         return instance
 
     async def activate(self):
         """Activate this payment."""
         self.document.state = PaymentStates.PENDING
+        self.document.price = await self.current_price
+        logger.debug(f"Payment '{self.document.id}' set to state {
+                     self.document.state}.")
         await self.document.replace()
 
     @property
@@ -93,16 +95,15 @@ class Payment():
         locker: Locker = await Locker().fetch(session.assigned_locker)
 
         # 3: Get the pricing model for this session
-        pricing_model = locker.type.pricing
+        locker_type = locker_config[locker.locker_type]
 
         # 4:Calculate the total cost
-        calculated_price: int = await pricing_model.minute_rate * (
-            self.document.active_duration / 60
-        )
-
+        calculated_price: int = locker_type['minute_rate'] * \
+            (await session.active_duration / 60)
         # 5: Assure that price is withing bounds
         calculated_price = min(
-            max(calculated_price, pricing_model.min_price), pricing_model.max_price
+            max(calculated_price,
+                locker_type['base_price']), locker_type['max_price']
         )
 
         logger.info(

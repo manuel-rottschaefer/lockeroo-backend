@@ -154,7 +154,7 @@ class Session():
         }
         return state_map.get(self.session_state)
 
-    async def set_state(self, state: SessionStates, notify: bool = True):
+    async def set_state(self, state: SessionStates, notify: bool = True) -> None:
         """Update the current state of a session."""
         try:
             self.document.session_state = state

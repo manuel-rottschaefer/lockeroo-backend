@@ -66,13 +66,13 @@ class QueueItem():
     async def create(cls,
                      station_id: ObjId,
                      session_id: ObjId,
-                     next_state: SessionStates,
+                     queued_state: SessionStates,
                      timeout_state: SessionStates = SessionStates.EXPIRED
                      ):
         """Create a new queue item and insert it into the database.
         :param session_id: The session to be queued
         :param station_id: The station assigned to the queued session
-        :param next_state: The next state the session will have after queue activation
+        :param queued)state: The next state the session will have after queue activation
         :param timeout_state: The state the session will have after expiring once.
         """
         instance = cls()
@@ -80,7 +80,7 @@ class QueueItem():
             assigned_session=session_id,
             assigned_station=station_id,
             queue_state=QueueStates.QUEUED,
-            queued_state=next_state,
+            queued_state=queued_state,
             timeout_state=timeout_state,
             registered_ts=datetime.now(),
         )
@@ -101,7 +101,7 @@ class QueueItem():
         next_item: Optional[QueueItemModel] = await QueueItemModel.find(
             QueueItemModel.assigned_station == station_id,
             QueueItemModel.queue_state == QueueStates.QUEUED,
-        ).sort(-QueueItemModel.registered_ts).first_or_none()
+        ).sort((QueueItemModel.registered_ts, SortDirection.DESCENDING)).first_or_none()
 
         if not next_item:
             logger.info("No queued session at station '%s'.", station_id)
@@ -144,7 +144,11 @@ class QueueItem():
         # 2: If the session is pending payment, activate it
         if session.session_state == SessionStates.PAYMENT:
             payment: Payment = await Payment.fetch(session_id=session.id)
-            await payment.activate()
+            try:
+                await payment.activate()
+            except Exception as e:
+                print(e)
+            print('got payment')
 
         # 3: If the session is pending verification, update the terminal state
         station_relevant_states: List[SessionStates] = [
@@ -158,6 +162,7 @@ class QueueItem():
         # 4: Set this item as pending
         self.document.queue_state = QueueStates.PENDING
         await self.document.replace()
+        # TODO: FIXME session id and state do not match here on payment request
 
         # 5: Create an expiration handler
         asyncio.create_task(self.register_expiration(
@@ -176,7 +181,6 @@ class QueueItem():
 
         # 2: After the expiration time, fire up the expiration handler if requred
         await self.document.sync()
-        # TODO: The queue state is sometimes not updated to completed here.
         if self.document.queue_state == QueueStates.PENDING:
             await self.handle_expiration(state)
 
@@ -213,5 +217,5 @@ class QueueItem():
         await QueueItem().create(
             station_id=session.assigned_station,
             session_id=session.id,
-            next_state=self.queued_state,
+            queued_state=self.queued_state,
         )

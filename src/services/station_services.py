@@ -134,8 +134,6 @@ async def handle_terminal_action_report(call_sign: str) -> None:
     # 6: Instruct the locker to open
     await locker.instruct_unlock()
 
-    # TODO: 7: Create an action here?
-
     # 7: Set the queue item to completed
     queue: QueueItem = await QueueItem().fetch(session_id=session.id)
     await queue.set_state(QueueStates.COMPLETED)
