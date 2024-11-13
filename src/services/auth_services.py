@@ -1,6 +1,4 @@
-"""
-This module provides authentification services.
-"""
+"""Provides utility functions for the auth backend."""
 
 # Basics
 from functools import wraps

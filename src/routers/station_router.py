@@ -3,14 +3,15 @@ This module contains the station router which handles all station related reques
 """
 
 # Basics
-from typing import List
+from typing import List, Optional
 
 # FastAPI
 from fastapi import APIRouter
 
 # Models
+from src.models.station_models import StationView, StationStates
 from src.models.session_models import SessionView
-from src.models.station_models import StationView, StationMaintenance
+from src.models.locker_models import LockerView
 
 # Services
 from src.services import locker_services, station_services
@@ -19,12 +20,12 @@ from src.services.mqtt_services import fast_mqtt
 from src.services.exceptions import ServiceExceptions, handle_exceptions
 
 # Create the router
-stationRouter = APIRouter()
+station_router = APIRouter()
 
 
-@stationRouter.get('/{call_sign}/discover',
-                   response_model=List[StationView],
-                   description="Get a list of all stations within a range of a given location")
+@station_router.get('/{call_sign}/discover',
+                    response_model=List[StationView],
+                    description="Get a list of all stations within a range of a given location.")
 @handle_exceptions(logger)
 async def get_nearby_stations(
         lat: float, lon: float, radius: float, amount: int):
@@ -32,37 +33,50 @@ async def get_nearby_stations(
     return await station_services.discover(lat, lon, radius, amount)
 
 
-@stationRouter.get('/{call_sign}/details',
-                   response_model=StationView,
-                   description='Get detailed information about a station'
-                   )
+@station_router.get('/{call_sign}/details',
+                    response_model=StationView,
+                    description='Get detailed information about a station.'
+                    )
 @handle_exceptions(logger)
 async def get_station_details(call_sign: str) -> StationView:
     """Get detailed information about a station"""
     return await station_services.get_details(call_sign)
 
 
-@stationRouter.get('/{call_sign}/lockers/overview', response_model=SessionView)
+@station_router.get('/{call_sign}/active_session_count',
+                    response_model=int,
+                    description='Get the amount of currently active sessions at this station.'
+                    )
+@handle_exceptions(logger)
+async def get_active_session_count(call_sign: str) -> StationView:
+    """Get detailed information about a station"""
+    return await station_services.get_active_session_count(call_sign)
+
+
+@station_router.get('/{call_sign}/lockers/{locker_index}', response_model=LockerView)
+@handle_exceptions(logger)
+async def get_locker_by_index(call_sign: str, locker_index: int) -> Optional[LockerView]:
+    """Get the availability of lockers at the station"""
+    return await station_services.get_locker_by_index(
+        call_sign=call_sign,
+        locker_index=locker_index
+    )
+
+
+@station_router.get('/{call_sign}/lockers/overview', response_model=SessionView)
 @handle_exceptions(logger)
 async def get_locker_overview(call_sign: str) -> SessionView:
     """Get the availability of lockers at the station"""
     return await station_services.get_locker_overview(call_sign)
 
 
-@stationRouter.post('/{call_sign}/maintenance/schedule',
-                    response_model=StationMaintenance)
+@station_router.put('/{call_sign}/state', response_model=StationView)
 @handle_exceptions(logger)
-async def create_scheduled_maintenance(call_sign: str) -> StationMaintenance:
+async def set_station_state(call_sign: str, state: StationStates) -> StationView:
     """Get the availability of lockers at the station"""
-    return await station_services.get_locker_overview(call_sign)
-
-
-@stationRouter.get('/{call_sign}/maintenance/next',
-                   response_model=StationMaintenance)
-@handle_exceptions(logger)
-async def get_next_scheduled_maintenance(call_sign: str) -> StationMaintenance:
-    """Get the availability of lockers at the station"""
-    return await station_services.get_locker_overview(call_sign)
+    return await station_services.set_station_state(
+        call_sign=call_sign,
+        station_state=state)
 
 ### MQTT Endpoints ###
 # TODO: Improve station mqtt message validation

@@ -1,4 +1,4 @@
-"""This module handles all session related services."""
+"""Provides utility functions for the sesssion management backend."""
 
 # Typing
 from typing import List, Optional
@@ -175,7 +175,10 @@ async def handle_verification_request(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
 
     # 2: Check if the session is in the correct states
-    if session.session_state not in [SessionStates.PAYMENT_SELECTED]:
+    accepted_states: List[SessionStates] = [
+        SessionStates.PAYMENT_SELECTED,
+    ]
+    if session.session_state not in accepted_states:
         logger.info(ServiceExceptions.WRONG_SESSION_STATE,
                     session=session_id, detail=session.session_state.value)
         raise HTTPException(

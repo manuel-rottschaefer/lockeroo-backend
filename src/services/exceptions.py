@@ -1,6 +1,4 @@
-"""
-This module contains custom exceptions for the services.
-"""
+"""Provides custom service exceptions for the backend."""
 
 # Basics
 from functools import wraps

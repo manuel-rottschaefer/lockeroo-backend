@@ -1,6 +1,4 @@
-"""
-This module contains the logging configuration for the API.
-"""
+"""Provides utility functions for the logging manager."""
 
 # Basics
 from typing import Union
@@ -119,16 +117,15 @@ class LoggingService:
 
 
 # Disable debug messages for pymongo
-logging.getLogger('pymongo.topology').setLevel(logging.WARNING)
-logging.getLogger('pymongo.connection').setLevel(logging.WARNING)
-logging.getLogger('pymongo.serverSelection').setLevel(logging.WARNING)
-logging.getLogger('pymongo.command').setLevel(logging.WARNING)
-logging.getLogger('dotenv').setLevel(logging.ERROR)
+loggers = [name for name, logger in logging.Logger.manager.loggerDict.items()
+           if isinstance(logger, logging.Logger)]
+for logger in loggers:
+    # logging.debug(f'Setting logger {logger} to level state warning.')
+    logging.getLogger(logger).setLevel(logging.WARNING)
+# logging.getLogger('dotenv').setLevel(logging.WARNING)
+
 
 # Seperate entries
 logging.info('---------------------------------------------------------------')
 
 logger = LoggingService()
-
-# logger.debug(str([name for name, logger in logging.Logger.manager.loggerDict.items()
-#     if isinstance(logger, logging.Logger)]))

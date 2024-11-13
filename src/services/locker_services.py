@@ -1,6 +1,4 @@
-"""
-This module contains the services for the locker management.
-"""
+"""Provides utility functions for the locker management backend."""
 
 # Basics
 import asyncio
@@ -15,10 +13,14 @@ from beanie.operators import In
 from src.entities.station_entity import Station
 from src.entities.session_entity import Session
 from src.entities.locker_entity import Locker
+from src.entities.queue_entity import QueueItem
+
 # Models
 from src.models.locker_models import LockerModel, LockerStates
 from src.models.session_models import SessionModel, SessionStates
 from src.models.station_models import StationModel
+from src.models.queue_models import QueueStates
+
 # Services
 from src.services.logging_services import logger
 from src.services.exceptions import ServiceExceptions
@@ -79,9 +81,11 @@ async def handle_lock_report(call_sign: str, locker_index: int) -> None:
 
     # 5: If those checks pass, update the locker and session state
     await locker.set_state(LockerStates.LOCKED)
-
-    # 6: Put session into next state and notify user
     await session.set_state(await session.next_state)
+
+    # 6: Complete the queue item
+    queue_item: QueueItem = await QueueItem().fetch(session_id=session.id)
+    await queue_item.set_state(QueueStates.COMPLETED)
 
     # 7: Create an action for this
     await create_action(session.id, session.session_state)
@@ -109,26 +113,37 @@ async def handle_unlock_confirmation(station_callsign: str, locker_index: int) -
         return False
 
     # 4: Find the assigned session
-    active_session_states = [SessionStates.VERIFICATION,
-                             SessionStates.PAYMENT,
-                             SessionStates.HOLD]
+    accepted_session_states = [SessionStates.VERIFICATION,
+                               SessionStates.PAYMENT,
+                               SessionStates.HOLD]
     session: Session = Session(await SessionModel.find(
         SessionModel.assigned_locker == locker.id,
-        In(SessionModel.session_state, active_session_states)
     ).sort((SessionModel.created_ts, SortDirection.DESCENDING)).first_or_none()
     )
     if not session:
         logger.info(ServiceExceptions.SESSION_NOT_FOUND,
                     station=station_callsign)
-        return False
+        return
+    elif session.session_state not in accepted_session_states:
+        logger.info(ServiceExceptions.WRONG_SESSION_STATE,
+                    session=session.id, detail=session.session_state)
+        return
 
     # 5: Update locker and session states
     await locker.set_state(LockerStates.UNLOCKED)
-    await session.set_state(await session.next_state)
+
+    # TODO: Verify that the session is in a state
+    await QueueItem().create(station_id=station.id,
+                             session_id=session.id,
+                             queued_state=await session.next_state,
+                             timeout_state=SessionStates.STALE,
+                             skip_eval=True
+                             )
 
     # 6: Register an expiration event for this session
-    asyncio.create_task(session.register_expiration(
-        os.getenv('STASHING_EXPIRATION')))
+    # TODO: Create queue item here
+    # asyncio.create_task(session.register_expiration(
+    # os.getenv('STASHING_EXPIRATION')))
 
     # 7: Create action entry
     await create_action(session.id, session.session_state)

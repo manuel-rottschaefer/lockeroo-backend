@@ -3,6 +3,9 @@
 # Basics
 from beanie import PydanticObjectId as ObjId
 
+# Types
+from typing import Optional
+
 # Entities
 from src.entities.locker_entity import Locker
 
@@ -88,21 +91,29 @@ class Station():
                       )
                       )
 
-    async def find_available_locker(self, locker_type: str) -> LockerModel:
+    async def find_available_locker(self, locker_type: str) -> Optional[LockerModel]:
         """This methods handles the locker selection process at a station."""
-        # Try to find a locker that suits all requirements
-        # TODO: Prioritize open lockers from expired sessions
+        # 1. Try to find a locker from stale a stale session
+        stale_session = await SessionModel.find(
+            SessionModel.assigned_station == self.id,
+            SessionModel.session_state == SessionStates.STALE
+        ).first_or_none()
+
+        if stale_session:
+            return await Locker().fetch(locker_id=stale_session.assigned_locker)
+
+        # 2: If there is no stale locker, find a usual one
         locker: LockerModel = await LockerModel.find(
             LockerModel.parent_station == self.id,
             LockerModel.locker_type == locker_type
-        ).sort(LockerModel.total_session_count).limit(1).to_list()
+        ).sort(LockerModel.total_session_count).first_or_none()
 
         if not locker:
             logger.info(ServiceExceptions.LOCKER_NOT_AVAILABLE,
                         station=self.id)
             return None
 
-        return locker[0]
+        return locker
 
     ### Terminal setters ###
 
@@ -133,8 +144,8 @@ class Station():
 
         await self.document.replace(skip_actions=['notify_station_state'])
         logger.debug(
-            f"Station '{self.call_sign}' terminal state awaiting '{
-                self.terminal_state.value}'."
+            f"Terminal at station '{self.call_sign}' set to {
+                self.terminal_state}."
         )
         return terminal_state
 

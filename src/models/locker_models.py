@@ -12,7 +12,7 @@ from enum import Enum
 from typing import Optional
 
 # Types
-from beanie import Document, Replace, after_event
+from beanie import Document, View, Replace, after_event
 from beanie import PydanticObjectId as ObjId
 
 # Models
@@ -41,6 +41,17 @@ class LockerTypes(str, Enum):
 
 class LockerModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a single locker in the database."""
+    @after_event(Replace)
+    def log_db_ops(self):
+        """Log the Database operation for debugging purposes."""
+        logger.debug(f"Locker '{self.id}' has been reported as '{
+                     self.reported_state}'.")
+
+    @dataclasses.dataclass
+    class Settings:
+        """Name in database"""
+        name = "lockers"
+
     ### Identification ###
     id: Optional[ObjId] = Field(
         None, alias="_id", description='ObjectID in the database.')
@@ -64,13 +75,18 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
     last_service_ts: datetime = Field(...,
                                       description='Timestamp of the last service.')
 
-    @after_event(Replace)
-    def log_db_ops(self):
-        """Log the Database operation for debugging purposes."""
-        logger.debug(f"Locker '{self.id}' has been reported as '{
-                     self.reported_state}'.")
 
-    @dataclasses.dataclass
+class LockerView(View):
+    """A public view of the locker model."""
     class Settings:
-        """Name in database"""
-        name = "lockers"
+        source = LockerModel
+
+    id: Optional[ObjId] = Field(
+        None, alias="_id", description='ObjectID in the database.')
+    parent_station: ObjId = Field(...,
+                                  description='Station this locker belongs to.')
+
+    #### Locker Properties ###
+    locker_type: LockerTypes
+    station_index: int = Field(
+        ..., description='Index of the locker in the station (Also printed on the doors).')

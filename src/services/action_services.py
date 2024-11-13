@@ -1,6 +1,4 @@
-"""
-This file contains the services for the actions.
-"""
+"""Provides utility functions for the action backend."""
 
 # Basics
 from datetime import datetime

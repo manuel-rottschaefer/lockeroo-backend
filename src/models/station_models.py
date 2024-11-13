@@ -97,6 +97,8 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
 
 class StationView(View):
     """Public representation of a station"""
+    class Settings:
+        source = StationModel
 
     # Identification
     id: Optional[ObjId] = Field(None, alias="_id")
@@ -121,51 +123,14 @@ class StationView(View):
     geolocation: Tuple[float, float]
     nearby_public_transit: Optional[str]
 
+    # TODO: No method in a view, solve this differently
     async def get_locker_availability(self, station_services):
         """Get the availability of lockers at the station"""
         return await station_services.get_locker_availability(self)
 
 
-class StationLockers(View):
+class StationLockerAvailabilities(View):
     """Availability of each locker type at a station"""
-
     small: bool
     medium: bool
     large: bool
-
-
-class StationMaintenanceStates(str, Enum):
-    """All possible states of a station maintenance event"""
-
-    SCHEDULED = "scheduled"
-    ACTIVE = "active"
-    COMPLETED = "completed"
-    ISSUE = "issue"
-    CANCELED = "canceled"
-
-
-class StationMaintenance(Document):  # pylint: disable=too-many-ancestors
-    """Entity of a station mainentance event"""
-
-    id: Optional[ObjId] = Field(None, alias="_id")
-
-    assigned_station: ObjId = Field(
-        "Station to which this maintenance is assigned to")
-
-    scheduled: datetime = Field(description="Scheduled time of maintenance")
-    started: Optional[datetime] = Field(description="Actual starting time")
-    completed: Optional[datetime] = Field(
-        description="Actual completition time")
-
-    state: StationMaintenanceStates = Field(
-        description="Current state of the maintenance item"
-    )
-
-    assigned_person: str = Field(
-        default="", description="The person assigned with this task"
-    )
-
-    class Settings:
-        """Name in Database"""
-
-        name = "maintenance"

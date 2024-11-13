@@ -20,10 +20,11 @@ import src.services.database_services as database
 # Routers
 from src.routers.account_router import account_router
 from src.routers.session_router import session_router
-from src.routers.station_router import stationRouter
+from src.routers.station_router import station_router
 from src.routers.auth_router import auth_router
 from src.routers.review_router import review_router
 from src.routers.admin_router import admin_router
+from src.routers.dashboard_router import dashboard_router
 
 
 @asynccontextmanager
@@ -57,7 +58,7 @@ app = FastAPI(
 load_dotenv('environments/.env')
 
 # Include routers
-app.include_router(stationRouter, prefix="/stations", tags=["Stations"])
+app.include_router(station_router, prefix="/stations", tags=["Stations"])
 app.include_router(session_router, prefix="/sessions", tags=["Sessions"])
 app.include_router(account_router, prefix="/account",
                    tags=["Personal Account"])
@@ -65,6 +66,7 @@ app.include_router(auth_router, prefix='/auth', tags=['Authentification'])
 app.include_router(review_router, prefix='/review', tags=['Session Reviews'])
 app.include_router(admin_router, prefix='/admin',
                    tags=['Administrative endpoints'])
+app.include_router(dashboard_router, prefix='/dashboard', tags=['Dashboard'])
 
 if __name__ == "__main__":
     os.system('clear')

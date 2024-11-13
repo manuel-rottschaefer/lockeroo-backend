@@ -1,4 +1,4 @@
-"""Initialize the database and load mock data"""
+"""Provides utility functions for the database."""
 
 # Basics
 import json

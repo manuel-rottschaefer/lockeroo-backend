@@ -209,7 +209,6 @@ class Session():
         completed, the session has to be expired and the user needs to request a new one
         """
 
-        # TODO: Maybe we should introduce a new session state 'stale' that only enters if a locker is left open.
         # This would make finding open lockers easier.
         state_map: Dict[SessionStates, SessionStates] = {
             SessionStates.STASHING: SessionStates.EXPIRED,

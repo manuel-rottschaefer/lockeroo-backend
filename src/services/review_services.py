@@ -1,6 +1,4 @@
-"""
-This file contains the services for the review endpoints.
-"""
+"""Provides utility functions for the review management backend."""
 
 # Basics
 from datetime import datetime

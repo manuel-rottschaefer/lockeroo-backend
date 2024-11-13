@@ -1,6 +1,4 @@
-"""
-This module contains the services for the station model.
-"""
+"""Provides utility functions for the station management backend."""
 
 # Basics
 from datetime import datetime
@@ -8,7 +6,7 @@ from typing import List
 
 # API services
 from fastapi import HTTPException
-from beanie.operators import In, Near
+from beanie.operators import In, NotIn, Near
 from beanie import SortDirection
 
 # Entities
@@ -19,10 +17,10 @@ from src.entities.queue_entity import QueueItem
 
 # Models
 from src.models.locker_models import LockerModel
-from src.models.session_models import SessionModel, SessionStates
+from src.models.session_models import SessionModel, SessionStates, INACTIVE_SESSION_STATES
 from src.models.queue_models import QueueStates
-from src.models.station_models import (StationLockers, StationModel, StationStates,
-                                       StationView, TerminalStates, StationMaintenance)
+from src.models.station_models import (StationLockerAvailabilities, StationModel,
+                                       StationView, StationStates, TerminalStates)
 
 # Services
 from src.services.exceptions import ServiceExceptions
@@ -41,29 +39,37 @@ async def discover(lat: float, lon: float, radius,
 
 
 async def get_details(call_sign: str) -> StationView:
-    """Get detailed information about a station"""
-
+    """Get detailed information about a station."""
     # Get station data from the database
-    station = await StationModel.find_one(StationModel.call_sign == call_sign)
-
+    station: Station = await Station().fetch(call_sign=call_sign)
     if not station:
-        raise HTTPException(status_code=404, detail="Station not found")
+        raise HTTPException(
+            status_code=404, detail=ServiceExceptions.STATION_NOT_FOUND)
 
-    return station
-
-
-async def set_state(self: StationModel, station_state: StationStates):
-    """Update the state of a locker. No checks are performed here,
-    as the request is assumed to be valid."""
-    self.station_state = station_state
-    await self.replace()
-    logger.info("Station %s state set to {\
-            %s", self.call_sign, station_state.value)
-    return self
+    return station.document
 
 
-async def get_locker_overview(call_sign: StationModel) -> StationLockers:
-    """Determine for each locker type if it is available at the given station"""
+async def get_active_session_count(call_sign: str) -> int:
+    """Get the amount of currently active sessions at this station."""
+    station: Station = await Station().fetch(call_sign=call_sign)
+    if not station:
+        raise HTTPException(
+            status_code=404, detail=ServiceExceptions.STATION_NOT_FOUND)
+
+    return await SessionModel.find(
+        SessionModel.assigned_station == station.id,
+        NotIn(SessionModel.session_state, INACTIVE_SESSION_STATES)
+    ).count()
+
+
+async def get_locker_by_index(call_sign: str, locker_index: int):
+    """Get the locker at a station by its index."""
+    station: Station = await Station().fetch(call_sign=call_sign)
+    return await Locker().fetch(station_id=station.id, index=locker_index)
+
+
+async def get_locker_overview(call_sign: str) -> StationLockerAvailabilities:
+    """Determine for each locker type if it is available at the given station."""
 
     # 1: Check whether the station exists
     station: Station = await Station().fetch(call_sign=call_sign)
@@ -74,7 +80,7 @@ async def get_locker_overview(call_sign: StationModel) -> StationLockers:
             status_code=404, detail=ServiceExceptions.STATION_NOT_FOUND.value)
 
     # 2: Create the object
-    availability = StationLockers()
+    availability = StationLockerAvailabilities()
 
     # 3: Loop over each locker type to find the amount of lockers
     locker_types = ['small', 'medium', 'large']
@@ -88,6 +94,13 @@ async def get_locker_overview(call_sign: StationModel) -> StationLockers:
         availability[locker_type] = len(locker_data) != 0
 
     return availability
+
+
+async def set_station_state(call_sign: str, station_state: StationStates) -> StationView:
+    """Set the state of a station."""
+    station: Station = Station().fetch(call_sign=call_sign)
+    await station.set_station_state(station_state)
+    return station.document
 
 
 async def handle_terminal_action_report(call_sign: str) -> None:
@@ -148,24 +161,3 @@ async def handle_terminal_mode_confirmation(call_sign: str, _mode: str):
     )
     if not station:
         logger.info(ServiceExceptions.STATION_NOT_FOUND, call_sign)
-
-
-### Maintenance Events ###
-async def create_maintenance_event(call_sign: str,
-                                   scheduled_ts: datetime,
-                                   _assigned_person: str) -> StationMaintenance:
-    """Insert a maintenance event in the database."""
-    # TODO: move to maintenance router and use station entity
-    # 1: Get the station object
-    station: StationModel = await StationModel.find_one(
-        StationModel.call_sign == call_sign
-    )
-    if not station:
-        logger.info(ServiceExceptions.STATION_NOT_FOUND, call_sign)
-
-    maintenance: StationMaintenance = await StationMaintenance(
-        station=station.id,
-        scheduled=scheduled_ts
-    ).insert()
-
-    return maintenance
