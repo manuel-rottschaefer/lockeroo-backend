@@ -31,7 +31,6 @@ from src.models.action_models import ActionModel
 from src.config.config import locker_config
 
 # Services
-from .users_services import has_active_session
 from .action_services import create_action
 from .logging_services import logger
 from .exceptions import ServiceExceptions
