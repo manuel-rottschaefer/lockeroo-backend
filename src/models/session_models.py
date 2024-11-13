@@ -7,7 +7,7 @@ from datetime import datetime
 from enum import Enum
 
 # Types
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from pydantic import Field
 import dataclasses
@@ -67,6 +67,14 @@ class SessionPaymentTypes(str, Enum):
     ONLINE = "online"
 
 
+INACTIVE_SESSION_STATES: List[SessionStates] = [
+    SessionStates.COMPLETED,
+    SessionStates.CANCELLED,
+    SessionStates.STALE,
+    SessionStates.EXPIRED
+]
+
+
 class SessionModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a session in the database.
          All relevant timestamps are stored in actions."""
@@ -75,12 +83,12 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     assigned_station: ObjId = Field(
         None, description="The assigned station to this session.")
     assigned_locker: ObjId = Field(
-        None, description="The assigned locker to this station.")
+        None, description="The assigned locker to this session.")
     assigned_user: UUID = Field(
-        None, description="The assigned user to this station.")
+        None, description="The assigned user to this session.")
 
     created_ts: datetime = Field(
-        datetime.now(), description="Datetime of session creation")
+        datetime.now(), description="Datetime of session creation.")
 
     ### Session Properties ###
     session_type: SessionTypes = Field(
@@ -118,17 +126,30 @@ class SessionView(View):
     id: ObjId
     assigned_station: ObjId = Field(
         description="Station at which the session takes place")
+
+    assigned_user: UUID = Field(
+        None, description="The assigned user to this session.")
+
     locker_index: Optional[int] = Field(
         default=None, description="Local index of the locker at its station")
+
     session_type: SessionTypes = Field(
         default=SessionTypes.PERSONAL, description="Type of session")
+
     session_state: SessionStates = Field(
         default=SessionStates.CREATED, description="Current state of the session")
+
+    created_ts: datetime = Field(
+        datetime.now(), description="Datetime of session creation.")
 
     @dataclasses.dataclass
     class Config:
         """Alias for _id"""
         from_attributes = True
+
+    @dataclasses.dataclass
+    class Setttings:
+        source = SessionModel
 
 
 class CompletedSession(View):

@@ -35,6 +35,9 @@ class QueueStates(str, Enum):
 EXPIRATION_DURATIONS: Dict[SessionStates, int] = {
     SessionStates.VERIFICATION: os.getenv('VERIFICATION_EXPIRATION'),
     SessionStates.PAYMENT: os.getenv('PAYMENT_EXPIRATION'),
+    SessionStates.STASHING: os.getenv('STASHING_EXPIRATION'),
+    SessionStates.HOLD: os.getenv('HOLD_EXPIRATION'),
+    SessionStates.RETRIEVAL: os.getenv('RETRIEVAL_EXPIRATION'),
 }
 
 
@@ -59,10 +62,16 @@ class QueueItemModel(Document):  # pylint: disable=too-many-ancestors
     timeout_state: SessionStates = Field(
         SessionStates.EXPIRED, description="The state of the session after expiration of a queue.")
 
-    registered_ts: datetime = Field(
+    expiration_window: int = Field(
+        0, description="The time in seconds until the queue expires.")
+
+    expires_at: Optional[datetime] = Field(
+        None, description="The timestamp when the queue will expire.")
+
+    created_at: datetime = Field(
         datetime.now(), description="The datetime when the queue item was created.")
 
-    activated_ts: Optional[datetime] = Field(
+    activated_at: Optional[datetime] = Field(
         None, description="The datetime when the queue item was activated.")
 
     completed: Optional[datetime] = Field(
