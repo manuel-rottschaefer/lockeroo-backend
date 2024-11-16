@@ -5,7 +5,6 @@ This file contains the router for the account related endpoints
 # Types
 from typing import List
 from uuid import UUID
-from beanie import PydanticObjectId as ObjId
 
 # FastAPI
 from fastapi import APIRouter, HTTPException

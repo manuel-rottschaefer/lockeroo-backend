@@ -1,13 +1,15 @@
 """Provides utility functions for the station management backend."""
 
 # Basics
-from datetime import datetime
 from typing import List
 
 # API services
 from fastapi import HTTPException
 from beanie.operators import In, NotIn, Near
+
+# Beanie
 from beanie import SortDirection
+from beanie.operators import Set
 
 # Entities
 from src.entities.station_entity import Station
@@ -18,7 +20,7 @@ from src.entities.queue_entity import QueueItem
 # Models
 from src.models.locker_models import LockerModel
 from src.models.session_models import SessionModel, SessionStates, INACTIVE_SESSION_STATES
-from src.models.queue_models import QueueStates
+from src.models.queue_models import QueueItemModel, QueueStates
 from src.models.station_models import (StationLockerAvailabilities, StationModel,
                                        StationView, StationStates, TerminalStates)
 
@@ -103,6 +105,26 @@ async def set_station_state(call_sign: str, station_state: StationStates) -> Sta
     return station.document
 
 
+async def reset_queue(call_sign: str) -> StationView:
+    """Reset the queue of the station by putting all queue
+    items in state QUEUED and re-evaluating the queue."""
+    # 1: Get the station
+    station: Station = await Station().fetch(call_sign=call_sign)
+
+    # 2: Get all stale queue items at the station
+    queue_items: List[QueueItemModel] = await QueueItemModel.find(
+        QueueItemModel.assigned_station == station.id,
+        QueueItemModel.queue_state == QueueStates.PENDING
+    ).sort(QueueItemModel.created_at)
+
+    # 3: Set all to state QUEUED
+    await queue_items.update(Set({QueueItemModel.queue_state: QueueStates.QUEUED}))
+
+    # 3: Re-evaluate the queue
+    first_queue_item: QueueItem = QueueItem(queue_items[0])
+    await first_queue_item.activate()
+
+
 async def handle_terminal_action_report(call_sign: str) -> None:
     """This handler processes reports of completed actions at a station.
         It verifies the authenticity of the report and then updates the state
@@ -114,7 +136,7 @@ async def handle_terminal_action_report(call_sign: str) -> None:
         logger.info(ServiceExceptions.STATION_NOT_FOUND, station=call_sign)
         return
 
-    # 2: Check wether the station is currently told to await an action
+    # 2: Check whether the station is currently told to await an action
     accepted_terminal_states = [
         TerminalStates.VERIFICATION, TerminalStates.PAYMENT]
     if station.terminal_state not in accepted_terminal_states:
@@ -145,7 +167,7 @@ async def handle_terminal_action_report(call_sign: str) -> None:
     await station.set_terminal_state(TerminalStates.IDLE)
 
     # 6: Instruct the locker to open
-    await locker.instruct_unlock()
+    await locker.instruct_unlock(call_sign=station.call_sign)
 
     # 7: Set the queue item to completed
     queue: QueueItem = await QueueItem().fetch(session_id=session.id)

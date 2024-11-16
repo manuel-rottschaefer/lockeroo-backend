@@ -74,7 +74,7 @@ class Maintenance():
             assigned_station=station_id,
             assigned_staff=staff_id,
             state=MaintenanceStates.SCHEDULED,
-            scheduled=datetime.now(),
+            scheduled_for=datetime.now(),
         )
         await instance.document.insert()
         return instance

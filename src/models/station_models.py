@@ -79,25 +79,23 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     def notify_station_state(self):
         """Send an update message regarding the session state to the mqtt broker."""
         fast_mqtt.publish(
-            f"stations/{self.id}/state", self.station_state.value)
+            f"stations/{self.call_sign}/state", self.station_state.value)
 
     ### State broadcasting ###
     @after_event(Replace)
     def notify_terminal_state(self):
         """Send an update message regarding the session state to the mqtt broker."""
         fast_mqtt.publish(
-            f"stations/{self.id}/terminal", self.terminal_state.value)
+            f"stations/{self.call_sign}/terminal", self.terminal_state.value)
 
     @dataclasses.dataclass
-    class Settings:
-        """Name in database"""
-
+    class Settings:  # pylint: disable=missing-class-docstring
         name = "stations"
 
 
 class StationView(View):
     """Public representation of a station"""
-    class Settings:
+    class Settings:  # pylint: disable=missing-class-docstring, too-few-public-methods
         source = StationModel
 
     # Identification

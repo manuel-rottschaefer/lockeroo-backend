@@ -45,7 +45,7 @@ class Payment():
         # 1: Create the instance
         instance = cls()
 
-        # 2: Check wether there exists an active payment
+        # 2: Check whether there exists an active payment
         active_payment: PaymentModel = await PaymentModel.find(
             PaymentModel.assigned_session == session_id,
             In(PaymentModel.state, [

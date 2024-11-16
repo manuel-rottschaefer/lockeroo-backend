@@ -18,9 +18,6 @@ from beanie import PydanticObjectId as ObjId
 # Models
 from pydantic import Field
 
-# Config
-from src.config.config import locker_config
-
 # Logging
 from src.services.logging_services import logger
 
@@ -44,12 +41,11 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
     @after_event(Replace)
     def log_db_ops(self):
         """Log the Database operation for debugging purposes."""
-        logger.debug(f"Locker '{self.id}' has been reported as '{
-                     self.reported_state}'.")
+        logger.debug(f"Locker '{self.id}' has been reported as {
+                     self.reported_state}.")
 
     @dataclasses.dataclass
-    class Settings:
-        """Name in database"""
+    class Settings:  # pylint: disable=missing-class-docstring
         name = "lockers"
 
     ### Identification ###
@@ -78,8 +74,6 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
 
 class LockerView(View):
     """A public view of the locker model."""
-    class Settings:
-        source = LockerModel
 
     id: Optional[ObjId] = Field(
         None, alias="_id", description='ObjectID in the database.')
@@ -90,3 +84,6 @@ class LockerView(View):
     locker_type: LockerTypes
     station_index: int = Field(
         ..., description='Index of the locker in the station (Also printed on the doors).')
+
+    class Settings:  # pylint: disable=missing-class-docstring
+        source = LockerModel

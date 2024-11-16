@@ -89,7 +89,7 @@ class Session():
 
     @property
     def exists(self) -> bool:
-        """Check wether this object exists."""
+        """Check whether this object exists."""
         return self.document is not None
 
     @property
@@ -99,7 +99,7 @@ class Session():
 
     @property
     def has_expired(self) -> bool:
-        """Return wether the session has already expired."""
+        """Return whether the session has already expired."""
         return False
 
     @property
@@ -204,7 +204,7 @@ class Session():
             await self.handle_expiration()
 
     async def handle_expiration(self) -> None:
-        """Checks wether the session has entered a state where the user needs to conduct an
+        """Checks whether the session has entered a state where the user needs to conduct an
         action within a limited time. If that time has been exceeded but the action has not been
         completed, the session has to be expired and the user needs to request a new one
         """

@@ -61,7 +61,8 @@ class Locker():
         self.document.reported_state = state
         await self.document.replace()
 
-    async def instruct_unlock(self):
+    async def instruct_unlock(self, call_sign: str):
+        # TODO: This function is being called only once, evaluate alternative locations
         """Send a message to the station to unlock the locker."""
         fast_mqtt.publish(
-            f'stations/{self.document.parent_station}/locker/instruct', 'UNLOCK')
+            f'stations/{call_sign}/locker/{self.station_index}/instruct', 'UNLOCK')

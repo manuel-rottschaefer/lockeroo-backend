@@ -1,14 +1,12 @@
-"""
-Queue Item Models
-"""
+"""Models for queue items."""
 
 # Types
 import os
-from dotenv import load_dotenv
-from enum import Enum
-from typing import Optional, Dict
 from datetime import datetime
 from dataclasses import dataclass
+from enum import Enum
+from typing import Optional, Dict
+from dotenv import load_dotenv
 from pydantic import Field
 
 # Beanie
@@ -21,7 +19,7 @@ from src.models.session_models import SessionStates
 # Logging
 from src.services.logging_services import logger
 
-load_dotenv('environments/.env')
+load_dotenv('src/environments/.env')
 
 
 class QueueStates(str, Enum):
@@ -49,18 +47,22 @@ class QueueItemModel(Document):  # pylint: disable=too-many-ancestors
 
     assigned_session: ObjId = Field(
         None, description="The session this queue item handles.")
+
     assigned_station: ObjId = Field(
         None, description="The station assigned to the related session.")
 
     queue_state: QueueStates = Field(
-        QueueStates.QUEUED, description='State of the queue item. Not related to the session state.')
+        QueueStates.QUEUED,
+        description='State of the queue item. Not related to the session state.')
 
     queued_state: SessionStates = Field(
-        SessionStates.EXPIRED, description="The next state of the queued session after activation.")
+        SessionStates.EXPIRED,
+        description="The next state of the queued session after activation.")
 
     # TODO: Required?
     timeout_state: SessionStates = Field(
-        SessionStates.EXPIRED, description="The state of the session after expiration of a queue.")
+        SessionStates.EXPIRED,
+        description="The state of the session after expiration of a queue.")
 
     expiration_window: int = Field(
         0, description="The time in seconds until the queue expires.")
@@ -69,7 +71,8 @@ class QueueItemModel(Document):  # pylint: disable=too-many-ancestors
         None, description="The timestamp when the queue will expire.")
 
     created_at: datetime = Field(
-        datetime.now(), description="The datetime when the queue item was created.")
+        datetime.now(),
+        description="The datetime when the queue item was created.")
 
     activated_at: Optional[datetime] = Field(
         None, description="The datetime when the queue item was activated.")
@@ -84,6 +87,5 @@ class QueueItemModel(Document):  # pylint: disable=too-many-ancestors
                      self.queue_state}.")
 
     @dataclass
-    class Settings:
-        """Name in database"""
+    class Settings:  # pylint: disable=missing-class-docstring
         name = "queue"

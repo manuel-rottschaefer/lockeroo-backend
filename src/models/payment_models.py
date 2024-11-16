@@ -1,3 +1,4 @@
+'''This module provides the Models for Payment events.'''
 # Types
 import dataclasses
 
@@ -12,10 +13,8 @@ from beanie import PydanticObjectId as ObjId
 from pydantic import Field
 
 # Entities
-from ..entities.session_entity import Session
-
-# Models
-from ..models.session_models import SessionModel
+from src.entities.session_entity import Session
+from src.entities.station_entity import Station
 
 # Services
 from src.services.mqtt_services import fast_mqtt
@@ -57,11 +56,11 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
 
         if self.state == PaymentStates.PENDING:
             # Get the session
-            session: Session = Session(await SessionModel.get(self.assigned_session))
+            session: Session = await Session().fetch(session_id=self.assigned_session)
+            station: Station = await Station().fetch(station_id=session.assigned_station)
             fast_mqtt.publish(
-                f'/stations/{session.assigned_station}/payment/{self.price}')
+                f'/stations/{station.call_sign}/payment/{self.price}')
 
     @dataclasses.dataclass
-    class Settings:
-        """Name in database"""
+    class Settings:  # pylint: disable=missing-class-docstring
         name = "payments"

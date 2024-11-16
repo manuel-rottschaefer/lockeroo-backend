@@ -15,8 +15,6 @@ from src.services.logging_services import logger
 # Create the router
 admin_router = APIRouter()
 
-# TODO: Reset station queue endpoint
-
 
 @admin_router.get('/reset',
                   description='Reset the database and populate it with mock data')

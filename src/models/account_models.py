@@ -48,13 +48,12 @@ class AccountModel(BeanieBaseUser, Document):  # pylint: disable=too-many-ancest
     totalSessionDuration: int = 0
 
     @dataclasses.dataclass
-    class Settings:
-        """Name in database"""
-
+    class Settings:  # pylint: disable=missing-class-docstring
         name = "users"
 
 
 class AccountSummary(View):
+    """Summary of an account."""
     # Identification
     id: Optional[ObjId] = Field(None, alias="_id")
     first_name: str
@@ -63,7 +62,7 @@ class AccountSummary(View):
 
 
 class AccountCreate(BeanieBaseUser):
-    """View after creation of a user"""
+    """View after creation of a user."""
 
     firstName: str
     lastName: str
@@ -73,7 +72,7 @@ class AccountCreate(BeanieBaseUser):
 
 
 class AccountUpdate(BeanieBaseUser):
-    """View after update of a user"""
+    """View after update of a user."""
 
     firstName: Optional[str] = None
     lastName: Optional[str] = None

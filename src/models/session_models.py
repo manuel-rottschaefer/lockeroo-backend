@@ -7,10 +7,10 @@ from datetime import datetime
 from enum import Enum
 
 # Types
+import dataclasses
 from typing import Optional, List
 from uuid import UUID
 from pydantic import Field
-import dataclasses
 
 # Beanie
 from beanie import Document, View, Replace, after_event
@@ -110,13 +110,11 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
                           self.session_state.value, qos=1)
 
     @dataclasses.dataclass
-    class Settings:
-        """Name in Database"""
+    class Settings:  # pylint: disable=missing-class-docstring
         name = "sessions"
 
     @dataclasses.dataclass
-    class Config:
-        """Configurations"""
+    class Config:  # pylint: disable=missing-class-docstring
         arbitrary_types_allowed = True
 
 
@@ -143,12 +141,11 @@ class SessionView(View):
         datetime.now(), description="Datetime of session creation.")
 
     @dataclasses.dataclass
-    class Config:
-        """Alias for _id"""
+    class Config:  # pylint: disable=missing-class-docstring
         from_attributes = True
 
     @dataclasses.dataclass
-    class Setttings:
+    class Setttings:  # pylint: disable=missing-class-docstring
         source = SessionModel
 
 
@@ -170,6 +167,5 @@ class CompletedSession(View):
     activeDuration: Optional[float] = None
 
     @dataclasses.dataclass
-    class Config:
-        """Alias for _id"""
+    class Config:  # pylint: disable=missing-class-docstring
         from_attributes = True

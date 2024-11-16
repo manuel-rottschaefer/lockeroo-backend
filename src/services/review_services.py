@@ -23,8 +23,11 @@ from src.services.exceptions import ServiceExceptions
 from src.services.logging_services import logger
 
 
-async def handle_review_submission(session_id: ObjId, user_id: UUID,
-                                   experience_rating: int, cleanliness_rating: int, details: str):
+async def handle_review_submission(session_id: ObjId,
+                                   user_id: UUID,
+                                   experience_rating: int,
+                                   cleanliness_rating: int,
+                                   details: str):
     """Submit a review for a session."""
     # 1: Get session
     session: SessionModel = await SessionModel.find_one(
@@ -63,7 +66,7 @@ async def get_session_review(session_id: ObjId, user_id: UUID) -> Optional[Revie
         return None
 
     # 2: Find the assigned session
-    session: Session = Session().fetch(review.assigned_session)
+    session: Session = await Session().fetch(review.assigned_session)
     if not session:
         logger.warning(
             f'Session {review.assigned_session} does not exist, but should.')

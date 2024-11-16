@@ -117,7 +117,7 @@ class QueueItem():
 
     @property
     async def is_next(self) -> bool:
-        """Check wether this queue item is next in line."""
+        """Check whether this queue item is next in line."""
         next_item = await QueueItem().get_next_in_line(self.document.assigned_station)
         return next_item.id == self.document.id
 
@@ -152,7 +152,6 @@ class QueueItem():
         self.document.activated_at = datetime.now()
         self.document.expires_at = expiration_date
         self.document.expiration_window = secs_to_expiration
-        self.document.replace()
         await self.document.replace()
 
         # 3: If the session is pending verification, update the terminal state
@@ -170,7 +169,7 @@ class QueueItem():
             try:
                 await payment.activate()
             except Exception as e:
-                print(e)
+                logger.warning(e)
 
         # 4: Create an expiration handler
         asyncio.create_task(self.register_expiration(
@@ -195,7 +194,7 @@ class QueueItem():
             await self.handle_expiration(timeout_state)
 
     async def handle_expiration(self, state: SessionStates) -> None:
-        """Checks wether the session has entered a state where the user needs to conduct an
+        """Checks whether the session has entered a state where the user needs to conduct an
         action within a limited time. If that time has been exceeded but the action has not been
         completed, the session has to be expired and the user needs to request a new one
         """

@@ -1,7 +1,10 @@
 """This file is used to create a MQTT client instance."""
 
-from fastapi_mqtt import FastMQTT, MQTTConfig
+# Basics
 import logging
+
+# FastAPI
+from fastapi_mqtt import FastMQTT, MQTTConfig
 
 # Configure the logger
 logging.getLogger("fastapi_mqtt").setLevel(logging.WARNING)

@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 # API services
 import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 # Environments
 from dotenv import load_dotenv
@@ -54,8 +55,22 @@ app = FastAPI(
     # },
     lifespan=_lifespan)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=['*'],
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*'],
+)
+
+
+@app.get('/')
+def hello_world():
+    return "Hello World!"
+
+
 # Load dotenv config
-load_dotenv('environments/.env')
+load_dotenv('src/environments/.env')
 
 # Include routers
 app.include_router(station_router, prefix="/stations", tags=["Stations"])

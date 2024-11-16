@@ -1,0 +1,6 @@
+[main]
+max-branches=24
+docstring-min-length=8
+
+[MISCELLANEOUS]
+notes=XXX

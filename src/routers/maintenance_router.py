@@ -4,14 +4,15 @@
 # Basics
 from typing import Annotated
 
-# Database utils
-from beanie import PydanticObjectId as ObjId
-
 # FastAPI
-from fastapi import APIRouter, Path,
+from fastapi import APIRouter, Path
 
 # Auth
 from fief_client import FiefAccessTokenInfo
+
+# Entities
+from src.entities.maintenance_entity import Maintenance
+from src.entities.station_entity import Station
 
 # Models
 from src.models.maintenance_models import MaintenanceModel
@@ -32,11 +33,14 @@ maintenance_router = APIRouter()
 @require_auth
 async def create_scheduled_maintenance(
         call_sign:  Annotated[str, Path(pattern='^[A-Z]{6}$')],
-        access_info: FiefAccessTokenInfo = None,) -> MaintenanceModel:
+        staff_id: str,
+        _access_info: FiefAccessTokenInfo = None,) -> MaintenanceModel:
     """Get the availability of lockers at the station"""
-    return await maintenance_services.create(
-        call_sign=call_sign, _staff_id=access_info['id']
-    )
+    station: Station = await Station().fetch(call_sign=call_sign)
+
+    maintenance_item = await Maintenance().create(station_id=station.id,
+                                                  staff_id=staff_id)
+    return maintenance_item.document
 
 
 @maintenance_router.get('/{call_sign}/maintenance/next',
@@ -45,10 +49,10 @@ async def create_scheduled_maintenance(
 @require_auth
 async def get_next_scheduled_maintenance(
     call_sign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
-    access_info: FiefAccessTokenInfo = None
+    _access_info: FiefAccessTokenInfo = None
 ) -> MaintenanceModel:
     """Get the availability of lockers at the station"""
+    station: Station = await Station().fetch(call_sign=call_sign)
     return await maintenance_services.get_next(
-        call_sign=call_sign,
-        user_id=access_info['id']
+        station_id=station.id
     )

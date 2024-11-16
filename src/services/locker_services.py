@@ -1,9 +1,5 @@
 """Provides utility functions for the locker management backend."""
 
-# Basics
-import asyncio
-import os
-
 # Types
 from beanie import PydanticObjectId as ObjId
 from beanie import SortDirection
@@ -77,7 +73,7 @@ async def handle_lock_report(call_sign: str, locker_index: int) -> None:
     )
     if not session:
         logger.info(ServiceExceptions.SESSION_NOT_FOUND, locker=locker.id)
-        return False
+        return
 
     # 5: If those checks pass, update the locker and session state
     await locker.set_state(LockerStates.LOCKED)
@@ -124,7 +120,9 @@ async def handle_unlock_confirmation(station_callsign: str, locker_index: int) -
         logger.info(ServiceExceptions.SESSION_NOT_FOUND,
                     station=station_callsign)
         return
-    elif session.session_state not in accepted_session_states:
+
+    assert await session.exists
+    if session.session_state not in accepted_session_states:
         logger.info(ServiceExceptions.WRONG_SESSION_STATE,
                     session=session.id, detail=session.session_state)
         return
@@ -132,18 +130,12 @@ async def handle_unlock_confirmation(station_callsign: str, locker_index: int) -
     # 5: Update locker and session states
     await locker.set_state(LockerStates.UNLOCKED)
 
-    # TODO: Verify that the session is in a state
     await QueueItem().create(station_id=station.id,
                              session_id=session.id,
                              queued_state=await session.next_state,
                              timeout_state=SessionStates.STALE,
                              skip_eval=True
                              )
-
-    # 6: Register an expiration event for this session
-    # TODO: Create queue item here
-    # asyncio.create_task(session.register_expiration(
-    # os.getenv('STASHING_EXPIRATION')))
 
     # 7: Create action entry
     await create_action(session.id, session.session_state)

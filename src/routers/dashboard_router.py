@@ -18,7 +18,6 @@ from src.models.session_models import SessionModel, INACTIVE_SESSION_STATES
 # Services
 from src.services.exceptions import handle_exceptions
 from src.services.logging_services import logger
-from src.services.auth_services import require_auth
 
 # Create the router
 dashboard_router = APIRouter()

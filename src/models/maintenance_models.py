@@ -2,7 +2,7 @@
 # Types
 from enum import Enum
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 from pydantic import Field
 
 # Beanie
@@ -22,17 +22,22 @@ class MaintenanceStates(str, Enum):
 
 
 class MaintenanceModel(Document):  # pylint: disable=too-many-ancestors
-    """Entity of a station mainentance event"""
+    """Entity of a station maintenance event"""
 
     id: ObjId = Field(None, alias="_id")
 
     assigned_station: ObjId = Field(
-        "Station to which this maintenance is assigned to")
+        None, description="Station to which this maintenance is assigned to.")
 
-    scheduled: datetime = Field(description="Scheduled time of maintenance")
+    # Planned datetimes
+    scheduled_for: datetime = Field(
+        description="Scheduled time of maintenance")
+    planned_duration: timedelta = Field(
+        timedelta(hours=1), description="Planned duration of the maintenance session.")
+
     started: Optional[datetime] = Field(description="Actual starting time")
     completed: Optional[datetime] = Field(
-        description="Actual completition time")
+        description="Actual completion time")
 
     state: MaintenanceStates = Field(
         description="Current state of the maintenance item"
@@ -41,6 +46,5 @@ class MaintenanceModel(Document):  # pylint: disable=too-many-ancestors
     assigned_staff: Optional[ObjId] = Field(None,
                                             description="The person assigned with this task")
 
-    class Settings:
-        """Name in Database"""
+    class Settings:  # pylint: disable=missing-class-docstring, too-few-public-methods
         name = "maintenance"

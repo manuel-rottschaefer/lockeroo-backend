@@ -16,6 +16,7 @@ from src.models.locker_models import LockerModel
 
 # Services
 from src.services.exceptions import ServiceExceptions
+from src.services.maintenance_services import has_scheduled
 
 # Logging
 from src.services.logging_services import logger
@@ -61,6 +62,21 @@ class Station():
         return instance
 
     ### Attributes ###
+    @property
+    async def is_available(self) -> bool:
+        """Check whether the station is available for new sessions at the moment.
+        This method shall not check locker availability."""
+        # 1: Check whether the station is marked as unavailable
+        if not self.station_state == StationStates.AVAILABLE:
+            return False
+
+        # 2: Check whether there is a planned maintenance in 3 hours
+        elif await has_scheduled(self.id):
+            return False
+
+        else:
+            return True
+
     @property
     async def total_completed_session_count(self) -> int:
         """Get the total amount of sessions conducted at this station, without active ones."""

@@ -35,9 +35,7 @@ class ActionModel(Document):  # pylint: disable=too-many-ancestors
     action_type: SessionStates
 
     @dataclasses.dataclass
-    class Settings:
-        """Name in database"""
-
+    class Settings:  # pylint: disable=missing-class-docstring
         name = "actions"
 
 
@@ -59,7 +57,5 @@ class ActionView(View):  # pylint: disable=too-many-ancestors
     )
 
     @dataclasses.dataclass
-    class Settings:
-        """Name in database"""
-
+    class Settings:  # pylint: disable=missing-class-docstring
         name = "actions"

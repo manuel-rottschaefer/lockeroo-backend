@@ -90,7 +90,8 @@ class LoggingService:
 
         elif exception == ServiceExceptions.PAYMENT_METHOD_NOT_AVAILABLE:
             self.logging.info(
-                "Payment method '%s' does not exist or is not available for session '%s'.", detail, session)
+                "Payment method '%s' does not exist or is not available for session '%s'.",
+                detail, session)
 
         ### Lockers ###
         elif exception == ServiceExceptions.LOCKER_NOT_FOUND:
