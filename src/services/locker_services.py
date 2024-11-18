@@ -23,26 +23,7 @@ from src.services.exceptions import ServiceExceptions
 from src.services.action_services import create_action
 
 
-async def find_available_locker(
-        station_id: ObjId, locker_type: str) -> LockerModel:
-    """This methods handles the locker selection process at a station"""
-    # Try to find a locker that suits all requirements
-    # TODO: Prioritize open lockers from expired sessions
-    locker: LockerModel = await LockerModel.find(
-        LockerModel.parent_station == station_id,
-        LockerModel.locker_type.name == locker_type
-    ).sort(LockerModel.total_session_count).limit(1).to_list()
-
-    if not locker:
-        logger.info(ServiceExceptions.LOCKER_NOT_AVAILABLE,
-                    station=station_id)
-        return None
-
-    return locker[0]
-
-
 async def handle_lock_report(call_sign: str, locker_index: int) -> None:
-    # TODO: Adjust logging escalation level for station reports??
     """Process and verify a station report that a locker has been closed"""
     # 1: Find the station to get its ID
     station = Station(await StationModel.find_one(StationModel.call_sign == call_sign))

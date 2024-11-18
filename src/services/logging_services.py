@@ -45,12 +45,12 @@ class LoggingService:
         """Pass message to default logger with level ERROR"""
         self.logging.error(message)
 
-    def info(self, exception: ServiceExceptions,  # pylint: disable=too-many-arguments
+    def info(self, exception: ServiceExceptions,  # pylint: disable=too-many-arguments,too-many-positional-arguments
              session: Union[str, ObjId] = '',
              station: Union[str, ObjId] = '',
              locker: Union[str, ObjId] = '',
              user: Union[str, ObjId] = '',
-             detail: str = ''):   # pylint: disable=too-many-arguments
+             detail: str = ''):
         """As the info level is for strictly defined service exceptions,
         it does not accept regular strings as messages.
         The method also only accepts basic information about an incident
@@ -66,7 +66,6 @@ class LoggingService:
         elif exception == ServiceExceptions.STATION_PAYMENT_NOT_AVAILABLE:
             self.logging.info(
                 "Payment method '%s' is currently not supported.", detail)
-            pass
 
         elif exception == ServiceExceptions.INVALID_PAYMENT_METHOD:
             self.logging.info(

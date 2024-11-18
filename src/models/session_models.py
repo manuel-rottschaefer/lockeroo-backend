@@ -18,7 +18,6 @@ from beanie import PydanticObjectId as ObjId
 
 # Services
 from src.services import websocket_services
-from src.services.mqtt_services import fast_mqtt
 
 
 class SessionTypes(str, Enum):

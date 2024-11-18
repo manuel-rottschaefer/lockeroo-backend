@@ -244,7 +244,6 @@ async def handle_hold_request(session_id: ObjId, user_id: UUID) -> Optional[Sess
 
 async def handle_payment_request(session_id: ObjId, user_id: UUID) -> Optional[SessionView]:
     """Put the station into payment mode"""
-    # TODO: The session remains in its current state here and timer goes on. We should therefore put it into HOLD
     # 1: Find the session and check whether it belongs to the user
     session: Session = await Session().fetch(session_id=session_id)
     if str(session.assigned_user) != str(user_id):

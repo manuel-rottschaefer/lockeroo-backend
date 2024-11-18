@@ -5,7 +5,7 @@ from typing import List
 
 # API services
 from fastapi import HTTPException
-from beanie.operators import In, NotIn, Near
+from beanie.operators import NotIn, Near
 
 # Beanie
 from beanie import SortDirection

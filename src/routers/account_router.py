@@ -25,8 +25,6 @@ account_router = APIRouter()
                     description='Get a list of sessions from a user')
 async def get_account_history(user_id: str, count: int = 100):
     """Get a list of completed sessions of this account"""
-    # TODO: Check for role here
-
     # Get station data from the database
     session_list = await SessionModel.find(
         SessionModel.assigned_user == UUID(user_id)

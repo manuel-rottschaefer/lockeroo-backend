@@ -4,7 +4,6 @@ This module contains the station router which handles all station related reques
 
 # Basics
 from typing import List, Optional, Annotated
-from functools import wraps
 
 # FastAPI & Beanie
 from fastapi import APIRouter, Path
@@ -71,7 +70,8 @@ async def get_locker_by_index(
 
 @station_router.get('/{call_sign}/lockers/overview', response_model=SessionView)
 @handle_exceptions(logger)
-async def get_locker_overview(call_sign: Annotated[str, Path(pattern='^[A-Z]{6}$')],) -> SessionView:
+async def get_locker_overview(
+        call_sign: Annotated[str, Path(pattern='^[A-Z]{6}$')],) -> SessionView:
     """Get the availability of lockers at the station"""
     return await station_services.get_locker_overview(call_sign)
 
@@ -94,9 +94,6 @@ async def reset_station_queue(call_sign: Annotated[str, Path(pattern='^[A-Z]{6}$
     return await station_services.reset_queue(
         call_sign=call_sign
     )
-
-### MQTT Endpoints ###
-# TODO: Improve station mqtt message validation
 
 
 @validate_mqtt_topic('stations/+/terminal/confirm', [ObjId])

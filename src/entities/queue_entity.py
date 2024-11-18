@@ -82,7 +82,6 @@ class QueueItem():
         :param queued)state: The next state the session will have after queue activation
         :param timeout_state: The state the session will have after expiring once.
         """
-        # TODO: Option to not allow a second timeout
         instance = cls()
         instance.document = QueueItemModel(
             queue_type=queue_type,

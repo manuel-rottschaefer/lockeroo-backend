@@ -8,7 +8,7 @@ from typing import List, Annotated
 from beanie import PydanticObjectId as ObjId
 
 # FastAPI
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Path, Query
+from fastapi import APIRouter, WebSocket, Path, Query
 from fief_client import FiefAccessTokenInfo
 
 # Models
@@ -17,7 +17,7 @@ from src.models.action_models import ActionView
 from src.models.locker_models import LockerTypes
 
 # Services
-from src.services import session_services, websocket_services
+from src.services import session_services
 from src.services.exceptions import handle_exceptions
 from src.services.logging_services import logger
 from src.services.auth_services import require_auth

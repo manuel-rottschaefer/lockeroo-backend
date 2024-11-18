@@ -1,4 +1,4 @@
-# Basics
+"""Provides utility functions for the websocket backend."""
 
 # Typing
 from typing import Dict, Optional

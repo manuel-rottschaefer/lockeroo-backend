@@ -85,5 +85,5 @@ class LockerView(View):
     station_index: int = Field(
         ..., description='Index of the locker in the station (Also printed on the doors).')
 
-    class Settings:  # pylint: disable=missing-class-docstring
+    class Settings:  # pylint: disable=missing-class-docstring,too-few-public-methods
         source = LockerModel

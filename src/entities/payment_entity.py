@@ -86,7 +86,7 @@ class Payment():
 
     async def get_price(self) -> Optional[int]:
         price = await self.current_price
-        # TODO: This line is not working.
+        # TODO: FIXME This line is not working.
         # await self.document.update(Set({PaymentModel.price: price}))
         return price
 

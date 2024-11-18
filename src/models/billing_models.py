@@ -27,7 +27,7 @@ class BillPaymentMethods(Enum, str):
     STRIPE = "stripe"
 
 
-class BillModel(Document):
+class BillModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a bill in the database.
     A session may only have one connected bill"""
 

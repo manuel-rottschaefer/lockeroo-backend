@@ -93,16 +93,6 @@ class Session():
         return self.document is not None
 
     @property
-    def expiration_duration(self) -> int:
-        """Returns the amount of seconds after the session expires in the curent state."""
-        return 0
-
-    @property
-    def has_expired(self) -> bool:
-        """Return whether the session has already expired."""
-        return False
-
-    @property
     def total_duration(self) -> int:
         """Returns the amount of seconds between session creation and completion or now."""
         return 0
@@ -130,14 +120,6 @@ class Session():
             elif action.action_type in hold_states:
                 active_duration += action.timestamp - cycle_start
         return active_duration
-
-    @property
-    async def timeout_amount(self) -> int:
-        """ Return the number of times that this session already timed out."""
-        return await QueueItemModel.find(
-            QueueItemModel.assigned_session == self.document.id,
-            QueueItemModel.queue_state == QueueStates.EXPIRED
-        ).count()
 
     @property
     async def next_state(self):
@@ -184,43 +166,3 @@ class Session():
                 f"Failed to assign payment method {
                     method} to session {self.id}: {e}"
             )
-
-    async def register_expiration(self, seconds: int):
-        """Register an expiration handler. This waits until the expiration duration has passed and then fires up the expiration handler."""
-        # TODO: this method is defined for queue items and sessions, should we unify it?
-        # 1 Register the expiration handler
-        await asyncio.sleep(int(seconds))
-
-        # 2: After the expiration time, fire up the expiration handler if required
-        await self.document.sync()
-        pending_states: List[SessionStates] = {
-            SessionStates.STASHING,
-            SessionStates.HOLD,
-            SessionStates.RETRIEVAL
-        }
-        if self.document.session_state in pending_states:
-            logger.debug(f'Registered expiration after {seconds} seconds.')
-            await self.handle_expiration()
-
-    async def handle_expiration(self) -> None:
-        """Checks whether the session has entered a state where the user needs to conduct an
-        action within a limited time. If that time has been exceeded but the action has not been
-        completed, the session has to be expired and the user needs to request a new one
-        """
-
-        # This would make finding open lockers easier.
-        state_map: Dict[SessionStates, SessionStates] = {
-            SessionStates.STASHING: SessionStates.EXPIRED,
-            SessionStates.HOLD: SessionStates.COMPLETED,
-            SessionStates.RETRIEVAL: SessionStates.COMPLETED
-        }
-
-        # 3: Update session and queue item states
-        await self.set_state(state_map[self.session_state], True)
-
-        # 4: Create a logging message
-        logger.info(
-            ServiceExceptions.SESSION_EXPIRED,
-            session=self.id,
-            detail=self.session_state,
-        )

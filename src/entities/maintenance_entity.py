@@ -68,7 +68,6 @@ class Maintenance():
         staff_id: ObjId
     ):
         '''Create a queue new session item and insert it into the database.'''
-        # TODO: This is not yet properly implemented
         instance = cls()
         instance.document = MaintenanceModel(
             assigned_station=station_id,
