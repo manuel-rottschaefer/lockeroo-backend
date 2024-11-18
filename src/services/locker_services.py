@@ -47,20 +47,20 @@ async def handle_lock_report(call_sign: str, locker_index: int) -> None:
     # 1: Find the station to get its ID
     station = Station(await StationModel.find_one(StationModel.call_sign == call_sign))
     if not station:
-        return False
+        return
 
     # 2: Find the affected locker
     locker: Locker = await station.get_locker(locker_index)
     if not locker:
         logger.error(f"Locker '{locker.id}' should be locked, but is {
                      locker.reported_state}.")
-        return False
+        return
 
     # 3: Check whether the internal locker state matches the reported situation
     if locker.reported_state != LockerStates.UNLOCKED.value:
         logger.error(f"Mismatch between internal locker state and \
                         reported state by station for locker '{locker.id}'.")
-        return False
+        return
 
     # 4: Find the assigned session
     active_session_states = [SessionStates.STASHING,
@@ -106,7 +106,7 @@ async def handle_unlock_confirmation(station_callsign: str, locker_index: int) -
     if locker.reported_state != LockerStates.LOCKED.value:
         logger.error(f"Locker '{locker.id}' should be locked, but is {
                      locker.reported_state}.")
-        return False
+        return
 
     # 4: Find the assigned session
     accepted_session_states = [SessionStates.VERIFICATION,

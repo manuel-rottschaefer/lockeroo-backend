@@ -8,7 +8,7 @@ from enum import Enum
 from typing import Optional
 
 # Types
-from beanie import Document, Replace, after_event
+from beanie import Document, Update, after_event
 from beanie import PydanticObjectId as ObjId
 from beanie.operators import Set
 from pydantic import Field
@@ -48,7 +48,7 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
     last_updated: datetime = Field(datetime.now(),
                                    description='The timestamp of the last update to this payment.')
 
-    @after_event(Replace)
+    @after_event(Update)
     async def check_pending(self):
         """Check if this payment is now pending."""
         # 1: Update the timestamp

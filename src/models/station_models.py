@@ -10,7 +10,7 @@ from typing import Optional, Tuple, Dict
 from pydantic import Field
 
 # Beanie
-from beanie import Document, View, Replace, after_event
+from beanie import Document, View, Update, after_event
 from beanie import PydanticObjectId as ObjId
 
 # Services
@@ -75,14 +75,14 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     location: Dict
     nearby_public_transit: Optional[str]
 
-    @after_event(Replace)
+    @after_event(Update)
     def notify_station_state(self):
         """Send an update message regarding the session state to the mqtt broker."""
         fast_mqtt.publish(
             f"stations/{self.call_sign}/state", self.station_state.value)
 
     ### State broadcasting ###
-    @after_event(Replace)
+    @after_event(Update)
     def notify_terminal_state(self):
         """Send an update message regarding the session state to the mqtt broker."""
         fast_mqtt.publish(

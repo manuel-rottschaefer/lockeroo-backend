@@ -12,7 +12,7 @@ from enum import Enum
 from typing import Optional
 
 # Types
-from beanie import Document, View, Replace, after_event
+from beanie import Document, View, Update, after_event
 from beanie import PydanticObjectId as ObjId
 
 # Models
@@ -38,7 +38,7 @@ class LockerTypes(str, Enum):
 
 class LockerModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a single locker in the database."""
-    @after_event(Replace)
+    @after_event(Update)
     def log_db_ops(self):
         """Log the Database operation for debugging purposes."""
         logger.debug(f"Locker '{self.id}' has been reported as {

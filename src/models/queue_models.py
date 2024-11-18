@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from pydantic import Field
 
 # Beanie
-from beanie import Document, Replace, after_event
+from beanie import Document, Update, after_event
 from beanie import PydanticObjectId as ObjId
 
 # Models
@@ -89,7 +89,7 @@ class QueueItemModel(Document):  # pylint: disable=too-many-ancestors
     completed: Optional[datetime] = Field(
         None, description="The datetime when the queue item was completed or expired.")
 
-    @after_event(Replace)
+    @after_event(Update)
     def report_state(self) -> None:
         """Log database operation."""
         logger.debug(f"QueueItem '{self.id}' set to state {

@@ -84,9 +84,10 @@ class Payment():
     async def set_state(self, state: PaymentStates):
         await self.document.update(Set({PaymentModel.state: state}))
 
-    async def get_price(self):
+    async def get_price(self) -> Optional[int]:
         price = await self.current_price
-        await self.document.update(Set({PaymentModel.price: price}))
+        # TODO: This line is not working.
+        # await self.document.update(Set({PaymentModel.price: price}))
         return price
 
     @property
@@ -111,8 +112,7 @@ class Payment():
                 locker_type['base_price']), locker_type['max_price']
         )
 
-        logger.info(
-            "Calculated price of %d cents for session '%s'.", calculated_price, self.id
-        )
+        logger.debug(
+            f"Calculated price of {calculated_price} cents for session '{session.id}'.")
 
         return calculated_price

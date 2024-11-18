@@ -13,7 +13,7 @@ from uuid import UUID
 from pydantic import Field
 
 # Beanie
-from beanie import Document, View, Replace, after_event
+from beanie import Document, View, Update, after_event
 from beanie import PydanticObjectId as ObjId
 
 # Services
@@ -103,11 +103,11 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
         default=SessionStates.CREATED, description="The current, internal set session state.")
 
     ### Status Broadcasting ###
-    @after_event(Replace)
+    @after_event(Update)
     def notify_state(self):
         """Send an update message regarding the session state to the mqtt broker."""
         fast_mqtt.publish(f"sessions/{self.id}/notify",
-                          self.session_state.value, qos=1)
+                          self.session_state, qos=1)
 
     @dataclasses.dataclass
     class Settings:  # pylint: disable=missing-class-docstring
