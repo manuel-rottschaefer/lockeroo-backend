@@ -17,6 +17,7 @@ from beanie import Document, View, Update, after_event
 from beanie import PydanticObjectId as ObjId
 
 # Services
+from src.services import websocket_services
 from src.services.mqtt_services import fast_mqtt
 
 
@@ -104,10 +105,9 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
 
     ### Status Broadcasting ###
     @after_event(Update)
-    def notify_state(self):
+    async def notify_state(self):
         """Send an update message regarding the session state to the mqtt broker."""
-        fast_mqtt.publish(f"sessions/{self.id}/notify",
-                          self.session_state, qos=1)
+        await websocket_services.send_text(socket_id=self.id, text=self.session_state)
 
     @dataclasses.dataclass
     class Settings:  # pylint: disable=missing-class-docstring

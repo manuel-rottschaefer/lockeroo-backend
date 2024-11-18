@@ -8,7 +8,7 @@ from typing import List, Annotated
 from beanie import PydanticObjectId as ObjId
 
 # FastAPI
-from fastapi import APIRouter, Path, Query
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Path, Query
 from fief_client import FiefAccessTokenInfo
 
 # Models
@@ -17,7 +17,7 @@ from src.models.action_models import ActionView
 from src.models.locker_models import LockerTypes
 
 # Services
-from src.services import session_services
+from src.services import session_services, websocket_services
 from src.services.exceptions import handle_exceptions
 from src.services.logging_services import logger
 from src.services.auth_services import require_auth
@@ -153,8 +153,15 @@ async def get_session_history(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
     access_info: FiefAccessTokenInfo = None,
 ):
-    """Handle request to obtain a list of all actions from a session"""
+    """Handle request to obtain a list of all actions from a session."""
     return await session_services.get_session_history(
         session_id=session_id,
         user_id=access_info['id']
     )
+
+
+@session_router.websocket('/{session_id}/subscribe')
+async def subscribe_to_session(socket: WebSocket, session_id: str) -> None:
+    """Handle subscription to a session update flow."""
+    await session_services.handle_update_subscription_request(
+        session_id=session_id, socket=socket)

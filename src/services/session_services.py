@@ -8,7 +8,7 @@ from uuid import UUID
 from beanie import PydanticObjectId as ObjId
 
 # FastAPI utilities
-from fastapi import HTTPException
+from fastapi import HTTPException, WebSocket, WebSocketDisconnect
 
 # Entities
 from src.entities.session_entity import Session
@@ -20,9 +20,9 @@ from src.entities.payment_entity import Payment
 # Models
 from src.models.session_models import (
     SessionView,
-    SessionModel,
     SessionPaymentTypes,
     SessionStates,
+    INACTIVE_SESSION_STATES
 )
 
 from src.models.action_models import ActionModel
@@ -31,9 +31,10 @@ from src.models.action_models import ActionModel
 from src.config.config import locker_config
 
 # Services
-from .action_services import create_action
-from .logging_services import logger
-from .exceptions import ServiceExceptions
+from src.services.action_services import create_action
+from src.services.logging_services import logger
+from src.services import websocket_services
+from src.services.exceptions import ServiceExceptions
 
 
 async def get_details(session_id: ObjId, user_id: UUID) -> Optional[SessionView]:
@@ -321,3 +322,34 @@ async def handle_cancel_request(session_id: ObjId, user_id: UUID) -> Optional[Se
     await create_action(session.id, SessionStates.CANCELLED)
 
     return session
+
+
+async def handle_update_subscription_request(session_id: ObjId, socket: WebSocket):
+    """Process a user request to get updates for a session."""
+    # 1: Check whether the session exists
+    session: Session = await Session().fetch(session_id=session_id)
+    if not session.exists:
+        return
+
+    # 2: Check whether the websocket connection already exists
+    if websocket_services.get_connection(session_id):
+        logger.debug(
+            f"Session '{session_id}' cannot have more than one update subscription.")
+        return
+
+    # 3: Check if the session is not in an inactive state
+    if session.session_state in INACTIVE_SESSION_STATES:
+        logger.debug(
+            f"Session '{session_id}' is not offering updates anymore.")
+        return
+
+    # 3: Register the connection
+    await socket.accept()
+    websocket_services.register_connection(session_id, socket)
+    logger.debug(f"Session '{session_id}' is now sending updates.")
+    try:
+        await socket.receive_bytes()
+
+    # 4: Register a disconnect event
+    except WebSocketDisconnect:
+        logger.debug(f"Session '{session_id}' is no longer sending updates.")
