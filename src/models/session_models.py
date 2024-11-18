@@ -54,11 +54,10 @@ class SessionStates(str, Enum):
     CANCELLED = "cancelled"
     # Session has expired but locker remained open
     STALE = 'stale'
-    # Session has expired due to exceeded time windows
+    # Session has expired due to exceeded time window by user
     EXPIRED = "expired"
-    # Only for logging purposes
-    SUBSCRIBED = "subscribed"
-    UNSUBSCRIBED = "unsubscribed"
+    # Session has expired due to internal failure / no response from station
+    ABORTED = "aborted"
 
 
 class SessionPaymentTypes(str, Enum):
@@ -71,7 +70,8 @@ INACTIVE_SESSION_STATES: List[SessionStates] = [
     SessionStates.COMPLETED,
     SessionStates.CANCELLED,
     SessionStates.STALE,
-    SessionStates.EXPIRED
+    SessionStates.EXPIRED,
+    SessionStates.ABORTED
 ]
 
 

@@ -13,7 +13,7 @@ from fastapi import HTTPException
 # Entities
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
-from src.entities.queue_entity import QueueItem
+from src.entities.queue_entity import QueueItem, QueueTypes
 from src.entities.locker_entity import Locker
 from src.entities.payment_entity import Payment
 
@@ -130,12 +130,12 @@ async def handle_payment_selection(
     payment_method: str = payment_method.lower()
     if payment_method not in SessionPaymentTypes:
         logger.info(
-            ServiceExceptions.PAYMENT_METHOD_NOT_AVAILABLE,
+            ServiceExceptions.PAYMENT_METHOD_NOT_SUPPORTED,
             session=session_id,
             detail=payment_method,
         )
         raise HTTPException(
-            status_code=400, detail=ServiceExceptions.PAYMENT_METHOD_NOT_AVAILABLE.value
+            status_code=400, detail=ServiceExceptions.PAYMENT_METHOD_NOT_SUPPORTED.value
         )
 
     # 2: Check if the session exists
@@ -192,10 +192,11 @@ async def handle_verification_request(
 
     # 5: Create a queue item at this station
     await QueueItem().create(
+        queue_type=QueueTypes.USER,
         station_id=station.id,
         session_id=session.id,
         queued_state=SessionStates.VERIFICATION,
-        timeout_state=SessionStates.PAYMENT_SELECTED
+        timeout_states=[SessionStates.PAYMENT_SELECTED, SessionStates.EXPIRED]
     )
 
     # 6: Log a queueVerification action
@@ -224,10 +225,10 @@ async def handle_hold_request(session_id: ObjId, user_id: UUID) -> Optional[Sess
         )
     # 3: Check whether the user has chosen the app method for payment.
     if session.payment_method == SessionPaymentTypes.TERMINAL:
-        logger.info(ServiceExceptions.PAYMENT_METHOD_NOT_AVAILABLE,
+        logger.info(ServiceExceptions.INVALID_PAYMENT_METHOD,
                     session=session_id)
         raise HTTPException(
-            status_code=400, detail=ServiceExceptions.PAYMENT_METHOD_NOT_AVAILABLE.value
+            status_code=400, detail=ServiceExceptions.INVALID_PAYMENT_METHOD.value
         )
 
     # 4: Get the locker and assign an open request
@@ -242,6 +243,7 @@ async def handle_hold_request(session_id: ObjId, user_id: UUID) -> Optional[Sess
 
 async def handle_payment_request(session_id: ObjId, user_id: UUID) -> Optional[SessionView]:
     """Put the station into payment mode"""
+    # TODO: The session remains in its current state here and timer goes on. We should therefore put it into HOLD
     # 1: Find the session and check whether it belongs to the user
     session: Session = await Session().fetch(session_id=session_id)
     if str(session.assigned_user) != str(user_id):
@@ -273,10 +275,11 @@ async def handle_payment_request(session_id: ObjId, user_id: UUID) -> Optional[S
 
     # 5: Create a queue item and execute if it is next in the queue
     await QueueItem().create(
+        queue_type=QueueTypes.USER,
         station_id=station.id,
         session_id=session.id,
         queued_state=SessionStates.PAYMENT,
-        timeout_state=session.session_state
+        timeout_states=[session.session_state, SessionStates.EXPIRED]
     )
 
     # 6: Log the request

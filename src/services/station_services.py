@@ -20,7 +20,7 @@ from src.entities.queue_entity import QueueItem
 # Models
 from src.models.locker_models import LockerModel
 from src.models.session_models import SessionModel, SessionStates, INACTIVE_SESSION_STATES
-from src.models.queue_models import QueueItemModel, QueueStates
+from src.models.queue_models import QueueItemModel, QueueStates, QueueTypes
 from src.models.station_models import (StationLockerAvailabilities, StationModel,
                                        StationView, StationStates, TerminalStates)
 
@@ -125,7 +125,11 @@ async def reset_queue(call_sign: str) -> StationView:
     await first_queue_item.activate()
 
 
-async def handle_terminal_action_report(call_sign: str) -> None:
+async def handle_terminal_report(
+        call_sign: str,
+        queued_session_state: SessionStates,
+        expected_terminal_state: TerminalStates
+) -> None:
     """This handler processes reports of completed actions at a station.
         It verifies the authenticity of the report and then updates the state
         values for the station and the assigned session as well as notifies
@@ -137,19 +141,15 @@ async def handle_terminal_action_report(call_sign: str) -> None:
         return
 
     # 2: Check whether the station is currently told to await an action
-    accepted_terminal_states = [
-        TerminalStates.VERIFICATION, TerminalStates.PAYMENT]
-    if station.terminal_state not in accepted_terminal_states:
+    if station.terminal_state != expected_terminal_state:
         logger.info(ServiceExceptions.INVALID_TERMINAL_STATE,
                     station=call_sign, detail=station.terminal_state)
         return
 
     # 3: Find the session that is awaiting verification / payment
-    accepted_session_states = [
-        SessionStates.VERIFICATION, SessionStates.PAYMENT]
     session: Session = Session(await SessionModel.find(
         SessionModel.assigned_station == station.id,
-        In(SessionModel.session_state, accepted_session_states)
+        SessionModel.session_state == queued_session_state
     ).sort(
         (SessionModel.created_ts, SortDirection.DESCENDING)
     ).first_or_none())
@@ -169,9 +169,19 @@ async def handle_terminal_action_report(call_sign: str) -> None:
     # 6: Instruct the locker to open
     await locker.instruct_unlock(call_sign=station.call_sign)
 
-    # 7: Set the queue item to completed
+    # 7: Set the verification/payment queue item to completed
     queue: QueueItem = await QueueItem().fetch(session_id=session.id)
     await queue.set_state(QueueStates.COMPLETED)
+
+    # 8: Create a new queue item for the station to report the unlock
+    await QueueItem().create(
+        queue_type=QueueTypes.STATION,
+        station_id=station.id,
+        session_id=session.id,
+        queued_state=session.session_state,
+        timeout_states=[SessionStates.ABORTED],
+        skip_queue=True
+    )
 
 
 async def handle_terminal_mode_confirmation(call_sign: str, _mode: str):

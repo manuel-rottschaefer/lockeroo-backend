@@ -15,7 +15,7 @@ from src.entities.queue_entity import QueueItem
 from src.models.locker_models import LockerModel, LockerStates
 from src.models.session_models import SessionModel, SessionStates
 from src.models.station_models import StationModel
-from src.models.queue_models import QueueStates
+from src.models.queue_models import QueueStates, QueueTypes
 
 # Services
 from src.services.logging_services import logger
@@ -88,7 +88,7 @@ async def handle_lock_report(call_sign: str, locker_index: int) -> None:
 
 
 async def handle_unlock_confirmation(station_callsign: str, locker_index: int) -> None:
-    """Process and verify a station report that a locker has been closed"""
+    """Process and verify a station report that a locker has been unlocked"""
 
     # 1: Find the station to get its ID
     station: Station = await Station().fetch(call_sign=station_callsign)
@@ -121,7 +121,7 @@ async def handle_unlock_confirmation(station_callsign: str, locker_index: int) -
                     station=station_callsign)
         return
 
-    assert await session.exists
+    assert session.exists
     if session.session_state not in accepted_session_states:
         logger.info(ServiceExceptions.WRONG_SESSION_STATE,
                     session=session.id, detail=session.session_state)
@@ -130,12 +130,19 @@ async def handle_unlock_confirmation(station_callsign: str, locker_index: int) -
     # 5: Update locker and session states
     await locker.set_state(LockerStates.UNLOCKED)
 
-    await QueueItem().create(station_id=station.id,
-                             session_id=session.id,
-                             queued_state=await session.next_state,
-                             timeout_state=SessionStates.STALE,
-                             skip_eval=True
-                             )
+    # 6: Complete the current active session
+    queue_item: QueueItem = await QueueItem().fetch(session_id=session.id)
+    await queue_item.set_state(QueueStates.COMPLETED)
 
-    # 7: Create action entry
+    # 7: Create a queue item for the user
+    await QueueItem().create(
+        queue_type=QueueTypes.USER,
+        station_id=station.id,
+        session_id=session.id,
+        queued_state=await session.next_state,
+        timeout_states=[SessionStates.STALE],
+        skip_queue=True
+    )
+
+    # 8: Create action entry
     await create_action(session.id, session.session_state)

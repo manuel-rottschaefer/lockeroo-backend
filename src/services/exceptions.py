@@ -36,13 +36,14 @@ class ServiceExceptions(Enum):
     STATION_NOT_FOUND = "station_not_found"
     STATION_NOT_AVAILABLE = "station_not_available"
     STATION_PAYMENT_NOT_AVAILABLE = "station_payment_not_available"
+    PAYMENT_METHOD_NOT_SUPPORTED = "payment_method_not_supported"
     INVALID_TERMINAL_STATE = "invalid_terminal_state"
 
     # Sessions
     SESSION_NOT_FOUND = "session_not_found"
     WRONG_SESSION_STATE = "invalid_session_state"
     SESSION_EXPIRED = "session_expired"
-    PAYMENT_METHOD_NOT_AVAILABLE = "payment_method_not_available"
+    INVALID_PAYMENT_METHOD = "invalid_payment_method"
 
     # Locker
     LOCKER_NOT_FOUND = "locker_not_found"

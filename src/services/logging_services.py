@@ -64,10 +64,15 @@ class LoggingService:
                 "Station '%s' is currently not available.", station)
 
         elif exception == ServiceExceptions.STATION_PAYMENT_NOT_AVAILABLE:
-            # TODO: What is this case?
+            self.logging.info(
+                "Payment method '%s' is currently not supported.", detail)
             pass
 
-        elif exception == ServiceExceptions.PAYMENT_METHOD_NOT_AVAILABLE:
+        elif exception == ServiceExceptions.INVALID_PAYMENT_METHOD:
+            self.logging.info(
+                "Session '%s' does not support payment method '%s'.", session, detail)
+
+        elif exception == ServiceExceptions.PAYMENT_METHOD_NOT_SUPPORTED:
             self.logging.info(
                 "Station '%s' does currently not support %s as a payment method", station, detail)
 
@@ -78,7 +83,7 @@ class LoggingService:
                     "Could not find session '%s' in database.", session)
             elif station:
                 self.logging.info(
-                    "Could not find an active session at locker '%s'.", locker)
+                    "Could not find an active session at station '%s'.", station)
 
         elif exception == ServiceExceptions.WRONG_SESSION_STATE:
             self.logging.info(
@@ -88,7 +93,7 @@ class LoggingService:
             self.logging.info(
                 "Session '%s' expired while waiting for %s", session, detail)
 
-        elif exception == ServiceExceptions.PAYMENT_METHOD_NOT_AVAILABLE:
+        elif exception == ServiceExceptions.PAYMENT_METHOD_NOT_SUPPORTED:
             self.logging.info(
                 "Payment method '%s' does not exist or is not available for session '%s'.",
                 detail, session)
@@ -117,7 +122,6 @@ class LoggingService:
                 "Could not find review for session '%s'.", session)
 
 
-# Disable debug messages for pymongo
 loggers = [name for name, logger in logging.Logger.manager.loggerDict.items()
            if isinstance(logger, logging.Logger)]
 for logger in loggers:

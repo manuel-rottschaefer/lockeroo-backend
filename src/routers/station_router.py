@@ -11,8 +11,8 @@ from fastapi import APIRouter, Path
 from beanie import PydanticObjectId as ObjId
 
 # Models
-from src.models.station_models import StationView, StationStates
-from src.models.session_models import SessionView
+from src.models.station_models import StationView, StationStates, TerminalStates
+from src.models.session_models import SessionView, SessionStates
 from src.models.locker_models import LockerView
 
 # Services
@@ -151,7 +151,11 @@ async def handle_station_verification_report(
     logger.debug(
         f"Received payment verification report for station '{call_sign}' with card id '{card_id}'.")
 
-    await station_services.handle_terminal_action_report(call_sign)
+    await station_services.handle_terminal_report(
+        call_sign=call_sign,
+        queued_session_state=SessionStates.VERIFICATION,
+        expected_terminal_state=TerminalStates.VERIFICATION
+    )
 
 
 @fast_mqtt.subscribe('stations/+/payment/report')
@@ -162,7 +166,11 @@ async def handle_station_payment_report(
 
     logger.debug(f"Received payment report from station '{call_sign}'.")
 
-    await station_services.handle_terminal_action_report(call_sign)
+    await station_services.handle_terminal_report(
+        call_sign=call_sign,
+        queued_session_state=SessionStates.PAYMENT,
+        expected_terminal_state=TerminalStates.PAYMENT
+    )
 
 
 @fast_mqtt.subscribe('stations/+/locker/+/report')
@@ -183,15 +191,16 @@ async def handle_station_lock_report(
     if not report:
         return
 
-    logger.debug(
-        (f"Received '{report.lower()}' report from locker '{
-         locker_index}' at station '{call_sign}'.")
-    )
+    # logger.debug(
+    #    (f"Received '{report.lower()}' report from locker '{
+    #     locker_index}' at station '{call_sign}'.")
+    # )
 
     if report == "UNLOCKED":
         await locker_services.handle_unlock_confirmation(call_sign, locker_index)
     elif report == "LOCKED":
         await locker_services.handle_lock_report(call_sign, locker_index)
     else:
+        # TODO: This needs a seperate exception, maybe even in a seperate ENUM
         logger.info(ServiceExceptions.INVALID_LOCKER_STATE,
                     station=call_sign, locker=locker_index)

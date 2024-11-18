@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from dotenv import load_dotenv
 from pydantic import Field
 
@@ -23,11 +23,17 @@ load_dotenv('src/environments/.env')
 
 
 class QueueStates(str, Enum):
-    """States for a terminal queue"""
+    """States for a terminal queue."""
     QUEUED = "queued"               # Session is queued for verification/payment
     PENDING = "pending"             # Session is awaiting verification/payment
     COMPLETED = "completed"         # Session has been verified/paid
     EXPIRED = "expired"             # Session has expired
+
+
+class QueueTypes(str, Enum):
+    """Types of queued actions."""
+    USER = "user"
+    STATION = "station"
 
 
 EXPIRATION_DURATIONS: Dict[SessionStates, int] = {
@@ -45,6 +51,9 @@ class QueueItemModel(Document):  # pylint: disable=too-many-ancestors
         by its state and time of registration"""
     id: Optional[ObjId] = Field(None, alias="_id")
 
+    queue_type: QueueTypes = Field(
+        QueueTypes.USER, description="The type of action being queued/awaited.")
+
     assigned_session: ObjId = Field(
         None, description="The session this queue item handles.")
 
@@ -59,16 +68,16 @@ class QueueItemModel(Document):  # pylint: disable=too-many-ancestors
         SessionStates.EXPIRED,
         description="The next state of the queued session after activation.")
 
-    # TODO: Required?
-    timeout_state: SessionStates = Field(
-        SessionStates.EXPIRED,
-        description="The state of the session after expiration of a queue.")
+    timeout_states: List[SessionStates] = Field(
+        default=[SessionStates.EXPIRED],
+        description="List of states the assigned session takes on after expiring, \
+        each list item is a next try for this queue.")
 
     expiration_window: int = Field(
         0, description="The time in seconds until the queue expires.")
 
     expires_at: Optional[datetime] = Field(
-        None, description="The timestamp when the queue will expire.")
+        None, description="The timestamp when the queue will time out.")
 
     created_at: datetime = Field(
         datetime.now(),
@@ -83,7 +92,7 @@ class QueueItemModel(Document):  # pylint: disable=too-many-ancestors
     @after_event(Replace)
     def report_state(self) -> None:
         """Log database operation."""
-        logger.debug(f"Queue item '{self.id}' set to state {
+        logger.debug(f"QueueItem '{self.id}' set to state {
                      self.queue_state}.")
 
     @dataclass

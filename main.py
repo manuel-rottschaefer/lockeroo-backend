@@ -86,4 +86,4 @@ app.include_router(dashboard_router, prefix='/dashboard', tags=['Dashboard'])
 if __name__ == "__main__":
     os.system('clear')
     # Run the server
-    uvicorn.run(app, host="0.0.0.0", port=80, reload=True, log_config=None)
+    uvicorn.run(app, host="0.0.0.0", port=8080)

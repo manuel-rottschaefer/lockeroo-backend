@@ -89,10 +89,10 @@ class Payment():
     async def current_price(self) -> Optional[int]:
         """Calculate the total cost of a session in cents."""
         # 1: Get the assigned session
-        session: Session = await Session().fetch(self.document.assigned_session)
+        session: Session = await Session().fetch(session_id=self.document.assigned_session)
 
         # 2: Get the locker assigned to this session
-        locker: Locker = await Locker().fetch(session.assigned_locker)
+        locker: Locker = await Locker().fetch(locker_id=session.assigned_locker)
 
         # 3: Get the pricing model for this session
         locker_type = locker_config[locker.locker_type]

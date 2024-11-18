@@ -160,7 +160,7 @@ class Station():
 
         await self.document.replace(skip_actions=['notify_station_state'])
         logger.debug(
-            f"Terminal at station '{self.call_sign}' set to {
+            f"Terminal at station '{self.id}' set to {
                 self.terminal_state}."
         )
         return terminal_state
