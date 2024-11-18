@@ -10,6 +10,7 @@ from typing import Optional
 # Types
 from beanie import Document, Replace, after_event
 from beanie import PydanticObjectId as ObjId
+from beanie.operators import Set
 from pydantic import Field
 
 # Entities
@@ -51,8 +52,7 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
     async def check_pending(self):
         """Check if this payment is now pending."""
         # 1: Update the timestamp
-        self.last_updated = datetime.now()
-        await self.replace()
+        await self.update(Set({PaymentModel.last_updated: datetime.now()}))
 
         if self.state == PaymentStates.PENDING:
             # Get the session

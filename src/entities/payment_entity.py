@@ -4,12 +4,16 @@
 
 # Basics
 from typing import Optional
-from datetime import datetime
-from src.config.config import locker_config
+from datetime import datetime, timedelta
+
 # Beanie
 from beanie import PydanticObjectId as ObjId
-from beanie import SortDirection
-from beanie.operators import In
+from beanie import SortDirection, Replace
+from beanie.operators import In, Set
+
+# Configuration
+from src.config.config import locker_config
+
 # Entities
 from src.entities.session_entity import Session
 from src.entities.locker_entity import Locker
@@ -77,13 +81,13 @@ class Payment():
         await instance.document.insert()
         return instance
 
-    async def activate(self):
-        """Activate this payment."""
-        self.document.state = PaymentStates.PENDING
-        self.document.price = await self.current_price
-        logger.debug(f"Payment '{self.document.id}' set to state {
-                     self.document.state}.")
-        await self.document.replace()
+    async def set_state(self, state: PaymentStates):
+        await self.document.update(Set({PaymentModel.state: state}))
+
+    async def get_price(self):
+        price = await self.current_price
+        await self.document.update(Set({PaymentModel.price: price}))
+        return price
 
     @property
     async def current_price(self) -> Optional[int]:
@@ -98,8 +102,9 @@ class Payment():
         locker_type = locker_config[locker.locker_type]
 
         # 4:Calculate the total cost
+        active_duration: timedelta = await session.active_duration
         calculated_price: int = locker_type['minute_rate'] * \
-            (await session.active_duration / 60)
+            (active_duration.total_seconds() / 60)
         # 5: Assure that price is withing bounds
         calculated_price = min(
             max(calculated_price,

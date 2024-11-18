@@ -10,8 +10,8 @@ from fastapi import HTTPException
 
 # Types
 from typing import List, Dict
-from beanie import PydanticObjectId as ObjId
-from beanie import After
+from beanie import PydanticObjectId as ObjId, After
+from beanie.operators import Set
 
 # Models
 from src.models.session_models import SessionModel, SessionPaymentTypes, SessionStates
@@ -108,7 +108,7 @@ class Session():
         return 0
 
     @property
-    async def active_duration(self) -> int:
+    async def active_duration(self) -> timedelta:
         """Returns the amount of seconds the session has been active until now,
         i.e time that the user gets charged for."""
 
@@ -122,14 +122,13 @@ class Session():
         ]
 
         # Sum up time between all locked cycles
-        async for action in ActionModel.find(ActionModel.session_id == self.id).sort(
+        async for action in ActionModel.find(ActionModel.assigned_session == self.id).sort(
             ActionModel.timestamp
         ):
             if action.action_type in SessionStates.ACTIVE:
                 cycle_start = action.timestamp
             elif action.action_type in hold_states:
                 active_duration += action.timestamp - cycle_start
-
         return active_duration
 
     @property
@@ -159,9 +158,9 @@ class Session():
         try:
             self.document.session_state = state
             if notify:
-                await self.document.replace()
+                await self.document.update(Set({SessionModel.session_state: state}))
             else:
-                await self.document.replace(skip_actions=[After])
+                await self.document.update(Set({SessionModel.session_state: state}), skip_actions=[After])
 
             logger.debug(
                 f"Session '{self.id}' updated to state {self.session_state}."

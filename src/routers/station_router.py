@@ -18,31 +18,11 @@ from src.models.locker_models import LockerView
 # Services
 from src.services import locker_services, station_services
 from src.services.logging_services import logger
-from src.services.mqtt_services import fast_mqtt
+from src.services.mqtt_services import fast_mqtt, validate_mqtt_topic
 from src.services.exceptions import ServiceExceptions, handle_exceptions
 
 # Create the router
 station_router = APIRouter()
-
-
-def validate_object_ids(func):
-    """Validate the ObjIds for FastAPI HTTP Endpoints."""
-    @wraps(func)
-    async def wrapper(_client, topic, payload, _qos, _properties, *args, **kwargs):
-        # Split the topic to get the path parameters
-        path_params = topic.split('/')
-
-        # Validate each path parameter
-        for param in path_params:
-            try:
-                ObjId(param)
-            except:
-                logger.warning(f"Invalid ObjectId in topic: {param}")
-
-        # Call the original function if all parameters are valid
-        return await func(_client, topic, payload, _qos, _properties, *args, **kwargs)
-
-    return wrapper
 
 
 @station_router.get('/{call_sign}/discover',
@@ -119,6 +99,7 @@ async def reset_station_queue(call_sign: Annotated[str, Path(pattern='^[A-Z]{6}$
 # TODO: Improve station mqtt message validation
 
 
+@validate_mqtt_topic('stations/+/terminal/confirm', [ObjId])
 @fast_mqtt.subscribe('stations/+/terminal/confirm')
 async def handle_terminal_mode_confirmation(
         _client, topic, payload, _qos, _properties) -> None:
@@ -136,6 +117,7 @@ async def handle_terminal_mode_confirmation(
     await station_services.handle_terminal_mode_confirmation(call_sign, mode)
 
 
+@validate_mqtt_topic('stations/+/verification/report', [ObjId])
 @fast_mqtt.subscribe('stations/+/verification/report')
 async def handle_station_verification_report(
         _client, topic, payload, _qos, _properties) -> None:
@@ -158,6 +140,7 @@ async def handle_station_verification_report(
     )
 
 
+@validate_mqtt_topic('stations/+/payment/report', [ObjId])
 @fast_mqtt.subscribe('stations/+/payment/report')
 async def handle_station_payment_report(
         _client, topic, _payload, _qos, _properties) -> None:
@@ -173,6 +156,7 @@ async def handle_station_payment_report(
     )
 
 
+@validate_mqtt_topic('stations/+/locker/+/report', [ObjId, int])
 @fast_mqtt.subscribe('stations/+/locker/+/report')
 async def handle_station_lock_report(
         _client, topic, payload, _qos, _properties) -> None:

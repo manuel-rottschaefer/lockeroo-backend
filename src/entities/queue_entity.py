@@ -7,16 +7,21 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 import asyncio
 import os
+
 # Beanie
 from beanie import PydanticObjectId as ObjId
+from beanie.operators import Set
 from beanie import SortDirection
+
 # Entities
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
 from src.entities.payment_entity import Payment
+
 # Models
 from src.models.session_models import SessionStates
 from src.models.queue_models import QueueItemModel, QueueStates, QueueTypes, EXPIRATION_DURATIONS
+
 # Services
 from src.services.logging_services import logger
 from src.services.exceptions import ServiceExceptions
@@ -134,8 +139,7 @@ class QueueItem():
 
     async def set_state(self, new_state: QueueStates):
         """Set the state of this queue item."""
-        self.document.queue_state = new_state
-        await self.document.replace()
+        await self.document.update(Set({QueueItemModel.queue_state: new_state}))
 
     ### Session runner ###
 
@@ -163,17 +167,16 @@ class QueueItem():
         # 4: If the session is pending payment, activate it
         if session.session_state == SessionStates.PAYMENT:
             payment: Payment = await Payment.fetch(session_id=session.id)
-            try:
-                await payment.activate()
-            except Exception as e:
-                logger.warning(e)
+            await payment.get_price()
+            # await payment.set_state(PaymentStates.PENDING)
 
         # 5: Update queue item
-        self.document.queue_state = QueueStates.PENDING
-        self.document.activated_at = datetime.now()
-        self.document.expires_at = expiration_date
-        self.document.expiration_window = secs_to_expiration
-        await self.document.replace()
+        await self.document.update(Set({
+            QueueItemModel.queue_state: QueueStates.PENDING,
+            QueueItemModel.activated_at: datetime.now(),
+            QueueItemModel.expires_at: expiration_date,
+            QueueItemModel.expiration_window: secs_to_expiration
+        }))
 
         # 6: Get the expiration time depending on queue type
         if self.document.queue_type == QueueTypes.USER:

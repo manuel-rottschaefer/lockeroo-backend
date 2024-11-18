@@ -1,10 +1,12 @@
 """Utilities for the station model"""
 
 # Basics
-from beanie import PydanticObjectId as ObjId
-
-# Types
 from typing import Optional
+
+# Beanie
+from beanie import PydanticObjectId as ObjId
+from beanie.operators import Set
+
 
 # Entities
 from src.entities.locker_entity import Locker
@@ -173,5 +175,4 @@ class Station():
     async def increase_completed_sessions_count(self: StationModel):
         """Increase the count of completed sessions at the station.
         No checks are performed here, as the request is assumed to be valid."""
-        self.document.total_sessions += 1
-        await self.replace()
+        await self.document.update(Set({StationModel.total_sessions: self.total_sessions + 1}))

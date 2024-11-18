@@ -2,6 +2,7 @@
 
 # Types
 from beanie import PydanticObjectId as ObjId
+from beanie.operators import Set
 
 # Models
 from src.models.locker_models import LockerModel, LockerStates
@@ -58,8 +59,7 @@ class Locker():
 
     async def set_state(self, state: LockerStates):
         """Update the reported (actual) locker state"""
-        self.document.reported_state = state
-        await self.document.replace()
+        await self.document.update(Set({LockerModel.reported_state: state}))
 
     async def instruct_unlock(self, call_sign: str):
         # TODO: This function is being called only once, evaluate alternative locations
