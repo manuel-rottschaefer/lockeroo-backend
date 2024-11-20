@@ -4,19 +4,24 @@
 from datetime import datetime, timedelta
 from uuid import UUID
 
+# Types
+from typing import List
+
 # FastAPI
 from fastapi import HTTPException
 
-# Types
-from typing import List
+# Beanie
 from beanie import After, SortDirection, PydanticObjectId as ObjId
 from beanie.operators import Set, NotIn
 
 # Models
 from src.models.station_models import StationModel
 from src.models.locker_models import LockerModel
-from src.models.session_models import SessionModel, SessionPaymentTypes, SessionStates, INACTIVE_SESSION_STATES
 from src.models.action_models import ActionModel
+from src.models.session_models import (SessionModel,
+                                       SessionPaymentTypes,
+                                       SessionStates,
+                                       INACTIVE_SESSION_STATES)
 
 # Services
 from src.services.logging_services import logger
@@ -137,8 +142,6 @@ class Session():
             SessionStates.PAYMENT: SessionStates.RETRIEVAL,
             SessionStates.RETRIEVAL: SessionStates.COMPLETED,
         }
-        logger.debug(self.document.session_state)
-        logger.debug(state_map.get(self.session_state))
         return state_map.get(self.session_state)
 
     async def set_state(self, state: SessionStates, notify: bool = True) -> None:
@@ -148,7 +151,8 @@ class Session():
             if notify:
                 await self.document.update(Set({SessionModel.session_state: state}))
             else:
-                await self.document.update(Set({SessionModel.session_state: state}), skip_actions=[After])
+                await self.document.update(
+                    Set({SessionModel.session_state: state}), skip_actions=[After])
 
             logger.debug(
                 f"Session '{self.id}' updated to state {self.session_state}."

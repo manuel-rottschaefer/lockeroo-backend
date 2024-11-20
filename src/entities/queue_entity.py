@@ -5,7 +5,6 @@
 # Basics
 from typing import List, Optional
 from datetime import datetime, timedelta
-import traceback
 import asyncio
 import os
 
@@ -186,9 +185,11 @@ class QueueItem():
 
     async def register_expiration(self,
                                   seconds_to_expiration: int):
-        """Register an expiration handler. This waits until the expiration duration has passed and then fires up the expiration handler."""
-        logger.debug(f"QueueItem '{self.document.id}' assigned to session '{self.assigned_session.id}' will time out in {
-                     seconds_to_expiration} seconds.")
+        """Register an expiration handler. This waits until the expiration duration
+        has passed and then fires up the expiration handler."""
+        logger.debug(f"QueueItem '{self.document.id}' assigned to session'{
+            self.assigned_session.id}' will time out in {
+            seconds_to_expiration} seconds.")
 
         # 1 Register the expiration handler
         await asyncio.sleep(int(seconds_to_expiration))

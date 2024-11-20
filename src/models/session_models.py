@@ -118,8 +118,8 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     class Settings:  # pylint: disable=missing-class-docstring
         name = "sessions"
         use_cache = True
-        # TODO: Evaluate caching as this can lead to improper state handling. Maybe refresh single keys?
-        # cache_expiration_time = timedelta(seconds=10)
+        # Set the expiration time to one second so the session state is not cached over requests
+        cache_expiration_time = timedelta(seconds=1)
         # cache_capacity = 5
 
     @dataclasses.dataclass
