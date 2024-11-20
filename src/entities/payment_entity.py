@@ -1,13 +1,10 @@
-"""
-    Payment Utils Module
-"""
+"""This module provides utilities for  database for payments."""
 
 # Basics
 from typing import Optional
 from datetime import datetime, timedelta
 
 # Beanie
-from beanie import PydanticObjectId as ObjId
 from beanie import SortDirection
 from beanie.operators import In, Set
 

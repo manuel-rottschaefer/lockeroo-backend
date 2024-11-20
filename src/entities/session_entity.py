@@ -1,4 +1,4 @@
-"""Utilities for the session model"""
+"""This module provides utilities for  database for sessions."""
 
 # Basics
 from datetime import datetime, timedelta
@@ -71,9 +71,6 @@ class Session():
         if not instance.exists:
             logger.info(ServiceExceptions.SESSION_NOT_FOUND,
                         session=session_id)
-            raise HTTPException(
-                status_code=404, detail=ServiceExceptions.SESSION_NOT_FOUND.value
-            )
         return instance
 
     @classmethod

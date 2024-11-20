@@ -15,12 +15,12 @@ from beanie.operators import Set
 from src.entities.station_entity import Station
 from src.entities.session_entity import Session
 from src.entities.locker_entity import Locker
-from src.entities.queue_entity import QueueItem
+from src.entities.task_entity import Task
 
 # Models
 from src.models.locker_models import LockerModel
 from src.models.session_models import SessionModel, SessionStates, INACTIVE_SESSION_STATES
-from src.models.queue_models import QueueItemModel, QueueStates, QueueTypes
+from src.models.task_models import TaskItemModel, TaskStates, TaskTypes
 from src.models.station_models import (StationLockerAvailabilities, StationModel,
                                        StationView, StationStates, TerminalStates)
 
@@ -112,17 +112,17 @@ async def reset_queue(call_sign: str) -> StationView:
     station: Station = await Station().fetch(call_sign=call_sign)
 
     # 2: Get all stale queue items at the station
-    queue_items: List[QueueItemModel] = await QueueItemModel.find(
-        QueueItemModel.assigned_station == station.id,
-        QueueItemModel.queue_state == QueueStates.PENDING
-    ).sort(QueueItemModel.created_at)
+    tasks: List[TaskItemModel] = await TaskItemModel.find(
+        TaskItemModel.assigned_station == station.id,
+        TaskItemModel.task_state == TaskStates.PENDING
+    ).sort(TaskItemModel.created_at)
 
     # 3: Set all to state QUEUED
-    await queue_items.update(Set({QueueItemModel.queue_state: QueueStates.QUEUED}))
+    await tasks.update(Set({TaskItemModel.task_state: TaskStates.QUEUED}))
 
     # 3: Re-evaluate the queue
-    first_queue_item: QueueItem = QueueItem(queue_items[0])
-    await first_queue_item.activate()
+    first_task: Task = Task(tasks[0])
+    await first_task.activate()
 
 
 async def handle_terminal_report(
@@ -171,17 +171,17 @@ async def handle_terminal_report(
     await locker.instruct_unlock(call_sign=station.call_sign)
 
     # 7: Set the verification/payment queue item to completed
-    queue: QueueItem = await QueueItem().fetch(session=session.document)
-    await queue.set_state(QueueStates.COMPLETED)
+    task: Task = await Task().fetch(session=session.document)
+    await task.set_state(TaskStates.COMPLETED)
 
     # 8: Create a new queue item for the station to report the unlock
-    await QueueItem().create(
-        queue_type=QueueTypes.STATION,
+    await Task().create(
+        task_type=TaskTypes.STATION,
         station=station.document,
         session=session.document,
         queued_state=session.session_state,
         timeout_states=[SessionStates.ABORTED],
-        skip_queue=True
+        queue=False
     )
 
 

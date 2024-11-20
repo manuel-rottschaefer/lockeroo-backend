@@ -1,4 +1,4 @@
-"""Utilities for the maintenance model"""
+"""This module provides utilities for  database for maintenance events."""
 
 # Basics
 from datetime import datetime
@@ -69,7 +69,7 @@ class Maintenance():
         station_id: ObjId,
         staff_id: ObjId
     ):
-        '''Create a queue new session item and insert it into the database.'''
+        '''Create a new maintenance event and insert it into the database.'''
         instance = cls()
         instance.document = MaintenanceModel(
             assigned_station=station_id,

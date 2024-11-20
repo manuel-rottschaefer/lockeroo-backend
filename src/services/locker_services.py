@@ -8,12 +8,12 @@ from beanie.operators import In
 from src.entities.station_entity import Station
 from src.entities.session_entity import Session
 from src.entities.locker_entity import Locker
-from src.entities.queue_entity import QueueItem
+from src.entities.task_entity import Task
 
 # Models
 from src.models.locker_models import LockerModel, LockerStates
 from src.models.session_models import SessionModel, SessionStates
-from src.models.queue_models import QueueStates, QueueTypes
+from src.models.task_models import TaskStates, TaskTypes
 
 # Services
 from src.services.logging_services import logger
@@ -51,16 +51,28 @@ async def handle_lock_report(call_sign: str, locker_index: int) -> None:
         logger.info(ServiceExceptions.SESSION_NOT_FOUND, locker=locker.id)
         return
 
-    # 5: If those checks pass, update the locker and session state
+    # 5: If those checks pass, update the locker and create an action
     await locker.set_state(LockerStates.LOCKED)
-    await session.set_state(await session.next_state)
-
-    # 6: Complete the queue item
-    queue_item: QueueItem = await QueueItem().fetch(session=session)
-    await queue_item.set_state(QueueStates.COMPLETED)
-
-    # 7: Create an action for this
     await create_action(session.id, session.session_state)
+    # await session.set_state(await session.next_state)
+
+    # 6: Complete the previous task item
+    task_item: Task = await Task().fetch(session=session)
+    await task_item.set_state(TaskStates.COMPLETED)
+
+    next_state: SessionStates = await session.next_state
+    if next_state == SessionStates.COMPLETED:
+        await session.set_state(SessionStates.COMPLETED)
+        return
+
+    await Task().create(
+        task_type=TaskTypes.USER,
+        station=station.document,
+        session=session.document,
+        queued_state=await session.next_state,
+        timeout_states=[SessionStates.STALE],
+        queue=False
+    )
 
 
 async def handle_unlock_confirmation(
@@ -106,17 +118,17 @@ async def handle_unlock_confirmation(
     await locker.set_state(LockerStates.UNLOCKED)
 
     # 6: Complete the current active session
-    queue_item: QueueItem = await QueueItem().fetch(session=session)
-    await queue_item.set_state(QueueStates.COMPLETED)
+    task: Task = await Task().fetch(session=session)
+    await task.set_state(TaskStates.COMPLETED)
 
     # 7: Create a queue item for the user
-    await QueueItem().create(
-        queue_type=QueueTypes.USER,
+    await Task().create(
+        task_type=TaskTypes.USER,
         station=station.document,
         session=session.document,
         queued_state=await session.next_state,
         timeout_states=[SessionStates.STALE],
-        skip_queue=True
+        queue=False
     )
 
     # 8: Create action entry

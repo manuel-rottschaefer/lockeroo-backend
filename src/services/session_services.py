@@ -13,7 +13,7 @@ from fastapi import HTTPException, WebSocket, WebSocketDisconnect
 # Entities
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
-from src.entities.queue_entity import QueueItem, QueueTypes
+from src.entities.task_entity import Task, TaskTypes
 from src.entities.locker_entity import Locker
 from src.entities.payment_entity import Payment
 
@@ -186,12 +186,13 @@ async def handle_verification_request(
 
     # 5: Create a queue item at this station
     await session.document.fetch_all_links()
-    await QueueItem().create(
-        queue_type=QueueTypes.USER,
+    await Task().create(
+        task_type=TaskTypes.USER,
         station=session.assigned_station,
         session=session.document,
         queued_state=SessionStates.VERIFICATION,
-        timeout_states=[SessionStates.PAYMENT_SELECTED, SessionStates.EXPIRED]
+        timeout_states=[SessionStates.PAYMENT_SELECTED, SessionStates.EXPIRED],
+        queue=True
     )
 
     # 6: Log a queueVerification action
@@ -268,13 +269,14 @@ async def handle_payment_request(session_id: ObjId, user_id: UUID) -> Optional[S
     # 5: Create a payment object
     await Payment().create(session=session.document)
 
-    # 5: Create a queue item and execute if it is next in the queue
-    await QueueItem().create(
-        queue_type=QueueTypes.USER,
+    # 5: Create a task item and execute if it is next in the queue
+    await Task().create(
+        task_type=TaskTypes.USER,
         station=session.assigned_station,
         session=session.document,
         queued_state=SessionStates.PAYMENT,
-        timeout_states=[session.session_state, SessionStates.EXPIRED]
+        timeout_states=[session.session_state, SessionStates.EXPIRED],
+        queue=True
     )
 
     # 6: Log the request

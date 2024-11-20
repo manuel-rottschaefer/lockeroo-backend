@@ -16,7 +16,7 @@ from src.models.action_models import ActionModel
 from src.models.locker_models import LockerModel
 from src.models.session_models import SessionModel
 from src.models.station_models import StationModel
-from src.models.queue_models import QueueItemModel
+from src.models.task_models import TaskItemModel
 from src.models.payment_models import PaymentModel
 from src.models.maintenance_models import MaintenanceModel
 
@@ -31,7 +31,7 @@ async def setup():
             ActionModel,
             LockerModel,
             PaymentModel,
-            QueueItemModel,
+            TaskItemModel,
             MaintenanceModel
         ],
     )

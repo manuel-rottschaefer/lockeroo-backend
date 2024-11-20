@@ -1,4 +1,4 @@
-"""Models for queue items."""
+"""Models for task items."""
 
 # Types
 import os
@@ -23,47 +23,49 @@ from src.services.logging_services import logger
 load_dotenv('src/environments/.env')
 
 
-class QueueStates(str, Enum):
-    """States for a terminal queue."""
+class TaskStates(str, Enum):
+    """Possible states for Tasks."""
     QUEUED = "queued"               # Session is queued for verification/payment
     PENDING = "pending"             # Session is awaiting verification/payment
     COMPLETED = "completed"         # Session has been verified/paid
     EXPIRED = "expired"             # Session has expired
 
 
-class QueueTypes(str, Enum):
+class TaskTypes(str, Enum):
     """Types of queued actions."""
     USER = "user"
     STATION = "station"
 
 
-EXPIRATION_DURATIONS: Dict[SessionStates, int] = {
+TASK_TIMEOUT_WINDOWS: Dict[SessionStates, int] = {
     SessionStates.VERIFICATION: os.getenv('VERIFICATION_EXPIRATION'),
     SessionStates.PAYMENT: os.getenv('PAYMENT_EXPIRATION'),
     SessionStates.STASHING: os.getenv('STASHING_EXPIRATION'),
     SessionStates.HOLD: os.getenv('HOLD_EXPIRATION'),
     SessionStates.RETRIEVAL: os.getenv('RETRIEVAL_EXPIRATION'),
+    SessionStates.ACTIVE: os.getenv('ACTIVE_EXPIRATION'),
 }
 
 
-class QueueItemModel(Document):  # pylint: disable=too-many-ancestors
-    """Queue of session awaiting verification / payment at a station terminal.
-        The position of each queued session is determined dynamically
-        by its state and time of registration"""
+class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
+    """Allows for both user and station tasks to be registered, queued and also to handle timeouts."""
     id: Optional[ObjId] = Field(None, alias="_id")
 
-    queue_type: QueueTypes = Field(
-        QueueTypes.USER, description="The type of action being queued/awaited.")
+    task_type: TaskTypes = Field(
+        TaskTypes.USER, description="The type of action being queued/awaited.")
 
     assigned_session: Link[SessionModel] = Field(
-        None, description="The session this queue item handles.")
+        None, description="The session which this task handles.")
 
     assigned_station: Link[StationModel] = Field(
         None, description="The station assigned to the related session.")
 
-    queue_state: QueueStates = Field(
-        QueueStates.QUEUED,
-        description='State of the queue item. Not related to the session state.')
+    task_state: TaskStates = Field(
+        TaskStates.QUEUED,
+        description='State of the task item. Not related to the session state.')
+
+    queue_enabled: bool = Field(
+        False, description="The task can be put into a queue at its assigned station or be immediately activated.")
 
     queued_state: SessionStates = Field(
         SessionStates.EXPIRED,
@@ -72,30 +74,30 @@ class QueueItemModel(Document):  # pylint: disable=too-many-ancestors
     timeout_states: List[SessionStates] = Field(
         default=[SessionStates.EXPIRED],
         description="List of states the assigned session takes on after expiring, \
-        each list item is a next try for this queue.")
+        each list item is a next try for this task.")
 
     expiration_window: int = Field(
-        0, description="The time in seconds until the queue expires.")
+        0, description="The time in seconds until the task expires.")
 
     expires_at: Optional[datetime] = Field(
-        None, description="The timestamp when the queue will time out.")
+        None, description="The timestamp when the task will time out.")
 
     created_at: datetime = Field(
         datetime.now(),
-        description="The datetime when the queue item was created.")
+        description="The datetime when the task item was created.")
 
     activated_at: Optional[datetime] = Field(
-        None, description="The datetime when the queue item was activated.")
+        None, description="The datetime when the task item was activated.")
 
     completed: Optional[datetime] = Field(
-        None, description="The datetime when the queue item was completed or expired.")
+        None, description="The datetime when the task item was completed or expired.")
 
     @after_event(Update)
     def report_state(self) -> None:
         """Log database operation."""
-        logger.debug(f"QueueItem '{self.id}' set to state {
-                     self.queue_state}.")
+        logger.debug(f"Task '{self.id}' set to state {
+                     self.task_state}.")
 
     @dataclass
     class Settings:  # pylint: disable=missing-class-docstring
-        name = "queue"
+        name = "tasks"

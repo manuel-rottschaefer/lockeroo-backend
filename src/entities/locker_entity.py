@@ -1,4 +1,4 @@
-"""Utilities for the locker model"""
+"""This module provides utilities for  database for lockers."""
 
 # Types
 from beanie import PydanticObjectId as ObjId

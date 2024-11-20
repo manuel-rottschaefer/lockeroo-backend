@@ -1,7 +1,5 @@
-"""Utilities for the station model"""
+"""This module provides utilities for  database for stations."""
 
-# Basics
-from typing import Optional
 
 # Beanie
 from beanie import PydanticObjectId as ObjId
@@ -17,7 +15,6 @@ from src.models.station_models import StationModel, StationStates, TerminalState
 from src.models.locker_models import LockerModel
 
 # Services
-from src.services.exceptions import ServiceExceptions
 from src.services.maintenance_services import has_scheduled
 
 # Logging
