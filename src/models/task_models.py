@@ -37,16 +37,6 @@ class TaskTypes(str, Enum):
     STATION = "station"
 
 
-TASK_TIMEOUT_WINDOWS: Dict[SessionStates, int] = {
-    SessionStates.VERIFICATION: os.getenv('VERIFICATION_EXPIRATION'),
-    SessionStates.PAYMENT: os.getenv('PAYMENT_EXPIRATION'),
-    SessionStates.STASHING: os.getenv('STASHING_EXPIRATION'),
-    SessionStates.HOLD: os.getenv('HOLD_EXPIRATION'),
-    SessionStates.RETRIEVAL: os.getenv('RETRIEVAL_EXPIRATION'),
-    SessionStates.ACTIVE: os.getenv('ACTIVE_EXPIRATION'),
-}
-
-
 class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     """Allows for both user and station tasks to be registered, queued and also to handle timeouts."""
     id: Optional[ObjId] = Field(None, alias="_id")

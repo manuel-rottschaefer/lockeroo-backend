@@ -8,7 +8,7 @@ from enum import Enum
 
 # Types
 import dataclasses
-from typing import Optional, List
+from typing import Optional, Dict
 from uuid import UUID
 from pydantic import Field
 
@@ -33,50 +33,45 @@ class SessionTypes(str, Enum):
     RETOUR = "retour"
 
 
-class SessionStates(str, Enum):
-    """All possible states a session can be in."""
+class SessionStates(Dict, Enum):
+    """A complete list of all session states with their timeout duration in seconds,
+    whether the session is considered as 'active' in that state
+    and the default follow-up session state."""
     # Session created and assigned to locker. Awaiting payment selection
-    CREATED = "created"
+    CREATED = {"timeout_secs": 180,
+               "is_active": True, "next": 'PAYMENT_SELECTED'}
     # Payment method has been selected, now awaiting request to open locker
-    PAYMENT_SELECTED = "payment_selected"
+    PAYMENT_SELECTED = {"timeout_secs": 90,
+                        "is_active": True, "next": 'VERIFICATION'}
     # Terminal is awaiting verification
-    VERIFICATION = "verification"
-    # Locker opened for the first time, stashing underway. This phase may only
-    # last 3 minutes max
-    STASHING = 'stashing'
+    VERIFICATION = {"timeout_secs": 60, "is_active": True, "next": 'STASHING'}
+    # Locker opened for the first time, stashing underway.
+    STASHING = {"timeout_secs": 120, "is_active": True, "next": 'ACTIVE'}
     # Locker closed and session timer is running
-    ACTIVE = "active"
-    # Locker opened for retriving stuff (only digital payment)
-    HOLD = "hold"
+    ACTIVE = {"timeout_secs": 86400, "is_active": True, "next": 'PAYMENT'}
+    # Locker opened for retrieving stuff (only digital payment)
+    HOLD = {"timeout_secs": 300, "is_active": True, "next": 'ACTIVE'}
     # Payment is pending at the terminal
-    PAYMENT = "payment"
+    PAYMENT = {"timeout_secs": 60, "is_active": True, "next": 'RETRIEVAL'}
     # Locker opens a last time for retrieval
-    RETRIEVAL = "retrieval"
+    RETRIEVAL = {"timeout_secs": 120, "is_active": True, "next": 'COMPLETED'}
+
     # Session has been completed (paid for, locker closed)
-    COMPLETED = "completed"
+    COMPLETED = {"timeout_secs": 0, "is_active": False, "next": ''}
     # Session has been canceled, no active time, no payment
-    CANCELLED = "cancelled"
+    CANCELLED = {"timeout_secs": 0, "is_active": False, "next": ''}
     # Session has expired but locker remained open
-    STALE = 'stale'
+    STALE = {"timeout_secs": 0, "is_active": False, "next": ''}
     # Session has expired due to exceeded time window by user
-    EXPIRED = "expired"
+    EXPIRED = {"timeout_secs": 0, "is_active": False, "next": ''}
     # Session has expired due to internal failure / no response from station
-    ABORTED = "aborted"
+    ABORTED = {"timeout_secs": 0, "is_active": False, "next": ''}
 
 
 class SessionPaymentTypes(str, Enum):
     """All possible payment methods."""
     TERMINAL = "terminal"
     ONLINE = "online"
-
-
-INACTIVE_SESSION_STATES: List[SessionStates] = [
-    SessionStates.COMPLETED,
-    SessionStates.CANCELLED,
-    SessionStates.STALE,
-    SessionStates.EXPIRED,
-    SessionStates.ABORTED
-]
 
 
 class SessionModel(Document):  # pylint: disable=too-many-ancestors

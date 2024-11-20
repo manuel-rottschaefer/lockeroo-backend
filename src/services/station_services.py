@@ -19,7 +19,7 @@ from src.entities.task_entity import Task
 
 # Models
 from src.models.locker_models import LockerModel
-from src.models.session_models import SessionModel, SessionStates, INACTIVE_SESSION_STATES
+from src.models.session_models import SessionModel, SessionStates
 from src.models.task_models import TaskItemModel, TaskStates, TaskTypes
 from src.models.station_models import (StationLockerAvailabilities, StationModel,
                                        StationView, StationStates, TerminalStates)
@@ -60,7 +60,7 @@ async def get_active_session_count(call_sign: str) -> int:
 
     return await SessionModel.find(
         SessionModel.assigned_station == station.id,
-        NotIn(SessionModel.session_state, INACTIVE_SESSION_STATES)
+        SessionModel.session_state.value[1] is True
     ).count()
 
 

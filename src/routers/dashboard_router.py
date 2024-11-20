@@ -1,10 +1,6 @@
 """
     This module contains the FastAPI router for handling reviews.
 """
-# Basics
-
-# Database utils
-from beanie.operators import NotIn
 
 # FastAPI
 from fastapi import APIRouter
@@ -13,7 +9,7 @@ from fastapi import APIRouter
 from fief_client import FiefAccessTokenInfo
 
 # Models
-from src.models.session_models import SessionModel, INACTIVE_SESSION_STATES
+from src.models.session_models import SessionModel
 
 # Services
 from src.services.exceptions import handle_exceptions
@@ -32,6 +28,10 @@ async def get_active_session_count(
     _access_info: FiefAccessTokenInfo = None
 ) -> int:
     """Get the amount of currently active sessions."""
-    return await SessionModel.find(
-        NotIn(SessionModel.session_state, INACTIVE_SESSION_STATES)
-    ).count()
+    return await SessionModel.aggregate([
+        {
+            "$match": {
+                "session_state.is_active": True  # Match documents where the second element is True
+            }
+        },
+    ]).count()

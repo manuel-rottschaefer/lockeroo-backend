@@ -32,7 +32,8 @@ class ActionModel(Document):  # pylint: disable=too-many-ancestors
     timestamp: datetime = Field(
         None, description="The timestamp of when this action was registered."
     )
-    action_type: SessionStates
+    action_type: str = Field(
+        None, description="The type of action expressed as a session state name")
 
     @dataclasses.dataclass
     class Settings:  # pylint: disable=missing-class-docstring

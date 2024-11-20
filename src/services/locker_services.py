@@ -1,9 +1,5 @@
 """Provides utility functions for the locker management backend."""
 
-# Types
-from beanie import SortDirection
-from beanie.operators import In
-
 # Entities
 from src.entities.station_entity import Station
 from src.entities.session_entity import Session
@@ -12,7 +8,7 @@ from src.entities.task_entity import Task
 
 # Models
 from src.models.locker_models import LockerModel, LockerStates
-from src.models.session_models import SessionModel, SessionStates
+from src.models.session_models import SessionStates
 from src.models.task_models import TaskStates, TaskTypes
 
 # Services

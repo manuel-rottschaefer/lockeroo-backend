@@ -18,7 +18,7 @@ async def create_action(session_id: ObjId,
     """Create a new action entry"""
     new_action = await ActionModel(
         assigned_session=session_id,
-        action_type=action_type,
+        action_type=action_type.name,
         timestamp=datetime.now()
     ).insert()
 

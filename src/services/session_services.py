@@ -22,13 +22,10 @@ from src.models.session_models import (
     SessionView,
     SessionPaymentTypes,
     SessionStates,
-    INACTIVE_SESSION_STATES
 )
 
 from src.models.action_models import ActionModel
 
-# Config
-from src.config.config import locker_config
 
 # Services
 from src.services.action_services import create_action
@@ -143,7 +140,7 @@ async def handle_payment_selection(
     # 3: Check if the session is in the correct state
     if session.session_state != SessionStates.CREATED:
         logger.info(ServiceExceptions.WRONG_SESSION_STATE,
-                    session=session_id, detail=session.session_state.value)
+                    session=session_id, detail=session.session_state.name)
         raise HTTPException(
             status_code=400, detail=ServiceExceptions.WRONG_SESSION_STATE.value
         )
@@ -171,7 +168,7 @@ async def handle_verification_request(
     # 2: Check if the session is in the correct states
     if session.session_state != SessionStates.PAYMENT_SELECTED:
         logger.info(ServiceExceptions.WRONG_SESSION_STATE,
-                    session=session_id, detail=session.session_state.value)
+                    session=session_id, detail=session.session_state.name)
         raise HTTPException(
             status_code=400, detail=ServiceExceptions.WRONG_SESSION_STATE.value
         )
@@ -191,7 +188,8 @@ async def handle_verification_request(
         station=session.assigned_station,
         session=session.document,
         queued_state=SessionStates.VERIFICATION,
-        timeout_states=[SessionStates.PAYMENT_SELECTED, SessionStates.EXPIRED],
+        timeout_states=[SessionStates.PAYMENT_SELECTED,
+                        SessionStates.EXPIRED],
         queue=True
     )
 
@@ -215,7 +213,7 @@ async def handle_hold_request(session_id: ObjId, user_id: UUID) -> Optional[Sess
     # 2: Check whether the session is active
     if session.session_state != SessionStates.ACTIVE:
         logger.info(ServiceExceptions.WRONG_SESSION_STATE,
-                    session=session_id, detail=session.session_state.value)
+                    session=session_id, detail=session.session_state.name)
         raise HTTPException(
             status_code=400, detail=ServiceExceptions.WRONG_SESSION_STATE.value
         )
@@ -334,7 +332,7 @@ async def handle_update_subscription_request(session_id: ObjId, socket: WebSocke
         return
 
     # 3: Check if the session is not in an inactive state
-    if session.session_state in INACTIVE_SESSION_STATES:
+    if session.session_state.value[1]:
         logger.debug(
             f"Session '{session_id}' is not offering updates anymore.")
         return

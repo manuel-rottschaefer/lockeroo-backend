@@ -6,7 +6,7 @@ from beanie.operators import Set, NotIn
 
 # Models
 from src.models.station_models import StationModel
-from src.models.session_models import SessionModel, SessionStates, INACTIVE_SESSION_STATES
+from src.models.session_models import SessionModel, SessionStates
 from src.models.locker_models import LockerModel, LockerStates
 
 # Services
@@ -84,11 +84,14 @@ class Locker():
             return instance
 
         # 2. Find all active sessions at this station
-        active_sessions = await SessionModel.find(
-            SessionModel.assigned_station.id == station.id,  # pylint: disable=no-member
-            NotIn(SessionModel.session_state, INACTIVE_SESSION_STATES),
-            fetch_links=True
-        ).to_list()
+        active_sessions = await SessionModel.aggregate([
+            {
+                "$match": {
+                    "assigned_station.id": station.id,
+                    "session_state.is_active": True
+                }
+            }]).to_list()
+        # print(active_sessions[0].session_state)
 
         # 3: Find a locker at this station that matches the type and does not belong to such a session
         available_locker = await LockerModel.find(

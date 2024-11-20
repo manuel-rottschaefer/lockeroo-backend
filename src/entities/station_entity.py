@@ -127,14 +127,10 @@ class Station():
     ) -> StationStates:
         """Update the terminal state of a station. This function either accepts a TerminalState or a SessionState. """
         if terminal_state is None and session_state is not None:
-            session_to_terminal_map: dict[SessionStates, TerminalStates] = {
-                SessionStates.VERIFICATION: TerminalStates.VERIFICATION,
-                SessionStates.PAYMENT: TerminalStates.PAYMENT
-            }
-            if session_state in session_to_terminal_map:
-                terminal_state = session_to_terminal_map[session_state]
-
-        self.document.terminal_state = terminal_state
+            if session_state == SessionStates.VERIFICATION:
+                self.document.terminal_state = TerminalStates.VERIFICATION
+            elif session_state == SessionStates.PAYMENT:
+                self.document.terminal_state = TerminalStates.PAYMENT
 
         await self.document.replace(skip_actions=['notify_station_state'])
         logger.debug(

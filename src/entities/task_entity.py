@@ -18,7 +18,7 @@ from src.entities.payment_entity import Payment
 # Models
 from src.models.station_models import StationModel
 from src.models.session_models import SessionModel, SessionStates
-from src.models.task_models import TaskItemModel, TaskStates, TaskTypes, TASK_TIMEOUT_WINDOWS
+from src.models.task_models import TaskItemModel, TaskStates, TaskTypes
 
 # Services
 from src.services.logging_services import logger
@@ -148,17 +148,12 @@ class Task():
             await session.set_state(self.document.queued_state)
 
         # 2: Calculate the timeout timestamp
-        secs_to_expiration = int(
-            TASK_TIMEOUT_WINDOWS[session.session_state])
+        timeout_window = session.session_state.value['timeout_secs']
         timeout_date: datetime = self.document.created_at + \
-            timedelta(seconds=secs_to_expiration)
+            timedelta(seconds=timeout_window)
 
         # 3: If the session is pending verification, update the terminal state
-        station_relevant_states: List[SessionStates] = [
-            SessionStates.VERIFICATION,
-            SessionStates.PAYMENT
-        ]
-        if session.session_state in station_relevant_states:
+        if session.session_state in [SessionStates.VERIFICATION, SessionStates.PAYMENT]:
             station: Station = Station(session.assigned_station)
             await station.set_terminal_state(session_state=session.session_state)
 
@@ -173,18 +168,16 @@ class Task():
             TaskItemModel.task_state: TaskStates.PENDING,
             TaskItemModel.activated_at: datetime.now(),
             TaskItemModel.expires_at: timeout_date,
-            TaskItemModel.expiration_window: secs_to_expiration
+            TaskItemModel.expiration_window: timeout_window
         }))
 
         # 6: Get the expiration time depending on queue type
-        if self.document.task_type == TaskTypes.USER:
-            expiration_duration = TASK_TIMEOUT_WINDOWS[session.session_state]
-        else:
-            expiration_duration = os.getenv("STATION_EXPIRATION")
+        if self.document.task_type != TaskTypes.USER:
+            timeout_window = os.getenv("STATION_EXPIRATION")
 
         # 4: Create an expiration handler
         asyncio.create_task(self.register_timeout(
-            secs_to_timeout=int(expiration_duration)
+            secs_to_timeout=int(timeout_window)
         ))
 
     async def register_timeout(self,

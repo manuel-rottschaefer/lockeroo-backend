@@ -7,7 +7,7 @@ from uuid import UUID
 from beanie.operators import NotIn
 
 # Models
-from src.models.session_models import SessionModel, INACTIVE_SESSION_STATES
+from src.models.session_models import SessionModel
 
 # Services
 from src.services.logging_services import logger
@@ -18,7 +18,7 @@ async def has_active_session(user_id: UUID) -> bool:
 
     active_session = await SessionModel.find(
         SessionModel.assigned_user == user_id,
-        NotIn(SessionModel.session_state, INACTIVE_SESSION_STATES)
+        SessionModel.session_state[1] is True  # pylint: disable=no-member
     ).first_or_none()
 
     if active_session:

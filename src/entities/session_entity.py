@@ -7,12 +7,9 @@ from uuid import UUID
 # Types
 from typing import List
 
-# FastAPI
-from fastapi import HTTPException
-
 # Beanie
 from beanie import After, SortDirection, PydanticObjectId as ObjId
-from beanie.operators import Set, NotIn
+from beanie.operators import Set
 
 # Models
 from src.models.station_models import StationModel
@@ -20,8 +17,7 @@ from src.models.locker_models import LockerModel
 from src.models.action_models import ActionModel
 from src.models.session_models import (SessionModel,
                                        SessionPaymentTypes,
-                                       SessionStates,
-                                       INACTIVE_SESSION_STATES)
+                                       SessionStates,)
 
 # Services
 from src.services.logging_services import logger
@@ -63,8 +59,8 @@ class Session():
 
         elif locker is not None:
             instance.document = await SessionModel.find(
+                # TODO: The latest created session at a locker should also be the active one
                 SessionModel.assigned_locker.id == locker.id,  # pylint: disable=no-member
-                NotIn(SessionModel.session_state, INACTIVE_SESSION_STATES),
                 fetch_links=with_linked
             ).sort((SessionModel.created_ts, SortDirection.DESCENDING)).first_or_none()
 
@@ -128,18 +124,9 @@ class Session():
         return active_duration
 
     @property
-    async def next_state(self):
+    async def next_state(self) -> SessionStates:
         """Return the next logical state of the session."""
-        state_map: dict[SessionStates, SessionStates] = {
-            SessionStates.CREATED: SessionStates.PAYMENT_SELECTED,
-            SessionStates.PAYMENT_SELECTED: SessionStates.VERIFICATION,
-            SessionStates.VERIFICATION: SessionStates.STASHING,
-            SessionStates.STASHING: SessionStates.ACTIVE,
-            SessionStates.ACTIVE: SessionStates.PAYMENT,
-            SessionStates.PAYMENT: SessionStates.RETRIEVAL,
-            SessionStates.RETRIEVAL: SessionStates.COMPLETED,
-        }
-        return state_map.get(self.session_state)
+        return getattr(SessionStates, self.session_state['next'])
 
     async def set_state(self, state: SessionStates, notify: bool = True) -> None:
         """Update the current state of a session."""
