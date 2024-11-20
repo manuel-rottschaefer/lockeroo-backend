@@ -5,7 +5,7 @@ Station Models
 # Types
 from enum import Enum
 import dataclasses
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Tuple, Dict
 from pydantic import Field
 
@@ -91,6 +91,9 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     @dataclasses.dataclass
     class Settings:  # pylint: disable=missing-class-docstring
         name = "stations"
+        use_cache = True
+        cache_expiration_time = timedelta(seconds=10)
+        cache_capacity = 5
 
 
 class StationView(View):

@@ -8,13 +8,14 @@ import dataclasses
 # Basics
 from datetime import datetime
 from typing import Optional
+from pydantic import Field
 
 # Beanie
-from beanie import Document, View
+from beanie import Document, View, Link
 from beanie import PydanticObjectId as ObjId
 
 # Models
-from pydantic import Field
+from src.models.session_models import SessionModel
 
 
 class ReviewModel(Document):  # pylint: disable=too-many-ancestors
@@ -22,7 +23,7 @@ class ReviewModel(Document):  # pylint: disable=too-many-ancestors
 
     # Identification
     id: Optional[ObjId] = Field(None, alias="_id")
-    assigned_session: ObjId = Field(
+    assigned_session: Link[SessionModel] = Field(
         description="The session to which the review refers to.")
 
     submitted_ts: datetime

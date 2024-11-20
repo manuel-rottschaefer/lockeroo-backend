@@ -45,14 +45,19 @@ class Station():
         self.document = document
 
     @classmethod
-    async def fetch(cls, station_id: ObjId = None, call_sign: str = None):
+    async def fetch(
+        cls,
+        station_id: ObjId = None,
+        call_sign: str = None
+    ):
         """Create a Station instance and fetch the object asynchronously."""
         instance = cls()
 
         if station_id is not None:
             instance.document = await StationModel.get(station_id)
         elif call_sign is not None:
-            instance.document = await StationModel.find_one(StationModel.call_sign == call_sign)
+            instance.document = await StationModel.find_one(
+                StationModel.call_sign == call_sign)
         else:
             logger.error("Failed to initialize Station Entity.")
 
@@ -73,11 +78,10 @@ class Station():
             return False
 
         # 2: Check whether there is a planned maintenance in 3 hours
-        elif await has_scheduled(self.id):
+        if await has_scheduled(self.id):
             return False
 
-        else:
-            return True
+        return True
 
     @property
     async def total_completed_session_count(self) -> int:
@@ -108,31 +112,6 @@ class Station():
                           LockerModel.station_index == index,
                       )
                       )
-
-    async def find_available_locker(self, locker_type: str) -> Optional[LockerModel]:
-        """This methods handles the locker selection process at a station."""
-        # 1. Try to find a locker from stale a stale session
-        stale_session = await SessionModel.find(
-            SessionModel.assigned_station == self.id,
-            SessionModel.session_state == SessionStates.STALE
-        ).first_or_none()
-
-        if stale_session:
-            return await Locker().fetch(locker_id=stale_session.assigned_locker)
-
-        # 2: If there is no stale locker, find a usual one
-        locker: LockerModel = await LockerModel.find(
-            LockerModel.parent_station == self.id,
-            LockerModel.locker_type == locker_type
-        ).sort(LockerModel.total_session_count).first_or_none()
-
-        if not locker:
-            logger.info(ServiceExceptions.LOCKER_NOT_AVAILABLE,
-                        station=self.id)
-            return None
-
-        return locker
-
     ### Terminal setters ###
 
     async def set_station_state(

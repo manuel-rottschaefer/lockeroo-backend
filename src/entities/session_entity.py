@@ -3,20 +3,20 @@
 # Basics
 from datetime import datetime, timedelta
 from uuid import UUID
-import asyncio
 
 # FastAPI
 from fastapi import HTTPException
 
 # Types
-from typing import List, Dict
-from beanie import PydanticObjectId as ObjId, After
-from beanie.operators import Set
+from typing import List
+from beanie import After, SortDirection, PydanticObjectId as ObjId
+from beanie.operators import Set, NotIn
 
 # Models
-from src.models.session_models import SessionModel, SessionPaymentTypes, SessionStates
+from src.models.station_models import StationModel
+from src.models.locker_models import LockerModel
+from src.models.session_models import SessionModel, SessionPaymentTypes, SessionStates, INACTIVE_SESSION_STATES
 from src.models.action_models import ActionModel
-from src.models.queue_models import QueueItemModel, QueueStates
 
 # Services
 from src.services.logging_services import logger
@@ -28,6 +28,7 @@ class Session():
 
     def __getattr__(self, name):
         """Delegate attribute access to the internal document."""
+        # TODO: If the session object itself is requested, return its document
         return getattr(self.document, name)
 
     def __setattr__(self, name, value):
@@ -47,17 +48,20 @@ class Session():
     async def fetch(
         cls,
         session_id: ObjId = None,
-        locker_id: ObjId = None,
+        locker: LockerModel = None,
+        with_linked=False
     ):
         """Create a Session instance and fetch the object async."""
         instance = cls()
         if session_id is not None:
-            instance.document = await SessionModel.get(session_id)
+            instance.document = await SessionModel.get(session_id, ignore_cache=True)
 
-        elif locker_id is not None:
-            instance.document = await SessionModel.find_one(
-                SessionModel.assigned_locker == locker_id,
-            )
+        elif locker is not None:
+            instance.document = await SessionModel.find(
+                SessionModel.assigned_locker.id == locker.id,  # pylint: disable=no-member
+                NotIn(SessionModel.session_state, INACTIVE_SESSION_STATES),
+                fetch_links=with_linked
+            ).sort((SessionModel.created_ts, SortDirection.DESCENDING)).first_or_none()
 
         if not instance.exists:
             logger.info(ServiceExceptions.SESSION_NOT_FOUND,
@@ -70,16 +74,16 @@ class Session():
     @classmethod
     async def create(
         cls, user_id: UUID,
-        station_id: ObjId,
-        locker_id: ObjId
+        station: StationModel,
+        locker: LockerModel
     ):
         '''Create a queue new session item and insert it into the database.'''
         instance = cls()
         instance.document = SessionModel(
             assigned_user=user_id,
-            assigned_station=station_id,
-            assigned_locker=locker_id,
-            state=SessionStates.CREATED,
+            assigned_station=station,
+            assigned_locker=locker,
+            session_state=SessionStates.CREATED,
             created_ts=datetime.now(),
         )
         await instance.document.insert()
@@ -133,6 +137,8 @@ class Session():
             SessionStates.PAYMENT: SessionStates.RETRIEVAL,
             SessionStates.RETRIEVAL: SessionStates.COMPLETED,
         }
+        logger.debug(self.document.session_state)
+        logger.debug(state_map.get(self.session_state))
         return state_map.get(self.session_state)
 
     async def set_state(self, state: SessionStates, notify: bool = True) -> None:

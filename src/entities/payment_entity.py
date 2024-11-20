@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 # Beanie
 from beanie import PydanticObjectId as ObjId
-from beanie import SortDirection, Replace
+from beanie import SortDirection
 from beanie.operators import In, Set
 
 # Configuration
@@ -17,8 +17,11 @@ from src.config.config import locker_config
 # Entities
 from src.entities.session_entity import Session
 from src.entities.locker_entity import Locker
+
 # Models
+from src.models.session_models import SessionModel
 from src.models.payment_models import PaymentModel, PaymentStates
+
 # Services
 from src.services.logging_services import logger
 
@@ -44,20 +47,24 @@ class Payment():
         self.document = document
 
     @classmethod
-    async def fetch(cls, session_id: ObjId):
+    async def fetch(cls,
+                    session: SessionModel,
+                    with_linked: bool = False):
         """Get the current active or latest payment item of a session."""
         # 1: Create the instance
         instance = cls()
 
         # 2: Check whether there exists an active payment
         active_payment: PaymentModel = await PaymentModel.find(
-            PaymentModel.assigned_session == session_id,
+            PaymentModel.assigned_session.id == session.id,  # pydantic: disable=no-member
             In(PaymentModel.state, [
-               PaymentStates.SCHEDULED, PaymentStates.PENDING])
+               PaymentStates.SCHEDULED, PaymentStates.PENDING]),
+            fetch_links=with_linked
         ).sort((PaymentModel.last_updated, SortDirection.DESCENDING)).first_or_none()
 
         last_payment: PaymentModel = await PaymentModel.find(
-            PaymentModel.assigned_session == session_id
+            PaymentModel.assigned_session.id == session.id,  # pydantic: disable=no-member
+            fetch_links=with_linked
         ).sort((PaymentModel.last_updated, SortDirection.DESCENDING)).first_or_none()
 
         if active_payment:
@@ -69,12 +76,12 @@ class Payment():
         return instance
 
     @classmethod
-    async def create(cls, session_id: ObjId):
+    async def create(cls, session: SessionModel):
         """Create a new queue item and insert it into the database."""
         instance = cls()
 
         instance.document = PaymentModel(
-            assigned_session=session_id,
+            assigned_session=session,
             state=PaymentStates.SCHEDULED,
             last_updated=datetime.now()
         )
@@ -94,10 +101,11 @@ class Payment():
     async def current_price(self) -> Optional[int]:
         """Calculate the total cost of a session in cents."""
         # 1: Get the assigned session
-        session: Session = await Session().fetch(session_id=self.document.assigned_session)
+        await self.document.fetch_all_links()
+        session: Session = Session(self.document.assigned_session)
 
         # 2: Get the locker assigned to this session
-        locker: Locker = await Locker().fetch(locker_id=session.assigned_locker)
+        locker: Locker = Locker(session.assigned_locker)
 
         # 3: Get the pricing model for this session
         locker_type = locker_config[locker.locker_type]

@@ -2,9 +2,11 @@
 
 # Types
 from beanie import PydanticObjectId as ObjId
-from beanie.operators import Set
+from beanie.operators import Set, NotIn
 
 # Models
+from src.models.station_models import StationModel
+from src.models.session_models import SessionModel, SessionStates, INACTIVE_SESSION_STATES
 from src.models.locker_models import LockerModel, LockerStates
 
 # Services
@@ -36,26 +38,75 @@ class Locker():
     async def fetch(
         cls,
         locker_id: ObjId = None,
-        station_id: ObjId = None,
-        index: int = None
+        station: StationModel = None,
+        call_sign: str = '',
+        index: int = None,
+        with_linked: bool = False
     ):
         """Create a Locker instance and fetch the object asynchronously."""
         instance = cls()
 
         if locker_id is not None:
             instance.document = await LockerModel.get(locker_id)
-        elif None not in [station_id, index]:
-            locker: LockerModel = await LockerModel.find_one(
-                LockerModel.parent_station == station_id,
-                LockerModel.station_index == index
+        elif None not in [station, index]:
+            instance.document = await LockerModel.find_one(
+                # TODO: Fixme this seems to be a wrong database structure or so
+                # LockerModel.parent_station.id == station.id,  # pylint: disable=no-member
+                LockerModel.station_index == index,
+                fetch_links=with_linked
             )
-            if not locker:
-                logger.info("Locker '#%s' not found at station '%s'.",
-                            index, station_id)
-
-            instance.document = locker
+        elif None not in [call_sign, index]:
+            instance.document = await LockerModel.find_one(
+                # LockerModel.parent_station.call_sign == call_sign,  # pylint: disable=no-member
+                LockerModel.station_index == index,
+                fetch_links=with_linked
+            )
+        if not instance.document:
+            logger.info("Locker '#%s' not found at station '%s'.",
+                        index, station)
 
         return instance
+
+    @classmethod
+    async def find_available(cls, station: StationModel, locker_type: str):
+        """Find an available locker at this station."""
+        instance = cls()
+
+        # 1. Find a stale sessions at this station
+        stale_session = await SessionModel.find(
+            SessionModel.assigned_station.id == station.id,  # pylint: disable=no-member
+            SessionModel.assigned_locker.locker_type == locker_type,  # pylint: disable=no-member
+            SessionModel.session_state == SessionStates.STALE
+        ).first_or_none()
+
+        if stale_session:
+            instance.document = await LockerModel.get(stale_session.assigned_locker.id)
+            return instance
+
+        # 2. Find all active sessions at this station
+        active_sessions = await SessionModel.find(
+            SessionModel.assigned_station.id == station.id,  # pylint: disable=no-member
+            NotIn(SessionModel.session_state, INACTIVE_SESSION_STATES),
+            fetch_links=True
+        ).to_list()
+
+        # 3: Find a locker at this station that matches the type and does not belong to such a session
+        available_locker = await LockerModel.find(
+            # TODO; FIXME cannot find locker with this
+            # LockerModel.parent_station.id == station.id,  # pylint: disable=no-member
+            LockerModel.locker_type == locker_type,
+            NotIn(LockerModel.id,  [
+                session.assigned_locker.id for session in active_sessions])  # pylint: disable=no-member
+        ).first_or_none()
+        if available_locker:
+            instance.document = available_locker
+
+        return instance
+
+    @property
+    def exists(self) -> bool:
+        """Check whether this object exists."""
+        return self.document is not None
 
     async def set_state(self, state: LockerStates):
         """Update the reported (actual) locker state"""

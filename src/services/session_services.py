@@ -65,13 +65,6 @@ async def handle_creation_request(
 ) -> Optional[SessionView]:
     """Create a locker session for the user
     at the given station matching the requested locker type."""
-    # 1: Check if the locker type exists
-    if locker_type.value not in list(locker_config.keys()):
-        logger.debug("Locker type {locker_type} does not exist.")
-        raise HTTPException(
-            status_code=404, detail=ServiceExceptions.INVALID_LOCKER_TYPE.value
-        )
-
     # 2: Check if the station exists
     station: Station = await Station.fetch(call_sign=callsign)
     if not station:
@@ -98,16 +91,17 @@ async def handle_creation_request(
     # TODO: 5: Check whether the user has had more than 2 expired session in the last 12 hours.
 
     # 5: Try to claim a locker at this station
-    locker: Locker = Locker(await station.find_available_locker(locker_type))
-    if not locker:
+    locker: Locker = await Locker().find_available(
+        station=station, locker_type=locker_type)
+    if not locker.exists:
         raise HTTPException(
             status_code=404, detail=ServiceExceptions.LOCKER_NOT_AVAILABLE.value
         )
 
     # 6: Create a new session
     session: Session = await Session.create(user_id=user_id,
-                                            locker_id=locker.id,
-                                            station_id=station.id)
+                                            locker=locker.document,
+                                            station=station.document)
     logger.debug(
         f"Created session '{session.id}' at locker '{locker.id}'."
     )
@@ -167,7 +161,8 @@ async def handle_verification_request(
 ) -> Optional[SessionView]:
     """Enter the verification queue of a session."""
     # 1: Find the session
-    session: Session = await Session().fetch(session_id=session_id)
+    session: Session = await Session().fetch(
+        session_id=session_id, with_linked=True)
     if str(session.assigned_user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
@@ -182,9 +177,7 @@ async def handle_verification_request(
         )
 
     # 3: Find the station
-    assert hasattr(session, 'assigned_station')
-    station: Station = await Station.fetch(station_id=session.assigned_station)
-    if not station:
+    if not session.assigned_station:
         logger.info(ServiceExceptions.SESSION_NOT_FOUND,
                     session=session.assigned_station)
         raise HTTPException(
@@ -192,10 +185,11 @@ async def handle_verification_request(
         )
 
     # 5: Create a queue item at this station
+    await session.document.fetch_all_links()
     await QueueItem().create(
         queue_type=QueueTypes.USER,
-        station_id=station.id,
-        session_id=session.id,
+        station=session.assigned_station,
+        session=session.document,
         queued_state=SessionStates.VERIFICATION,
         timeout_states=[SessionStates.PAYMENT_SELECTED, SessionStates.EXPIRED]
     )
@@ -245,7 +239,7 @@ async def handle_hold_request(session_id: ObjId, user_id: UUID) -> Optional[Sess
 async def handle_payment_request(session_id: ObjId, user_id: UUID) -> Optional[SessionView]:
     """Put the station into payment mode"""
     # 1: Find the session and check whether it belongs to the user
-    session: Session = await Session().fetch(session_id=session_id)
+    session: Session = await Session().fetch(session_id=session_id, with_linked=True)
     if str(session.assigned_user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
@@ -260,7 +254,8 @@ async def handle_payment_request(session_id: ObjId, user_id: UUID) -> Optional[S
         )
 
     # 3: Find the station
-    station: Station = await Station.fetch(station_id=session.assigned_station)
+    await session.document.fetch_all_links()
+    station: Station = Station(session.assigned_station)
     if not station:
         logger.error(
             f"Station {
@@ -271,13 +266,13 @@ async def handle_payment_request(session_id: ObjId, user_id: UUID) -> Optional[S
         )
 
     # 5: Create a payment object
-    await Payment().create(session_id=session.id)
+    await Payment().create(session=session.document)
 
     # 5: Create a queue item and execute if it is next in the queue
     await QueueItem().create(
         queue_type=QueueTypes.USER,
-        station_id=station.id,
-        session_id=session.id,
+        station=session.assigned_station,
+        session=session.document,
         queued_state=SessionStates.PAYMENT,
         timeout_states=[session.session_state, SessionStates.EXPIRED]
     )

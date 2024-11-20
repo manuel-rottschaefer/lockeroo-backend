@@ -3,7 +3,7 @@
 """
 
 # Basics
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 
 # Types
@@ -13,8 +13,12 @@ from uuid import UUID
 from pydantic import Field
 
 # Beanie
-from beanie import Document, View, Update, after_event
+from beanie import Document, Link, View, Update, after_event
 from beanie import PydanticObjectId as ObjId
+
+# Models
+from src.models.station_models import StationModel
+from src.models.locker_models import LockerModel
 
 # Services
 from src.services import websocket_services
@@ -80,10 +84,12 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
          All relevant timestamps are stored in actions."""
     ### Identification ###
     id: Optional[ObjId] = Field(None, alias="_id")
-    assigned_station: ObjId = Field(
-        None, description="The assigned station to this session.")
-    assigned_locker: ObjId = Field(
-        None, description="The assigned locker to this session.")
+    assigned_station: Link[StationModel] = Field(
+        description="The assigned station to this session.")
+
+    assigned_locker: Link[LockerModel] = Field(
+        description="The assigned locker to this session.")
+
     assigned_user: UUID = Field(
         None, description="The assigned user to this session.")
 
@@ -111,6 +117,10 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     @dataclasses.dataclass
     class Settings:  # pylint: disable=missing-class-docstring
         name = "sessions"
+        use_cache = True
+        # TODO: Evaluate caching as this can lead to improper state handling. Maybe refresh single keys?
+        # cache_expiration_time = timedelta(seconds=10)
+        # cache_capacity = 5
 
     @dataclasses.dataclass
     class Config:  # pylint: disable=missing-class-docstring
@@ -121,7 +131,7 @@ class SessionView(View):
     """Used for serving information about an active session"""
     # Identification
     id: ObjId
-    assigned_station: ObjId = Field(
+    assigned_station: Link[StationModel] = Field(
         description="Station at which the session takes place")
 
     assigned_user: UUID = Field(

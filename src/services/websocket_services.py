@@ -26,8 +26,4 @@ async def send_text(socket_id: str, text: str) -> None:
     """Send text through a websocket connection."""
     socket: WebSocket = get_connection(socket_id=str(socket_id))
     if socket:
-        print('socket found')
         await socket.send_text(text)
-    else:
-        print(type(socket_id), type(active_connections))
-        print(socket_id, active_connections.keys())

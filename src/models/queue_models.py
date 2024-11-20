@@ -10,11 +10,12 @@ from dotenv import load_dotenv
 from pydantic import Field
 
 # Beanie
-from beanie import Document, Update, after_event
+from beanie import Document, Link, Update, after_event
 from beanie import PydanticObjectId as ObjId
 
 # Models
-from src.models.session_models import SessionStates
+from src.models.session_models import SessionModel, SessionStates
+from src.models.station_models import StationModel
 
 # Logging
 from src.services.logging_services import logger
@@ -54,10 +55,10 @@ class QueueItemModel(Document):  # pylint: disable=too-many-ancestors
     queue_type: QueueTypes = Field(
         QueueTypes.USER, description="The type of action being queued/awaited.")
 
-    assigned_session: ObjId = Field(
+    assigned_session: Link[SessionModel] = Field(
         None, description="The session this queue item handles.")
 
-    assigned_station: ObjId = Field(
+    assigned_station: Link[StationModel] = Field(
         None, description="The station assigned to the related session.")
 
     queue_state: QueueStates = Field(

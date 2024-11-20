@@ -52,26 +52,28 @@ def convert_oid(document):
 async def restore_mock_data(directory):
     """Load JSON files into the database"""
     for filename in os.listdir(directory):
-        if filename.endswith(".json"):
-            collection_name = filename.split(".")[0]
-            collection = db[collection_name]
-            await collection.drop()
-            with open(os.path.join(directory, filename), "r", encoding="utf-8") as f:
-                data = json.load(f)
-                if data and isinstance(data, list):
-                    if collection_name == "stations":
-                        db["stations"].create_index([("location", "2dsphere")])
-                    for item in data:
-                        item = convert_oid(item)
-                        if collection_name == "stations":
-                            station = StationModel(**item)
-                            await station.insert()
-                        else:
-                            await collection.insert_one(item)
+        if not filename.endswith(".json"):
+            continue
 
-                elif data:
-                    data = convert_oid(data)
-                    await collection.insert_one(data)
+        collection_name = filename.split(".")[0]
+        collection = db[collection_name]
+        await collection.drop()
+        with open(os.path.join(directory, filename), "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if data and isinstance(data, list):
+                if collection_name == "stations":
+                    db["stations"].create_index([("location", "2dsphere")])
+                for item in data:
+                    item = convert_oid(item)
+                    if collection_name == "stations":
+                        station = StationModel(**item)
+                        await station.insert()
+                    else:
+                        await collection.insert_one(item)
+
+            elif data:
+                data = convert_oid(data)
+                await collection.insert_one(data)
 
 
 load_dotenv(dotenv_path='environments/.env')

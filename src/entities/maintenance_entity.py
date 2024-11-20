@@ -41,7 +41,8 @@ class Maintenance():
     async def fetch(
         cls,
         maintenance_id: ObjId = None,
-        station_id: ObjId = None
+        station_id: ObjId = None,
+        with_linked: bool = False
     ):
         """Create a Session instance and fetch the object async."""
         instance = cls()
@@ -51,6 +52,7 @@ class Maintenance():
         elif station_id is not None:
             instance.document = await MaintenanceModel.find_one(
                 MaintenanceModel.assigned_station == station_id,
+                fetch_links=with_linked
             )
 
         if not instance.exists:

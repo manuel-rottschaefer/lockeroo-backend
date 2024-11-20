@@ -8,7 +8,7 @@ from enum import Enum
 from typing import Optional
 
 # Types
-from beanie import Document, Update, after_event
+from beanie import Document, Link, Update, after_event
 from beanie import PydanticObjectId as ObjId
 from beanie.operators import Set
 from pydantic import Field
@@ -16,6 +16,9 @@ from pydantic import Field
 # Entities
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
+
+# Models
+from src.models.session_models import SessionModel
 
 # Services
 from src.services.mqtt_services import fast_mqtt
@@ -36,7 +39,7 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
     id: Optional[ObjId] = Field(
         None, alias="_id", description='ObjectID in the database')
 
-    assigned_session: ObjId = Field(
+    assigned_session: Link[SessionModel] = Field(
         description='Session to which the payment belongs to.')
 
     state: PaymentStates = Field(
@@ -56,8 +59,9 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
 
         if self.state == PaymentStates.PENDING:
             # Get the session
-            session: Session = await Session().fetch(session_id=self.assigned_session)
-            station: Station = await Station().fetch(station_id=session.assigned_station)
+            session: Session = Session(self.assigned_session)
+            await session.document.fetch_all_links()
+            station: Station = await Station(session.assigned_station)
             fast_mqtt.publish(
                 f'/stations/{station.call_sign}/payment/{self.price}')
 

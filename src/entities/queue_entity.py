@@ -5,11 +5,11 @@
 # Basics
 from typing import List, Optional
 from datetime import datetime, timedelta
+import traceback
 import asyncio
 import os
 
 # Beanie
-from beanie import PydanticObjectId as ObjId
 from beanie.operators import Set
 from beanie import SortDirection
 
@@ -19,7 +19,8 @@ from src.entities.station_entity import Station
 from src.entities.payment_entity import Payment
 
 # Models
-from src.models.session_models import SessionStates
+from src.models.station_models import StationModel
+from src.models.session_models import SessionModel, SessionStates
 from src.models.queue_models import QueueItemModel, QueueStates, QueueTypes, EXPIRATION_DURATIONS
 
 # Services
@@ -48,30 +49,29 @@ class QueueItem():
         self.document = document
 
     @classmethod
-    async def fetch(cls, session_id: ObjId):
+    async def fetch(cls,
+                    session: SessionModel,
+                    with_linked=False):
         """Get the latest queue item of a session."""
         # 1: Create the instance
         instance = cls()
 
         # 2: Look for the latest queue item
         queue_item: QueueItemModel = await QueueItemModel.find(
-            QueueItemModel.assigned_session == session_id
+            QueueItemModel.assigned_session.id == session.id,  # pylint: disable=no-member
+            fetch_links=with_linked
         ).sort((QueueItemModel.created_at, SortDirection.DESCENDING)).first_or_none()
-
-        # logger.debug(f"Latest queue item: '{
-        #             queue_item.id}' for session '{session_id}'")
 
         if queue_item:
             instance.document = queue_item
             return instance
-        else:
-            return None
+        return None
 
     @classmethod
     async def create(cls,
                      queue_type: QueueTypes,
-                     station_id: ObjId,
-                     session_id: ObjId,
+                     station: StationModel,
+                     session: SessionModel,
                      queued_state: SessionStates,
                      timeout_states: List[SessionStates],
                      skip_queue: bool = False,
@@ -85,8 +85,8 @@ class QueueItem():
         instance = cls()
         instance.document = QueueItemModel(
             queue_type=queue_type,
-            assigned_session=session_id,
-            assigned_station=station_id,
+            assigned_session=session,
+            assigned_station=station,
             queue_state=QueueStates.QUEUED,
             queued_state=queued_state,
             timeout_states=timeout_states,
@@ -94,33 +94,34 @@ class QueueItem():
         )
         await instance.document.insert()
         logger.debug(f"Created queue item '{instance.document.id}' of type {
-                     queue_type} for session '{session_id}' at station '{station_id}'.")
+                     queue_type} for session '{session.id}' at station '{station.id}'.")
 
         # Check if the session is next in line
         if skip_queue or await instance.is_next:
             await instance.activate()
+
         return instance
 
     @classmethod
-    async def get_next_in_line(cls, station_id: ObjId):
+    async def get_next_in_line(cls, station: StationModel) -> QueueItemModel:
         """Create a Queue Item from the next item in the queue."""
         instance = cls()
         # 1: Find the next queued session item
         next_item: Optional[QueueItemModel] = await QueueItemModel.find(
-            QueueItemModel.assigned_station == station_id,
+            QueueItemModel.assigned_station.id == station.id,  # pylint: disable=no-member
             QueueItemModel.queue_state == QueueStates.QUEUED,
+            fetch_links=True
         ).sort((QueueItemModel.created_at, SortDirection.DESCENDING)).first_or_none()
 
         if not next_item:
-            logger.info("No queued session at station '%s'.", station_id)
+            logger.info("No queued session at station '%s'.", station.id)
             return None
 
         instance.document = next_item
         logger.debug(
-            f"Session '{next_item.assigned_session}' identified as next in queue at station '{
-                station_id}'."
+            f"Session '{next_item.assigned_session.id}' identified as next in queue at station '{
+                station.id}'."
         )
-
         return instance
 
     @property
@@ -128,11 +129,6 @@ class QueueItem():
         """Check whether this queue item is next in line."""
         next_item = await QueueItem().get_next_in_line(self.document.assigned_station)
         return next_item.id == self.document.id
-
-    @property
-    async def session(self) -> Session:
-        """Get the session assigned to this queue item."""
-        return await Session().fetch(session_id=self.document.assigned_session)
 
     ### State management ###
 
@@ -144,10 +140,10 @@ class QueueItem():
 
     async def activate(self) -> None:
         """Activate the assigned session and set this queue item as completed."""
-
         # 1: Move the session to the next state
-        session: Session = await self.session
-        await session.set_state(self.document.queued_state)
+        session: Session = Session(self.document.assigned_session)
+        if self.document.queue_type == QueueTypes.USER:
+            await session.set_state(self.document.queued_state)
 
         # 2: Calculate the timeout timestamp
         secs_to_expiration = int(EXPIRATION_DURATIONS[session.session_state])
@@ -160,12 +156,12 @@ class QueueItem():
             SessionStates.PAYMENT
         ]
         if session.session_state in station_relevant_states:
-            station: Station = await Station().fetch(session.assigned_station)
+            station: Station = Station(session.assigned_station)
             await station.set_terminal_state(session_state=session.session_state)
 
         # 4: If the session is pending payment, activate it
         if session.session_state == SessionStates.PAYMENT:
-            payment: Payment = await Payment.fetch(session_id=session.id)
+            payment: Payment = await Payment.fetch(session=session.document)
             await payment.get_price()
             # await payment.set_state(PaymentStates.PENDING)
 
@@ -191,7 +187,7 @@ class QueueItem():
     async def register_expiration(self,
                                   seconds_to_expiration: int):
         """Register an expiration handler. This waits until the expiration duration has passed and then fires up the expiration handler."""
-        logger.debug(f"QueueItem '{self.document.id}' assigned to session '{self.assigned_session}' will time out in {
+        logger.debug(f"QueueItem '{self.document.id}' assigned to session '{self.assigned_session.id}' will time out in {
                      seconds_to_expiration} seconds.")
 
         # 1 Register the expiration handler
@@ -208,7 +204,7 @@ class QueueItem():
         completed, the session has to be expired and the user needs to request a new one
         """
         # 1: Set Session and queue state to expired
-        session: Session = await self.session
+        session: Session = Session(self.document.assigned_session)
 
         # 2: If this session has already timed out once, expire it now.
         # The user then has to start a new session again.
@@ -237,8 +233,8 @@ class QueueItem():
         # 7: Else, create new one
         await QueueItem().create(
             queue_type=self.document.queue_type,
-            station_id=session.assigned_station,
-            session_id=session.id,
+            station=session.assigned_station,
+            session=session,
             queued_state=self.queued_state,
             timeout_states=self.document.timeout_states[1:]
         )

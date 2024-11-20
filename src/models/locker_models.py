@@ -10,13 +10,14 @@ import dataclasses
 from datetime import datetime
 from enum import Enum
 from typing import Optional
+from pydantic import Field
 
 # Types
-from beanie import Document, View, Update, after_event
+from beanie import Document, Link, View, Update, after_event
 from beanie import PydanticObjectId as ObjId
 
 # Models
-from pydantic import Field
+from src.models.station_models import StationModel
 
 # Logging
 from src.services.logging_services import logger
@@ -38,21 +39,12 @@ class LockerTypes(str, Enum):
 
 class LockerModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a single locker in the database."""
-    @after_event(Update)
-    def log_db_ops(self):
-        """Log the Database operation for debugging purposes."""
-        logger.debug(f"Locker '{self.id}' has been reported as {
-                     self.reported_state}.")
-
-    @dataclasses.dataclass
-    class Settings:  # pylint: disable=missing-class-docstring
-        name = "lockers"
-
     ### Identification ###
     id: Optional[ObjId] = Field(
         None, alias="_id", description='ObjectID in the database.')
-    parent_station: ObjId = Field(...,
-                                  description='Station this locker belongs to.')
+
+    parent_station: Link[StationModel] = Field(
+        description='Station this locker belongs to.')
 
     #### Locker Properties ###
     locker_type: LockerTypes
@@ -70,6 +62,16 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
                                         description='Total duration of all sessions.')
     last_service_ts: datetime = Field(...,
                                       description='Timestamp of the last service.')
+
+    @after_event(Update)
+    def log_db_ops(self):
+        """Log the Database operation for debugging purposes."""
+        logger.debug(f"Locker '{self.id}' has been reported as {
+                     self.reported_state}.")
+
+    @dataclasses.dataclass
+    class Settings:  # pylint: disable=missing-class-docstring
+        name = "lockers"
 
 
 class LockerView(View):

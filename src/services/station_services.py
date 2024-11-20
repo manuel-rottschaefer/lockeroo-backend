@@ -67,7 +67,7 @@ async def get_active_session_count(call_sign: str) -> int:
 async def get_locker_by_index(call_sign: str, locker_index: int):
     """Get the locker at a station by its index."""
     station: Station = await Station().fetch(call_sign=call_sign)
-    return await Locker().fetch(station_id=station.id, index=locker_index)
+    return await Locker().fetch(station=station.id, index=locker_index)
 
 
 async def get_locker_overview(call_sign: str) -> StationLockerAvailabilities:
@@ -134,22 +134,11 @@ async def handle_terminal_report(
         It verifies the authenticity of the report and then updates the state
         values for the station and the assigned session as well as notifies
         the client so that the user can proceed. """
-    # 1: Find station by call sign
-    station: Station = await Station().fetch(call_sign=call_sign)
-    if not station:
-        logger.info(ServiceExceptions.STATION_NOT_FOUND, station=call_sign)
-        return
-
-    # 2: Check whether the station is currently told to await an action
-    if station.terminal_state != expected_terminal_state:
-        logger.info(ServiceExceptions.INVALID_TERMINAL_STATE,
-                    station=call_sign, detail=station.terminal_state)
-        return
-
-    # 3: Find the session that is awaiting verification / payment
+    # 1: Find the session that is awaiting verification / payment
     session: Session = Session(await SessionModel.find(
-        SessionModel.assigned_station == station.id,
-        SessionModel.session_state == queued_session_state
+        SessionModel.assigned_station.call_sign == call_sign,  # pylint: disable=no-member
+        SessionModel.session_state == queued_session_state,
+        fetch_links=True
     ).sort(
         (SessionModel.created_ts, SortDirection.DESCENDING)
     ).first_or_none())
@@ -157,8 +146,20 @@ async def handle_terminal_report(
         logger.info(ServiceExceptions.SESSION_NOT_FOUND, station=call_sign)
         return
 
+    # 2: Find station by call sign
+    station: Station = Station(session.assigned_station)
+    if not station:
+        logger.info(ServiceExceptions.STATION_NOT_FOUND, station=call_sign)
+        return
+
+    # 3: Check whether the station is currently told to await an action
+    if station.terminal_state != expected_terminal_state:
+        logger.info(ServiceExceptions.INVALID_TERMINAL_STATE,
+                    station=call_sign, detail=station.terminal_state)
+        return
+
     # 4: Find the locker that belongs to this session
-    locker: Locker = await Locker().fetch(locker_id=session.assigned_locker)
+    locker: Locker = Locker(session.assigned_locker)
     if not locker:
         logger.info(ServiceExceptions.LOCKER_NOT_FOUND,
                     locker=session.assigned_locker)
@@ -170,14 +171,14 @@ async def handle_terminal_report(
     await locker.instruct_unlock(call_sign=station.call_sign)
 
     # 7: Set the verification/payment queue item to completed
-    queue: QueueItem = await QueueItem().fetch(session_id=session.id)
+    queue: QueueItem = await QueueItem().fetch(session=session.document)
     await queue.set_state(QueueStates.COMPLETED)
 
     # 8: Create a new queue item for the station to report the unlock
     await QueueItem().create(
         queue_type=QueueTypes.STATION,
-        station_id=station.id,
-        session_id=session.id,
+        station=station.document,
+        session=session.document,
         queued_state=session.session_state,
         timeout_states=[SessionStates.ABORTED],
         skip_queue=True

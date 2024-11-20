@@ -3,6 +3,7 @@
 """
 # Basics
 from typing import List, Annotated
+import traceback
 
 # Database utils
 from beanie import PydanticObjectId as ObjId
@@ -107,9 +108,12 @@ async def request_session_verification(
     access_info: FiefAccessTokenInfo = None,
 ):
     """Handle request to enter the verification queue of a session"""
-    return await session_services.handle_verification_request(
-        session_id=ObjId(session_id),
-        user_id=access_info['id'])
+    try:
+        return await session_services.handle_verification_request(
+            session_id=ObjId(session_id),
+            user_id=access_info['id'])
+    except:
+        print(traceback.format_exc())
 
 
 @ session_router.put('/{session_id}/hold',
@@ -138,10 +142,13 @@ async def request_session_payment(
     access_info: FiefAccessTokenInfo = None,
 ):
     """Handle request to enter the payment phase of a session"""
-    return await session_services.handle_payment_request(
-        session_id=ObjId(session_id),
-        user_id=access_info['id']
-    )
+    try:
+        return await session_services.handle_payment_request(
+            session_id=ObjId(session_id),
+            user_id=access_info['id']
+        )
+    except:
+        print(traceback.format_exc())
 
 
 @ session_router.get('/{session_id}/history',

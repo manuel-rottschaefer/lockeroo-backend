@@ -6,10 +6,11 @@ from datetime import datetime, timedelta
 from pydantic import Field
 
 # Beanie
-from beanie import Document
+from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
 
-# Services
+# Models
+from src.models.station_models import StationModel
 
 
 class MaintenanceStates(str, Enum):
@@ -26,7 +27,7 @@ class MaintenanceModel(Document):  # pylint: disable=too-many-ancestors
 
     id: ObjId = Field(None, alias="_id")
 
-    assigned_station: ObjId = Field(
+    assigned_station: Link[StationModel] = Field(
         None, description="Station to which this maintenance is assigned to.")
 
     # Planned datetimes
