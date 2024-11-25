@@ -12,26 +12,16 @@ from beanie import PydanticObjectId as ObjId
 # Models
 from src.models.maintenance_models import MaintenanceModel, MaintenanceStates
 
+# Entities
+from src.entities.entity_utils import Entity
+
 # Services
 from src.services.logging_services import logger
 from src.services.exceptions import ServiceExceptions
 
 
-class Maintenance():
+class Maintenance(Entity):
     """Add behaviour to a maintenance instance."""
-
-    def __getattr__(self, name):
-        """Delegate attribute access to the internal document."""
-        return getattr(self.document, name)
-
-    def __setattr__(self, name, value):
-        """Delegate attribute setting to the internal document, except for 'document' itself."""
-        if name == "document":
-            # Directly set the 'document' attribute on the instance
-            super().__setattr__(name, value)
-        else:
-            # Delegate setting other attributes to the document
-            setattr(self.document, name, value)
 
     def __init__(self, document: MaintenanceModel = None):
         super().__init__()
@@ -69,7 +59,7 @@ class Maintenance():
         station_id: ObjId,
         staff_id: ObjId
     ):
-        '''Create a new maintenance event and insert it into the database.'''
+        """Create a new maintenance event and insert it into the database."""
         instance = cls()
         instance.document = MaintenanceModel(
             assigned_station=station_id,

@@ -24,7 +24,7 @@ from src.services.exceptions import ServiceExceptions, handle_exceptions
 station_router = APIRouter()
 
 
-@station_router.get('/{call_sign}/discover',
+@station_router.get('/discover',
                     response_model=List[StationView],
                     description="Get a list of all stations within a range of a given location.")
 @handle_exceptions(logger)
@@ -116,7 +116,7 @@ async def handle_terminal_mode_confirmation(
 
 @validate_mqtt_topic('stations/+/verification/report', [ObjId])
 @fast_mqtt.subscribe('stations/+/verification/report')
-async def handle_station_verification_report(
+async def handle_verification_report(
         _client, topic, payload, _qos, _properties) -> None:
     """Handle a payment verification report from a station"""
     call_sign = topic.split('/')[1]
@@ -128,12 +128,13 @@ async def handle_station_verification_report(
         return
 
     logger.debug(
-        f"Received payment verification report for station '{call_sign}' with card id '{card_id}'.")
+        f"Received verification report for station '{call_sign}' with card id '{card_id}'.")
 
     await station_services.handle_terminal_report(
         call_sign=call_sign,
-        queued_session_state=SessionStates.VERIFICATION,
-        expected_terminal_state=TerminalStates.VERIFICATION
+        expected_session_state=SessionStates.VERIFICATION,
+        expected_terminal_state=TerminalStates.VERIFICATION,
+
     )
 
 
@@ -148,14 +149,14 @@ async def handle_station_payment_report(
 
     await station_services.handle_terminal_report(
         call_sign=call_sign,
-        queued_session_state=SessionStates.PAYMENT,
+        expected_session_state=SessionStates.PAYMENT,
         expected_terminal_state=TerminalStates.PAYMENT
     )
 
 
 @validate_mqtt_topic('stations/+/locker/+/report', [ObjId, int])
 @fast_mqtt.subscribe('stations/+/locker/+/report')
-async def handle_station_lock_report(
+async def handle_locker_report(
         _client, topic, payload, _qos, _properties) -> None:
     """Handle a locker report from a station"""
 
@@ -171,11 +172,6 @@ async def handle_station_lock_report(
     report: str = payload.decode('utf-8')
     if not report:
         return
-
-    # logger.debug(
-    #    (f"Received '{report.lower()}' report from locker '{
-    #     locker_index}' at station '{call_sign}'.")
-    # )
 
     if report == "UNLOCKED":
         await locker_services.handle_unlock_confirmation(call_sign, locker_index)

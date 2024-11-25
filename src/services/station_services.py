@@ -5,10 +5,9 @@ from typing import List
 
 # API services
 from fastapi import HTTPException
-from beanie.operators import NotIn, Near
+from beanie.operators import Near
 
 # Beanie
-from beanie import SortDirection
 from beanie.operators import Set
 
 # Entities
@@ -18,7 +17,7 @@ from src.entities.locker_entity import Locker
 from src.entities.task_entity import Task
 
 # Models
-from src.models.locker_models import LockerModel
+from src.models.locker_models import LockerModel, LockerStates
 from src.models.session_models import SessionModel, SessionStates
 from src.models.task_models import TaskItemModel, TaskStates, TaskTypes
 from src.models.station_models import (StationLockerAvailabilities, StationModel,
@@ -29,14 +28,12 @@ from src.services.exceptions import ServiceExceptions
 from src.services.logging_services import logger
 
 
-async def discover(lat: float, lon: float, radius,
-                   amount) -> List[StationView]:
+async def discover(lat: float, lon: float, radius: int,
+                   amount: int) -> List[StationView]:
     """Return a list of stations within a given range around a location"""
-    stations: List[StationView] = StationModel.find(
+    stations: List[StationView] = await StationModel.find(
         Near(StationModel.location, lat, lon, max_distance=radius)
-    ).limit(amount)
-    # if not stations:
-    #    logger.info(ServiceExceptions.STATION_NOT_FOUND)
+    ).limit(amount).to_list()
     return stations
 
 
@@ -60,7 +57,7 @@ async def get_active_session_count(call_sign: str) -> int:
 
     return await SessionModel.find(
         SessionModel.assigned_station == station.id,
-        SessionModel.session_state.value[1] is True
+        SessionModel.session_state.is_active is True  # pylint: disable=no-member
     ).count()
 
 
@@ -127,32 +124,30 @@ async def reset_queue(call_sign: str) -> StationView:
 
 async def handle_terminal_report(
         call_sign: str,
-        queued_session_state: SessionStates,
+        expected_session_state: SessionStates,
         expected_terminal_state: TerminalStates
 ) -> None:
     """This handler processes reports of completed actions at a station.
         It verifies the authenticity of the report and then updates the state
         values for the station and the assigned session as well as notifies
         the client so that the user can proceed. """
-    # 1: Find the session that is awaiting verification / payment
-    session: Session = Session(await SessionModel.find(
-        SessionModel.assigned_station.call_sign == call_sign,  # pylint: disable=no-member
-        SessionModel.session_state == queued_session_state,
-        fetch_links=True
-    ).sort(
-        (SessionModel.created_ts, SortDirection.DESCENDING)
-    ).first_or_none())
-    if not session.exists:
-        logger.info(ServiceExceptions.SESSION_NOT_FOUND, station=call_sign)
-        return
+    task: Task = await Task().find(
+        call_sign=call_sign,
+        task_type=TaskTypes.USER,
+        task_state=TaskStates.PENDING)
+    await task.fetch_links()
 
-    # 2: Find station by call sign
-    station: Station = Station(session.assigned_station)
-    if not station:
-        logger.info(ServiceExceptions.STATION_NOT_FOUND, station=call_sign)
+    session = Session(task.assigned_session)
+    await session.fetch_links()
+
+    if task.assigned_session.session_state != expected_session_state:
+        # TODO: Implement logger for warnings
+        logger.warning(
+            f"Session {task.assigned_session.id} is in wrong state.")
         return
 
     # 3: Check whether the station is currently told to await an action
+    station: Station = Station(session.assigned_station)
     if station.terminal_state != expected_terminal_state:
         logger.info(ServiceExceptions.INVALID_TERMINAL_STATE,
                     station=call_sign, detail=station.terminal_state)
@@ -160,18 +155,15 @@ async def handle_terminal_report(
 
     # 4: Find the locker that belongs to this session
     locker: Locker = Locker(session.assigned_locker)
-    if not locker:
-        logger.info(ServiceExceptions.LOCKER_NOT_FOUND,
-                    locker=session.assigned_locker)
 
     # 5: Set terminal state to idle
     await station.set_terminal_state(TerminalStates.IDLE)
+    # await session.set_state(await session.next_state)
 
     # 6: Instruct the locker to open
-    await locker.instruct_unlock(call_sign=station.call_sign)
+    await locker.set_state(LockerStates.UNLOCKED)
 
     # 7: Set the verification/payment queue item to completed
-    task: Task = await Task().fetch(session=session.document)
     await task.set_state(TaskStates.COMPLETED)
 
     # 8: Create a new queue item for the station to report the unlock
@@ -179,9 +171,9 @@ async def handle_terminal_report(
         task_type=TaskTypes.STATION,
         station=station.document,
         session=session.document,
-        queued_state=session.session_state,
+        queued_state=await session.next_state,
         timeout_states=[SessionStates.ABORTED],
-        queue=False
+        has_queue=False
     )
 
 

@@ -1,4 +1,4 @@
-'''This module provides the Models for Payment events.'''
+"""This module provides the Models for Payment events."""
 # Types
 import dataclasses
 

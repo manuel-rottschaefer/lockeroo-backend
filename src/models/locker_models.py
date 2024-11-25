@@ -43,7 +43,7 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
     id: Optional[ObjId] = Field(
         None, alias="_id", description='ObjectID in the database.')
 
-    parent_station: Link[StationModel] = Field(
+    station: Link[StationModel] = Field(
         description='Station this locker belongs to.')
 
     #### Locker Properties ###
@@ -79,8 +79,8 @@ class LockerView(View):
 
     id: Optional[ObjId] = Field(
         None, alias="_id", description='ObjectID in the database.')
-    parent_station: ObjId = Field(...,
-                                  description='Station this locker belongs to.')
+    station: ObjId = Field(...,
+                           description='Station this locker belongs to.')
 
     #### Locker Properties ###
     locker_type: LockerTypes

@@ -37,11 +37,12 @@ from src.services.exceptions import ServiceExceptions
 async def get_details(session_id: ObjId, user_id: UUID) -> Optional[SessionView]:
     """Get the details of a session."""
     session: Session = await Session().fetch(session_id=session_id)
+    await session.fetch_links()
     if str(session.assigned_user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
-    return session
+    return await session.view
 
 
 async def get_session_history(session_id: ObjId, user_id: UUID) -> Optional[List[ActionModel]]:
@@ -106,12 +107,7 @@ async def handle_creation_request(
     # 7: Log the action
     await create_action(session.id, SessionStates.CREATED)
 
-    # Convert to activeSession object and assign locker index
-    new_session: SessionView = SessionView.model_validate(session.document)
-    # TODO: Integrate this into the main session object?
-    new_session.locker_index = locker.station_index
-
-    return new_session
+    return await session.view
 
 
 async def handle_payment_selection(
@@ -132,6 +128,7 @@ async def handle_payment_selection(
 
     # 2: Check if the session exists
     session: Session = await Session().fetch(session_id=session_id)
+    await session.fetch_links()
     if str(session.assigned_user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
@@ -149,7 +146,7 @@ async def handle_payment_selection(
     await session.assign_payment_method(payment_method)
     await session.set_state(SessionStates.PAYMENT_SELECTED, notify=False)
 
-    return session
+    return await session.view
 
 
 async def handle_verification_request(
@@ -158,8 +155,8 @@ async def handle_verification_request(
 ) -> Optional[SessionView]:
     """Enter the verification queue of a session."""
     # 1: Find the session
-    session: Session = await Session().fetch(
-        session_id=session_id, with_linked=True)
+    session: Session = await Session().fetch(session_id=session_id)
+    await session.fetch_links()
     if str(session.assigned_user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
@@ -181,7 +178,7 @@ async def handle_verification_request(
             status_code=500, detail=ServiceExceptions.STATION_NOT_FOUND.value
         )
 
-    # 5: Create a queue item at this station
+    # 5: Create a task item at this station
     await session.document.fetch_all_links()
     await Task().create(
         task_type=TaskTypes.USER,
@@ -190,13 +187,13 @@ async def handle_verification_request(
         queued_state=SessionStates.VERIFICATION,
         timeout_states=[SessionStates.PAYMENT_SELECTED,
                         SessionStates.EXPIRED],
-        queue=True
+        has_queue=True
     )
 
     # 6: Log a queueVerification action
     await create_action(session.id, SessionStates.VERIFICATION)
 
-    return session
+    return await session.view
 
 
 async def handle_hold_request(session_id: ObjId, user_id: UUID) -> Optional[SessionView]:
@@ -205,6 +202,7 @@ async def handle_hold_request(session_id: ObjId, user_id: UUID) -> Optional[Sess
     """
     # 1: Find the session and check whether it belongs to the user
     session: Session = await Session().fetch(session_id=session_id)
+    await session.fetch_links()
     if str(session.assigned_user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
@@ -232,13 +230,14 @@ async def handle_hold_request(session_id: ObjId, user_id: UUID) -> Optional[Sess
 
     await create_action(session.id, SessionStates.HOLD)
 
-    return session
+    return await session.view
 
 
 async def handle_payment_request(session_id: ObjId, user_id: UUID) -> Optional[SessionView]:
     """Put the station into payment mode"""
     # 1: Find the session and check whether it belongs to the user
-    session: Session = await Session().fetch(session_id=session_id, with_linked=True)
+    session: Session = await Session().fetch(session_id=session_id)
+    await session.fetch_links()
     if str(session.assigned_user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
@@ -273,14 +272,15 @@ async def handle_payment_request(session_id: ObjId, user_id: UUID) -> Optional[S
         station=session.assigned_station,
         session=session.document,
         queued_state=SessionStates.PAYMENT,
-        timeout_states=[session.session_state, SessionStates.EXPIRED],
-        queue=True
+        timeout_states=[session.session_state,
+                        SessionStates.EXPIRED],
+        has_queue=True
     )
 
     # 6: Log the request
     await create_action(session.id, SessionStates.PAYMENT)
 
-    return session
+    return await session.view
 
 
 async def handle_cancel_request(session_id: ObjId, user_id: UUID) -> Optional[SessionView]:
@@ -291,6 +291,7 @@ async def handle_cancel_request(session_id: ObjId, user_id: UUID) -> Optional[Se
     """
     # 1: Find the session and check whether it belongs to the user
     session: Session = await Session().fetch(session_id=session_id)
+    await session.fetch_links()
     if str(session.assigned_user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
@@ -326,24 +327,24 @@ async def handle_update_subscription_request(session_id: ObjId, socket: WebSocke
         return
 
     # 2: Check whether the websocket connection already exists
-    if websocket_services.get_connection(session_id):
+    if websocket_services.get_connection(session.id):
         logger.debug(
-            f"Session '{session_id}' cannot have more than one update subscription.")
+            f"Session '{session.id}' cannot have more than one update subscription.")
         return
 
     # 3: Check if the session is not in an inactive state
-    if session.session_state.value[1]:
+    if not session.session_state['is_active']:
         logger.debug(
-            f"Session '{session_id}' is not offering updates anymore.")
+            f"Session '{session.id}' is not offering updates anymore.")
         return
 
     # 3: Register the connection
     await socket.accept()
-    websocket_services.register_connection(session_id, socket)
-    logger.debug(f"Session '{session_id}' is now sending updates.")
+    websocket_services.register_connection(session.id, socket)
+    logger.debug(f"Session '{session.id}' is now sending updates.")
     try:
         await socket.receive_bytes()
 
     # 4: Register a disconnect event
     except WebSocketDisconnect:
-        logger.debug(f"Session '{session_id}' is no longer sending updates.")
+        logger.debug(f"Session '{session.id}' is no longer sending updates.")

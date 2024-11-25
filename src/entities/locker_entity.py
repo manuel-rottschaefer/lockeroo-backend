@@ -13,8 +13,11 @@ from src.models.locker_models import LockerModel, LockerStates
 from src.services.logging_services import logger
 from src.services.mqtt_services import fast_mqtt
 
+# Entities
+from src.entities.entity_utils import Entity
 
-class Locker():
+
+class Locker(Entity):
     """Add behaviour to a locker instance."""
 
     def __getattr__(self, name):
@@ -50,20 +53,22 @@ class Locker():
             instance.document = await LockerModel.get(locker_id)
         elif None not in [station, index]:
             instance.document = await LockerModel.find_one(
-                # TODO: Fixme this seems to be a wrong database structure or so
-                # LockerModel.parent_station.id == station.id,  # pylint: disable=no-member
+                LockerModel.station.id == station.id,  # pylint: disable=no-member
                 LockerModel.station_index == index,
-                fetch_links=with_linked
+                fetch_links=True
             )
         elif None not in [call_sign, index]:
             instance.document = await LockerModel.find_one(
-                # LockerModel.parent_station.call_sign == call_sign,  # pylint: disable=no-member
+                LockerModel.station.call_sign == call_sign,  # pylint: disable=no-member
                 LockerModel.station_index == index,
-                fetch_links=with_linked
+                fetch_links=True
             )
         if not instance.document:
             logger.info("Locker '#%s' not found at station '%s'.",
                         index, station)
+
+        if with_linked:
+            await instance.document.fetch_all_links()
 
         return instance
 
@@ -91,12 +96,11 @@ class Locker():
                     "session_state.is_active": True
                 }
             }]).to_list()
-        # print(active_sessions[0].session_state)
 
         # 3: Find a locker at this station that matches the type and does not belong to such a session
         available_locker = await LockerModel.find(
             # TODO; FIXME cannot find locker with this
-            # LockerModel.parent_station.id == station.id,  # pylint: disable=no-member
+            # LockerModel.station.id == station.id,  # pylint: disable=no-member
             LockerModel.locker_type == locker_type,
             NotIn(LockerModel.id,  [
                 session.assigned_locker.id for session in active_sessions])  # pylint: disable=no-member
@@ -111,12 +115,12 @@ class Locker():
         """Check whether this object exists."""
         return self.document is not None
 
-    async def set_state(self, state: LockerStates):
+    async def register_state(self, state: LockerStates):
         """Update the reported (actual) locker state"""
         await self.document.update(Set({LockerModel.reported_state: state}))
 
-    async def instruct_unlock(self, call_sign: str):
-        # TODO: This function is being called only once, evaluate alternative locations
+    async def set_state(self, state: LockerStates):
         """Send a message to the station to unlock the locker."""
+        await self.document.fetch_link(LockerModel.station)
         fast_mqtt.publish(
-            f'stations/{call_sign}/locker/{self.station_index}/instruct', 'UNLOCK')
+            f'stations/{self.station.call_sign}/locker/{self.station_index}/instruct', state.value)

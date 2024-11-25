@@ -10,7 +10,7 @@ from enum import Enum
 import dataclasses
 from typing import Optional, Dict
 from uuid import UUID
-from pydantic import Field
+from pydantic import Field, BaseModel
 
 # Beanie
 from beanie import Document, Link, View, Update, after_event
@@ -38,34 +38,45 @@ class SessionStates(Dict, Enum):
     whether the session is considered as 'active' in that state
     and the default follow-up session state."""
     # Session created and assigned to locker. Awaiting payment selection
-    CREATED = {"timeout_secs": 180,
+    CREATED = {"name": "CREATED", "timeout_secs": 180,
                "is_active": True, "next": 'PAYMENT_SELECTED'}
     # Payment method has been selected, now awaiting request to open locker
-    PAYMENT_SELECTED = {"timeout_secs": 90,
+    PAYMENT_SELECTED = {"name": "PAYMENT_SELECTED", "timeout_secs": 90,
                         "is_active": True, "next": 'VERIFICATION'}
     # Terminal is awaiting verification
-    VERIFICATION = {"timeout_secs": 60, "is_active": True, "next": 'STASHING'}
+    VERIFICATION = {"name": "VERIFICATION", "timeout_secs": 60,
+                    "is_active": True, "next": 'STASHING'}
     # Locker opened for the first time, stashing underway.
-    STASHING = {"timeout_secs": 120, "is_active": True, "next": 'ACTIVE'}
+    STASHING = {"name": "STASHING", "timeout_secs": 120,
+                "is_active": True, "next": 'ACTIVE'}
     # Locker closed and session timer is running
-    ACTIVE = {"timeout_secs": 86400, "is_active": True, "next": 'PAYMENT'}
+    ACTIVE = {"name": "ACTIVE", "timeout_secs": 86400,
+              "is_active": True, "next": 'PAYMENT'}
     # Locker opened for retrieving stuff (only digital payment)
-    HOLD = {"timeout_secs": 300, "is_active": True, "next": 'ACTIVE'}
+    HOLD = {"name": "HOLD", "timeout_secs": 300,
+            "is_active": True, "next": 'ACTIVE'}
     # Payment is pending at the terminal
-    PAYMENT = {"timeout_secs": 60, "is_active": True, "next": 'RETRIEVAL'}
+    PAYMENT = {"name": "PAYMENT", "timeout_secs": 60,
+               "is_active": True, "next": 'RETRIEVAL'}
     # Locker opens a last time for retrieval
-    RETRIEVAL = {"timeout_secs": 120, "is_active": True, "next": 'COMPLETED'}
+    RETRIEVAL = {"name": "RETRIEVAL", "timeout_secs": 120,
+                 "is_active": True, "next": 'COMPLETED'}
 
     # Session has been completed (paid for, locker closed)
-    COMPLETED = {"timeout_secs": 0, "is_active": False, "next": ''}
+    COMPLETED = {"name": "COMPLETED", "timeout_secs": 0,
+                 "is_active": False, "next": ''}
     # Session has been canceled, no active time, no payment
-    CANCELLED = {"timeout_secs": 0, "is_active": False, "next": ''}
+    CANCELLED = {"name": "CANCELLED", "timeout_secs": 0,
+                 "is_active": False, "next": ''}
     # Session has expired but locker remained open
-    STALE = {"timeout_secs": 0, "is_active": False, "next": ''}
+    STALE = {"name": "STALE", "timeout_secs": 0,
+             "is_active": False, "next": ''}
     # Session has expired due to exceeded time window by user
-    EXPIRED = {"timeout_secs": 0, "is_active": False, "next": ''}
+    EXPIRED = {"name": "EXPIRED", "timeout_secs": 0,
+               "is_active": False, "next": ''}
     # Session has expired due to internal failure / no response from station
-    ABORTED = {"timeout_secs": 0, "is_active": False, "next": ''}
+    ABORTED = {"name": "ABORTED", "timeout_secs": 0,
+               "is_active": False, "next": ''}
 
 
 class SessionPaymentTypes(str, Enum):
@@ -117,16 +128,12 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
         cache_expiration_time = timedelta(seconds=1)
         # cache_capacity = 5
 
-    @dataclasses.dataclass
-    class Config:  # pylint: disable=missing-class-docstring
-        arbitrary_types_allowed = True
-
 
 class SessionView(View):
     """Used for serving information about an active session"""
     # Identification
     id: ObjId
-    assigned_station: Link[StationModel] = Field(
+    assigned_station: ObjId = Field(
         description="Station at which the session takes place")
 
     assigned_user: UUID = Field(
@@ -136,10 +143,10 @@ class SessionView(View):
         default=None, description="Local index of the locker at its station")
 
     session_type: SessionTypes = Field(
-        default=SessionTypes.PERSONAL, description="Type of session")
+        None, description="Type of session")
 
-    session_state: SessionStates = Field(
-        default=SessionStates.CREATED, description="Current state of the session")
+    session_state: str = Field(
+        None, description="Current state of the session")
 
     created_ts: datetime = Field(
         datetime.now(), description="Datetime of session creation.")
@@ -149,8 +156,16 @@ class SessionView(View):
         from_attributes = True
 
     @dataclasses.dataclass
-    class Setttings:  # pylint: disable=missing-class-docstring
+    class Settings:  # pylint: disable=missing-class-docstring
         source = SessionModel
+        projection = {
+            "id": "$_id",
+            "session_state": "$session_state.name",
+            "assigned_user": "$assigned_user",
+            "session_type": "$session_type",
+            "assigned_station": "$assigned_station._id",
+            "locker_index": "$assigned_locker.station_index"
+        }
 
 
 class CompletedSession(View):

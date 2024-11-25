@@ -16,30 +16,20 @@ from src.models.station_models import StationModel
 from src.models.locker_models import LockerModel
 from src.models.action_models import ActionModel
 from src.models.session_models import (SessionModel,
+                                       SessionView,
                                        SessionPaymentTypes,
                                        SessionStates,)
+
+# Entities
+from src.entities.entity_utils import Entity
 
 # Services
 from src.services.logging_services import logger
 from src.services.exceptions import ServiceExceptions
 
 
-class Session():
+class Session(Entity):
     """Add behaviour to a session instance."""
-
-    def __getattr__(self, name):
-        """Delegate attribute access to the internal document."""
-        # TODO: If the session object itself is requested, return its document
-        return getattr(self.document, name)
-
-    def __setattr__(self, name, value):
-        """Delegate attribute setting to the internal document, except for 'document' itself."""
-        if name == "document":
-            # Directly set the 'document' attribute on the instance
-            super().__setattr__(name, value)
-        else:
-            # Delegate setting other attributes to the document
-            setattr(self.document, name, value)
 
     def __init__(self, document: SessionModel = None):
         super().__init__()
@@ -49,24 +39,39 @@ class Session():
     async def fetch(
         cls,
         session_id: ObjId = None,
-        locker: LockerModel = None,
-        with_linked=False
     ):
         """Create a Session instance and fetch the object async."""
         instance = cls()
         if session_id is not None:
             instance.document = await SessionModel.get(session_id, ignore_cache=True)
 
-        elif locker is not None:
-            instance.document = await SessionModel.find(
-                # TODO: The latest created session at a locker should also be the active one
-                SessionModel.assigned_locker.id == locker.id,  # pylint: disable=no-member
-                fetch_links=with_linked
-            ).sort((SessionModel.created_ts, SortDirection.DESCENDING)).first_or_none()
-
         if not instance.exists:
             logger.info(ServiceExceptions.SESSION_NOT_FOUND,
                         session=session_id)
+
+        return instance
+
+    @classmethod
+    async def at_locker(
+        cls,
+        locker_id: ObjId = None
+    ):
+        """Get the active session at a locker."""
+        instance = cls()
+        sessions: SessionModel = await SessionModel.aggregate([
+            {"$match": {
+                "assigned_locker.id": locker_id,
+                # "session_state.is_active": True
+            }},
+            {"$sort": {
+                "created_ts": SortDirection.DESCENDING.value
+            }}
+        ]).to_list()
+        instance.document = sessions[0] if sessions else None
+
+        if not instance.exists:
+            logger.info(ServiceExceptions.SESSION_NOT_FOUND)
+
         return instance
 
     @classmethod
@@ -75,7 +80,7 @@ class Session():
         station: StationModel,
         locker: LockerModel
     ):
-        '''Create a queue new session item and insert it into the database.'''
+        """Create a new session item and insert it into the database."""
         instance = cls()
         instance.document = SessionModel(
             assigned_user=user_id,
@@ -86,6 +91,19 @@ class Session():
         )
         await instance.document.insert()
         return instance
+
+    @property
+    async def view(self) -> SessionView:
+        document = self.document  # Assuming self.document is an instance of SessionModel
+        return SessionView(
+            id=document.id,
+            assigned_station=document.assigned_station.id,
+            assigned_user=document.assigned_user,
+            locker_index=document.assigned_locker.station_index if document.assigned_locker else None,
+            session_type=document.session_type,
+            session_state=document.session_state.name,
+            created_ts=document.created_ts
+        )
 
     ### Calculated Properties ###
 
@@ -139,7 +157,7 @@ class Session():
                     Set({SessionModel.session_state: state}), skip_actions=[After])
 
             logger.debug(
-                f"Session '{self.id}' updated to state {self.session_state}."
+                f"Session '{self.id}' updated to {self.session_state}."
             )
 
         except (ValueError, TypeError) as e:

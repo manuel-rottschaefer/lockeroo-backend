@@ -63,12 +63,6 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
-
-@app.get('/')
-def hello_world():
-    return "Hello World!"
-
-
 # Load dotenv config
 load_dotenv('src/environments/.env')
 
@@ -86,4 +80,4 @@ app.include_router(dashboard_router, prefix='/dashboard', tags=['Dashboard'])
 if __name__ == "__main__":
     os.system('clear')
     # Run the server
-    uvicorn.run(app, host="0.0.0.0", port=8080)
+    uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)

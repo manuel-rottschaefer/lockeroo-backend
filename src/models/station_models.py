@@ -110,7 +110,7 @@ class StationView(View):
     station_type: str
 
     # Setup and Installation Data
-    installed_lockers_count: int
+    installed_lockers: int
 
     # Operation states
     station_state: StationStates
@@ -121,7 +121,7 @@ class StationView(View):
     # Location
     city_name: str
     address: str
-    geolocation: Tuple[float, float]
+    location: Dict
     nearby_public_transit: Optional[str]
 
     # TODO: No method in a view, solve this differently

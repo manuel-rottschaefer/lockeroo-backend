@@ -7,6 +7,7 @@ from beanie.operators import Set
 
 
 # Entities
+from src.entities.entity_utils import Entity
 from src.entities.locker_entity import Locker
 
 # Models
@@ -21,21 +22,8 @@ from src.services.maintenance_services import has_scheduled
 from src.services.logging_services import logger
 
 
-class Station():
+class Station(Entity):
     """Adds behaviour for a station instance."""
-
-    def __getattr__(self, name):
-        """Delegate attribute access to the internal document."""
-        return getattr(self.document, name)
-
-    def __setattr__(self, name, value):
-        """Delegate attribute setting to the internal document, except for 'document' itself"""
-        if name == "document":
-            # Directly set the 'document' attribute on the instance
-            super().__setattr__(name, value)
-        else:
-            # Delegate setting other attributes to the document
-            setattr(self.document, name, value)
 
     def __init__(self, document: StationModel = None):
         super().__init__()
@@ -105,7 +93,7 @@ class Station():
         # 1: Find the locker
         return Locker(await
                       LockerModel.find_one(
-                          LockerModel.parent_station == self.id,
+                          LockerModel.station == self.id,
                           LockerModel.station_index == index,
                       )
                       )
@@ -123,21 +111,15 @@ class Station():
         return new_state
 
     async def set_terminal_state(
-        self: StationModel, terminal_state: TerminalStates = None, session_state: SessionStates = None
-    ) -> StationStates:
+        self: StationModel, terminal_state: TerminalStates = None
+    ) -> None:
         """Update the terminal state of a station. This function either accepts a TerminalState or a SessionState. """
-        if terminal_state is None and session_state is not None:
-            if session_state == SessionStates.VERIFICATION:
-                self.document.terminal_state = TerminalStates.VERIFICATION
-            elif session_state == SessionStates.PAYMENT:
-                self.document.terminal_state = TerminalStates.PAYMENT
-
-        await self.document.replace(skip_actions=['notify_station_state'])
+        await self.document.update(Set({StationModel.terminal_state: terminal_state}),
+                                   skip_actions=['notify_station_state'])
         logger.debug(
             f"Terminal at station '{self.id}' set to {
                 self.terminal_state}."
         )
-        return terminal_state
 
     async def activate_payment(self):
         """Activate a payment process at the station."""

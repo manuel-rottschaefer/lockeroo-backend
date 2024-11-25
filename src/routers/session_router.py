@@ -2,8 +2,7 @@
     This module contains the FastAPI router for handling requests related sessions.
 """
 # Basics
-from typing import List, Annotated
-import traceback
+from typing import List, Annotated, Optional
 
 # Database utils
 from beanie import PydanticObjectId as ObjId
@@ -30,7 +29,7 @@ session_router = APIRouter()
 ### REST ENDPOINTS ###
 
 @session_router.get('/{session_id}/details',
-                    response_model=SessionView,
+                    response_model=Optional[SessionView],
                     description=('Get the details of a session including (active) time,'
                                  'current price and locker state.')
                     )
@@ -49,7 +48,7 @@ async def get_session_details(
 
 
 @session_router.post('/create',
-                     response_model=SessionView,
+                     response_model=Optional[SessionView],
                      description='Request a new session at a given station')
 @require_auth
 async def request_new_session(
@@ -66,7 +65,7 @@ async def request_new_session(
 
 
 @ session_router.put('/{sessionID}/cancel',
-                     response_model=SessionView,
+                     response_model=Optional[SessionView],
                      description='Request to cancel a locker session before it has been started')
 @require_auth
 async def request_session_cancel(
@@ -81,7 +80,7 @@ async def request_session_cancel(
 
 
 @ session_router.put('/{session_id}/payment/select',
-                     response_model=SessionView,
+                     response_model=Optional[SessionView],
                      description="Select a payment method for a session")
 @ handle_exceptions(logger)
 @require_auth
@@ -99,7 +98,7 @@ async def choose_session_payment_method(
 
 
 @ session_router.put('/{session_id}/payment/verify',
-                     response_model=SessionView,
+                     response_model=Optional[SessionView],
                      description='Request to enter the verification queue of a session')
 @ handle_exceptions(logger)
 @require_auth
@@ -108,16 +107,13 @@ async def request_session_verification(
     access_info: FiefAccessTokenInfo = None,
 ):
     """Handle request to enter the verification queue of a session"""
-    try:
-        return await session_services.handle_verification_request(
-            session_id=ObjId(session_id),
-            user_id=access_info['id'])
-    except:
-        print(traceback.format_exc())
+    return await session_services.handle_verification_request(
+        session_id=ObjId(session_id),
+        user_id=access_info['id'])
 
 
 @ session_router.put('/{session_id}/hold',
-                     response_model=SessionView,
+                     response_model=Optional[SessionView],
                      description='Request to hold (pause) a locker session')
 @ handle_exceptions(logger)
 @require_auth
@@ -133,7 +129,7 @@ async def request_session_hold(
 
 
 @ session_router.put('/{session_id}/payment',
-                     response_model=SessionView,
+                     response_model=Optional[SessionView],
                      description='Request to enter the payment phase of a session')
 @ handle_exceptions(logger)
 @require_auth
@@ -142,17 +138,14 @@ async def request_session_payment(
     access_info: FiefAccessTokenInfo = None,
 ):
     """Handle request to enter the payment phase of a session"""
-    try:
-        return await session_services.handle_payment_request(
-            session_id=ObjId(session_id),
-            user_id=access_info['id']
-        )
-    except:
-        print(traceback.format_exc())
+    return await session_services.handle_payment_request(
+        session_id=ObjId(session_id),
+        user_id=access_info['id']
+    )
 
 
 @ session_router.get('/{session_id}/history',
-                     response_model=List[ActionView],
+                     response_model=Optional[List[ActionView]],
                      description="Get a list of all actions of a session.")
 @ handle_exceptions(logger)
 @require_auth

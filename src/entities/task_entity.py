@@ -11,12 +11,13 @@ from beanie.operators import Set
 from beanie import SortDirection
 
 # Entities
+from src.entities.entity_utils import Entity
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
 from src.entities.payment_entity import Payment
 
 # Models
-from src.models.station_models import StationModel
+from src.models.station_models import StationModel, TerminalStates
 from src.models.session_models import SessionModel, SessionStates
 from src.models.task_models import TaskItemModel, TaskStates, TaskTypes
 
@@ -25,44 +26,13 @@ from src.services.logging_services import logger
 from src.services.exceptions import ServiceExceptions
 
 
-class Task():
-    """Add behaviour to a task Entity."""
+class Task(Entity):
+    """Add behaviour to a task Model."""
 
-    def __getattr__(self, name):
-        """Delegate attribute access to the internal document."""
-        return getattr(self.document, name)
-
-    def __setattr__(self, name, value):
-        """Delegate attribute setting to the internal document, except for 'document' itself."""
-        if name == "document":
-            # Directly set the 'document' attribute on the instance
-            super().__setattr__(name, value)
-        else:
-            # Delegate setting other attributes to the document
-            setattr(self.document, name, value)
-
-    def __init__(self, document: TaskItemModel = None):
+    def __init__(self, document=None):
+        """By default, an entity takes a Beanie document as its model on initialization"""
         super().__init__()
         self.document = document
-
-    @classmethod
-    async def fetch(cls,
-                    session: SessionModel,
-                    with_linked=False):
-        """Get the most recent task of a session."""
-        # 1: Create the instance
-        instance = cls()
-
-        # 2: Look for the latest queue item
-        task_item: TaskItemModel = await TaskItemModel.find(
-            TaskItemModel.assigned_session.id == session.id,  # pylint: disable=no-member
-            fetch_links=with_linked
-        ).sort((TaskItemModel.created_at, SortDirection.DESCENDING)).first_or_none()
-
-        if task_item:
-            instance.document = task_item
-            return instance
-        return None
 
     @classmethod
     async def create(cls,
@@ -71,11 +41,11 @@ class Task():
                      session: SessionModel,
                      queued_state: SessionStates,
                      timeout_states: List[SessionStates],
-                     queue: bool = False,
+                     has_queue: bool = False,
                      ):
         """Create a new task item and insert it into the database.
-        :param session_id: The session to be queued
-        :param station_id: The station assigned to the queued session
+        :param session_id: The session assigned to this task
+        :param station_id: The station assigned to the session
         :param queued)state: The next state the session will have after queue activation
         :param timeout_state: The state the session will have after expiring once.
         """
@@ -88,48 +58,77 @@ class Task():
             queued_state=queued_state,
             timeout_states=timeout_states,
             created_at=datetime.now(),
-            queue_enabled=queue
+            queue_enabled=has_queue
 
         )
         await instance.document.insert()
-        logger.debug(f"Created queue item '{instance.document.id}' of type {
-                     task_type} for session '{session.id}' at station '{station.id}'.")
+        logger.debug(f"Created task '{instance.document.id}' of {
+                     task_type} for session '{session.id}'.")
 
         # If queueing is disabled, instantly activate the task
-        if not queue:
+        if not has_queue:
             await instance.activate()
-        elif await instance.is_next:
+        elif await instance.is_next_in_queue:
             await instance.activate()
 
         return instance
 
     @classmethod
-    async def get_next_in_queue(cls, station: StationModel) -> TaskItemModel:
-        """Get the next task item in queue at this station."""
+    async def find(
+        cls,
+        call_sign: Optional[str] = None,
+        task_type: Optional[TaskTypes] = None,
+        task_state: Optional[TaskStates] = None,
+        assigned_session: Optional[SessionModel] = None,
+        assigned_station: Optional[StationModel] = None,
+        locker_index: Optional[int] = None
+    ):
+        """Get a task at a station."""
         instance = cls()
+
+        query = {
+            TaskItemModel.assigned_station.call_sign: call_sign,   # pylint: disable=no-member
+            TaskItemModel.task_type: task_type,
+            TaskItemModel.task_state: task_state,
+            TaskItemModel.assigned_session: assigned_session,
+            TaskItemModel.assigned_station: assigned_station,
+            TaskItemModel.assigned_session.assigned_locker.station_index: locker_index  # pylint: disable=no-member
+        }
+
+        # Filter out None values
+        query = {k: v for k, v in query.items() if v is not None}
+
+        task_item: TaskItemModel = await TaskItemModel.find(
+            query, fetch_links=True
+        ).sort((TaskItemModel.created_at, SortDirection.DESCENDING)).first_or_none()
+
+        if task_item:
+            instance.document = task_item
+            return instance
+
+    @property
+    async def is_next_in_queue(self) -> bool:
+        """Check whether this task is next in queue"""
         # 1: Find the next queued session item
         next_item: Optional[TaskItemModel] = await TaskItemModel.find(
-            TaskItemModel.assigned_station.id == station.id,  # pylint: disable=no-member
+            TaskItemModel.assigned_station.id == self.assigned_station.id,  # pylint: disable=no-member
             TaskItemModel.task_state == TaskStates.QUEUED,
             fetch_links=True
         ).sort((TaskItemModel.created_at, SortDirection.DESCENDING)).first_or_none()
 
         if not next_item:
-            logger.info("No queued session at station '%s'.", station.id)
+            logger.info("No queued session at station '%s'.",
+                        self.assigned_station.id)
             return None
 
-        instance.document = next_item
-        logger.debug(
-            f"Session '{next_item.assigned_session.id}' identified as next in queue at station '{
-                station.id}'."
-        )
-        return instance
+        is_next = next_item.id == self.id
 
-    @property
-    async def is_next(self) -> bool:
-        """Check whether this queue item is next in line."""
-        next_item = await Task().get_next_in_queue(self.document.assigned_station)
-        return next_item.id == self.document.id
+        if is_next:
+            logger.debug(
+                f"Session '{next_item.assigned_session.id}' identified as next in queue at station '{
+                    self.id}'."
+            )
+        return is_next
 
     ### State management ###
 
@@ -152,17 +151,6 @@ class Task():
         timeout_date: datetime = self.document.created_at + \
             timedelta(seconds=timeout_window)
 
-        # 3: If the session is pending verification, update the terminal state
-        if session.session_state in [SessionStates.VERIFICATION, SessionStates.PAYMENT]:
-            station: Station = Station(session.assigned_station)
-            await station.set_terminal_state(session_state=session.session_state)
-
-        # 4: If the session is pending payment, activate it
-        if session.session_state == SessionStates.PAYMENT:
-            payment: Payment = await Payment.fetch(session=session.document)
-            await payment.get_price()
-            # await payment.set_state(PaymentStates.PENDING)
-
         # 5: Update queue item
         await self.document.update(Set({
             TaskItemModel.task_state: TaskStates.PENDING,
@@ -170,6 +158,19 @@ class Task():
             TaskItemModel.expires_at: timeout_date,
             TaskItemModel.expiration_window: timeout_window
         }))
+
+        # 3: If the session is pending verification, update the terminal state
+        if session.session_state == SessionStates.VERIFICATION:
+            station: Station = Station(session.assigned_station)
+            await station.set_terminal_state(terminal_state=TerminalStates.VERIFICATION)
+
+        # 4: If the session is pending payment, activate it
+        if session.session_state == SessionStates.PAYMENT and self.document.task_state == TaskStates.PENDING:
+            payment: Payment = await Payment.fetch(session=session.document)
+            station: Station = Station(session.assigned_station)
+            await station.set_terminal_state(terminal_state=TerminalStates.PAYMENT)
+            await payment.get_price()
+            # await payment.set_state(PaymentStates.PENDING)
 
         # 6: Get the expiration time depending on queue type
         if self.document.task_type != TaskTypes.USER:
@@ -184,9 +185,9 @@ class Task():
                                secs_to_timeout: int):
         """Register an expiration handler. This waits until the expiration duration
         has passed and then fires up the expiration handler."""
-        logger.debug(f"QueueItem '{self.document.id}' assigned to session'{
-            self.assigned_session.id}' will time out in {
-            secs_to_timeout} seconds.")
+        logger.debug(f"Task '{self.document.id}' will time out in {
+            secs_to_timeout} seconds."
+        )
 
         # 1 Register the expiration handler
         await asyncio.sleep(int(secs_to_timeout))
@@ -203,11 +204,6 @@ class Task():
         """
         # 1: Set Session and queue state to expired
         session: Session = Session(self.document.assigned_session)
-
-        # 2: If this session has already timed out once, expire it now.
-        # The user then has to start a new session again.
-        # if await session.timeout_amount > 0:
-        #    state = SessionStates.EXPIRED
 
         # 3: Set the queue state of this item to expired
         await self.set_state(TaskStates.EXPIRED)
@@ -235,4 +231,4 @@ class Task():
             session=session.document,
             queued_state=self.queued_state,
             timeout_states=self.document.timeout_states[1:],
-            queue=self.document.queue_enabled)
+            has_queue=self.document.queue_enabled)

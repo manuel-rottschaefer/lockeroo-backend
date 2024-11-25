@@ -18,7 +18,7 @@ async def has_active_session(user_id: UUID) -> bool:
 
     active_session = await SessionModel.find(
         SessionModel.assigned_user == user_id,
-        SessionModel.session_state[1] is True  # pylint: disable=no-member
+        SessionModel.session_state.is_active is True  # pylint: disable=no-member
     ).first_or_none()
 
     if active_session:

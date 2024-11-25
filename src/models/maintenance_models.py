@@ -1,4 +1,4 @@
-'''This module provides the Models for Station Maintenance events.'''
+"""This module provides the Models for Station Maintenance events."""
 # Types
 from enum import Enum
 from typing import Optional

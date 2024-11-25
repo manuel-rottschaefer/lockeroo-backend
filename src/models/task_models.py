@@ -1,11 +1,10 @@
 """Models for task items."""
 
 # Types
-import os
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
-from typing import Optional, Dict, List
+from typing import Optional, List, Union
 from dotenv import load_dotenv
 from pydantic import Field
 
@@ -16,9 +15,11 @@ from beanie import PydanticObjectId as ObjId
 # Models
 from src.models.session_models import SessionModel, SessionStates
 from src.models.station_models import StationModel
+from src.models.locker_models import LockerStates
 
-# Logging
+# Services
 from src.services.logging_services import logger
+
 
 load_dotenv('src/environments/.env')
 
@@ -57,9 +58,10 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     queue_enabled: bool = Field(
         False, description="The task can be put into a queue at its assigned station or be immediately activated.")
 
-    queued_state: SessionStates = Field(
-        SessionStates.EXPIRED,
-        description="The next state of the queued session after activation.")
+    queued_state: Union[LockerStates, SessionStates] = Field(
+        None,
+        description="The next state of the assigned session or terminal after activation.\
+        State Type depends on task type.")
 
     timeout_states: List[SessionStates] = Field(
         default=[SessionStates.EXPIRED],
@@ -83,10 +85,13 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
         None, description="The datetime when the task item was completed or expired.")
 
     @after_event(Update)
-    def report_state(self) -> None:
+    async def report_state(self) -> None:
         """Log database operation."""
-        logger.debug(f"Task '{self.id}' set to state {
-                     self.task_state}.")
+        await self.fetch_all_links()
+        msg = f"Task '{self.id}' is now {self.task_state}"
+        if self.task_state == TaskStates.PENDING:
+            msg += f' with {self.assigned_session.session_state}.'  # pylint: disable=no-member
+        logger.debug(msg)
 
     @dataclass
     class Settings:  # pylint: disable=missing-class-docstring

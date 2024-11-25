@@ -12,6 +12,7 @@ from beanie.operators import In, Set
 from src.config.config import locker_config
 
 # Entities
+from src.entities.entity_utils import Entity
 from src.entities.session_entity import Session
 from src.entities.locker_entity import Locker
 
@@ -23,21 +24,8 @@ from src.models.payment_models import PaymentModel, PaymentStates
 from src.services.logging_services import logger
 
 
-class Payment():
+class Payment(Entity):
     """Add behaviour to a payment Entity."""
-
-    def __getattr__(self, name):
-        """Delegate attribute access to the internal document."""
-        return getattr(self.document, name)
-
-    def __setattr__(self, name, value):
-        """Delegate attribute setting to the internal document, except for 'document' itself."""
-        if name == "document":
-            # Directly set the 'document' attribute on the instance
-            super().__setattr__(name, value)
-        else:
-            # Delegate setting other attributes to the document
-            setattr(self.document, name, value)
 
     def __init__(self, document: PaymentModel = None):
         super().__init__()
@@ -53,14 +41,14 @@ class Payment():
 
         # 2: Check whether there exists an active payment
         active_payment: PaymentModel = await PaymentModel.find(
-            PaymentModel.assigned_session.id == session.id,  # pydantic: disable=no-member
+            PaymentModel.assigned_session.id == session.id,  # pylint: disable=no-member
             In(PaymentModel.state, [
                PaymentStates.SCHEDULED, PaymentStates.PENDING]),
             fetch_links=with_linked
         ).sort((PaymentModel.last_updated, SortDirection.DESCENDING)).first_or_none()
 
         last_payment: PaymentModel = await PaymentModel.find(
-            PaymentModel.assigned_session.id == session.id,  # pydantic: disable=no-member
+            PaymentModel.assigned_session.id == session.id,  # pylint: disable=no-member
             fetch_links=with_linked
         ).sort((PaymentModel.last_updated, SortDirection.DESCENDING)).first_or_none()
 
@@ -74,7 +62,7 @@ class Payment():
 
     @classmethod
     async def create(cls, session: SessionModel):
-        """Create a new queue item and insert it into the database."""
+        """Create a new payment item and insert it into the database."""
         instance = cls()
 
         instance.document = PaymentModel(
@@ -90,7 +78,7 @@ class Payment():
 
     async def get_price(self) -> Optional[int]:
         price = await self.current_price
-        # TODO: FIXME This line is not working.
+        # TODO: FIXME Execution is halting here
         # await self.document.update(Set({PaymentModel.price: price}))
         return price
 

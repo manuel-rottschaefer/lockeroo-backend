@@ -19,64 +19,77 @@ from src.services.action_services import create_action
 
 async def handle_lock_report(call_sign: str, locker_index: int) -> None:
     """Process and verify a station report that a locker has been closed"""
-    # 1: Find the affected locker
-    locker: Locker = await Locker().fetch(
-        call_sign=call_sign, index=locker_index, with_linked=True)
+    # 1: Find the affected task
+    task: Task = await Task().find(
+        call_sign=call_sign,
+        task_type=TaskTypes.USER,
+        task_state=TaskStates.PENDING,
+        locker_index=locker_index)
+    await task.fetch_links()
+
+    # 2: Find the affected locker
+    locker: Locker = Locker(task.assigned_session.assigned_locker)
+    await locker.fetch_links()
     if not locker.exists:
         logger.info(ServiceExceptions.LOCKER_NOT_FOUND,
                     station=call_sign, detail=locker_index)
 
-    # 2: Check whether the internal locker state matches the reported situation
+    # 3: Check that the locker matches
+    if locker.station_index != locker_index:
+        logger.debug("Invalid message")
+        return
+
     if locker.reported_state != LockerStates.UNLOCKED.value:
         logger.error(f"Locker '{locker.id}' should be unlocked, but is {
                      locker.reported_state}.")
         return
 
-    # 3: Find the station to get its ID
-    # TODO: This should be called by the with_links parameter
-    await locker.document.fetch_link(LockerModel.parent_station)
-    station: Station = Station(locker.parent_station)
+    # 4: Find the station to get its ID
+    station: Station = Station(locker.station)
     if not station:
         logger.info(ServiceExceptions.STATION_NOT_FOUND,
                     station=call_sign)
 
-    # 4: Find the assigned session
-    session: Session = await Session().fetch(locker=locker, with_linked=False)
-
+    # 5: Find the assigned session
+    session: Session = Session(task.assigned_session)
     if not session:
         logger.info(ServiceExceptions.SESSION_NOT_FOUND, locker=locker.id)
         return
 
-    # 5: If those checks pass, update the locker and create an action
-    await locker.set_state(LockerStates.LOCKED)
+    # 6: If those checks pass, update the locker and create an action
+    await locker.register_state(LockerStates.LOCKED)
     await create_action(session.id, session.session_state)
-    # await session.set_state(await session.next_state)
 
     # 6: Complete the previous task item
-    task_item: Task = await Task().fetch(session=session)
-    await task_item.set_state(TaskStates.COMPLETED)
+    await task.set_state(TaskStates.COMPLETED)
 
+    # 7: Catch a completed session here
     next_state: SessionStates = await session.next_state
     if next_state == SessionStates.COMPLETED:
         await session.set_state(SessionStates.COMPLETED)
         return
 
+    # 8: Create a task
     await Task().create(
         task_type=TaskTypes.USER,
         station=station.document,
         session=session.document,
         queued_state=await session.next_state,
         timeout_states=[SessionStates.STALE],
-        queue=False
+        has_queue=False
     )
 
 
 async def handle_unlock_confirmation(
         call_sign: str, locker_index: int) -> None:
     """Process and verify a station report that a locker has been unlocked"""
-    # 1: Find the affected locker
-    locker: Locker = await Locker().fetch(
-        call_sign=call_sign, index=locker_index, with_linked=True)
+    # 1: Look for a task that is pending
+    task: Task = await Task().find(call_sign=call_sign,
+                                   task_type=TaskTypes.STATION,
+                                   task_state=TaskStates.PENDING)
+    await task.fetch_links()
+
+    locker: Locker = Locker(task.assigned_session.assigned_locker)
     if not locker.exists:
         logger.info(ServiceExceptions.LOCKER_NOT_FOUND,
                     station=call_sign, detail=locker_index)
@@ -87,10 +100,7 @@ async def handle_unlock_confirmation(
                      locker.reported_state}.")
         return
 
-    # 3: Find the station to get its ID
-    # TODO: This should be called by the with_links parameter
-    await locker.document.fetch_link(LockerModel.parent_station)
-    station: Station = Station(locker.parent_station)
+    station: Station = Station(task.assigned_station)
     if not station:
         logger.info(ServiceExceptions.STATION_NOT_FOUND,
                     station=call_sign)
@@ -99,7 +109,7 @@ async def handle_unlock_confirmation(
     accepted_session_states = [SessionStates.VERIFICATION,
                                SessionStates.PAYMENT,
                                SessionStates.HOLD]
-    session: Session = await Session().fetch(locker=locker, with_linked=True)
+    session: Session = Session(task.assigned_session)
     if not session.exists:
         logger.info(ServiceExceptions.SESSION_NOT_FOUND,
                     station=call_sign)
@@ -111,10 +121,7 @@ async def handle_unlock_confirmation(
         return
 
     # 5: Update locker and session states
-    await locker.set_state(LockerStates.UNLOCKED)
-
-    # 6: Complete the current active session
-    task: Task = await Task().fetch(session=session)
+    await locker.register_state(LockerStates.UNLOCKED)
     await task.set_state(TaskStates.COMPLETED)
 
     # 7: Create a queue item for the user
@@ -124,7 +131,7 @@ async def handle_unlock_confirmation(
         session=session.document,
         queued_state=await session.next_state,
         timeout_states=[SessionStates.STALE],
-        queue=False
+        has_queue=False
     )
 
     # 8: Create action entry
