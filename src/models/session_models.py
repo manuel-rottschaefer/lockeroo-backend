@@ -10,7 +10,7 @@ from enum import Enum
 import dataclasses
 from typing import Optional, Dict
 from uuid import UUID
-from pydantic import Field, BaseModel
+from pydantic import Field
 
 # Beanie
 from beanie import Document, Link, View, Update, after_event
@@ -19,6 +19,7 @@ from beanie import PydanticObjectId as ObjId
 # Models
 from src.models.station_models import StationModel
 from src.models.locker_models import LockerModel
+from src.models.user_models import UserModel
 
 # Services
 from src.services import websocket_services
@@ -89,14 +90,14 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a session in the database.
          All relevant timestamps are stored in actions."""
     ### Identification ###
-    id: Optional[ObjId] = Field(None, alias="_id")
+    id: ObjId = Field(alias="_id")
     assigned_station: Link[StationModel] = Field(
         description="The assigned station to this session.")
 
     assigned_locker: Link[LockerModel] = Field(
         description="The assigned locker to this session.")
 
-    assigned_user: UUID = Field(
+    user: Link[UserModel] = Field(
         None, description="The assigned user to this session.")
 
     created_ts: datetime = Field(
@@ -136,7 +137,7 @@ class SessionView(View):
     assigned_station: ObjId = Field(
         description="Station at which the session takes place")
 
-    assigned_user: UUID = Field(
+    user: UUID = Field(
         None, description="The assigned user to this session.")
 
     locker_index: Optional[int] = Field(
@@ -160,8 +161,8 @@ class SessionView(View):
         source = SessionModel
         projection = {
             "id": "$_id",
+            "user": "$user",
             "session_state": "$session_state.name",
-            "assigned_user": "$assigned_user",
             "session_type": "$session_type",
             "assigned_station": "$assigned_station._id",
             "locker_index": "$assigned_locker.station_index"
@@ -170,7 +171,7 @@ class SessionView(View):
 
 class CompletedSession(View):
     """Used for serving information about a completed session"""
-    id: Optional[ObjId] = Field(None, alias="_id")
+    id: ObjId = Field(alias="_id")
     station: ObjId
     locker: Optional[int] = None
     serviceType: SessionTypes

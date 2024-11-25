@@ -1,0 +1,1 @@
+docker run --net=host -it -e NGROK_AUTHTOKEN=2ipdQXQ60cBWJgmMlDwDbUPopVp_4EyyQ16XKKgqXXri9iuiR ngrok/ngrok:latest http --url=funky-doberman-polished.ngrok-free.app 8080

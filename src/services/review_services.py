@@ -32,7 +32,7 @@ async def handle_review_submission(session_id: ObjId,
     # 1: Get session
     session: SessionModel = await SessionModel.find_one(
         SessionModel.id == session_id,
-        SessionModel.assigned_user == user_id
+        SessionModel.user == user_id
     )
     if not session:
         raise HTTPException(status_code=404,
@@ -71,7 +71,7 @@ async def get_session_review(session_id: ObjId, user_id: UUID) -> Optional[Revie
         logger.warning(
             f'Session {review.assigned_session.id} does not exist, but should.')
         return None
-    if session.assigned_user != user_id:
+    if session.user != user_id:
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
 

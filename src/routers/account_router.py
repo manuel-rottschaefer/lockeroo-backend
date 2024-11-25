@@ -27,7 +27,7 @@ async def get_account_history(user_id: str, count: int = 100):
     """Get a list of completed sessions of this account"""
     # Get station data from the database
     session_list = await SessionModel.find(
-        SessionModel.assigned_user == UUID(user_id)
+        SessionModel.user == UUID(user_id)
     ).limit(count).sort(SessionModel.created_ts).to_list(count)
 
     if not session_list:

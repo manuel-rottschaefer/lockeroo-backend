@@ -83,7 +83,7 @@ class Session(Entity):
         """Create a new session item and insert it into the database."""
         instance = cls()
         instance.document = SessionModel(
-            assigned_user=user_id,
+            user=user_id,
             assigned_station=station,
             assigned_locker=locker,
             session_state=SessionStates.CREATED,
@@ -98,7 +98,7 @@ class Session(Entity):
         return SessionView(
             id=document.id,
             assigned_station=document.assigned_station.id,
-            assigned_user=document.assigned_user,
+            user=document.user,
             locker_index=document.assigned_locker.station_index if document.assigned_locker else None,
             session_type=document.session_type,
             session_state=document.session_state.name,
@@ -178,3 +178,11 @@ class Session(Entity):
                 f"Failed to assign payment method {
                     method} to session {self.id}: {e}"
             )
+
+    async def complete(self):
+        """Complete the session."""
+        await self.set_state(SessionStates.COMPLETED)
+        # Update station statistics
+        await self.assigned_station.inc({StationModel.total_sessions: 1})
+        await self.assigned_station.inc({StationModel.total_session_duration: self.total_duration})
+        # Update user statistics

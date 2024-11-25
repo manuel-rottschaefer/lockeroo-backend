@@ -38,7 +38,7 @@ async def get_details(session_id: ObjId, user_id: UUID) -> Optional[SessionView]
     """Get the details of a session."""
     session: Session = await Session().fetch(session_id=session_id)
     await session.fetch_links()
-    if str(session.assigned_user) != str(user_id):
+    if str(session.user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -48,7 +48,7 @@ async def get_details(session_id: ObjId, user_id: UUID) -> Optional[SessionView]
 async def get_session_history(session_id: ObjId, user_id: UUID) -> Optional[List[ActionModel]]:
     """Get all actions of a session."""
     session: Session = await Session().fetch(session_id=session_id)
-    if str(session.assigned_user) != str(user_id):
+    if str(session.user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -129,7 +129,7 @@ async def handle_payment_selection(
     # 2: Check if the session exists
     session: Session = await Session().fetch(session_id=session_id)
     await session.fetch_links()
-    if str(session.assigned_user) != str(user_id):
+    if str(session.user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -157,7 +157,7 @@ async def handle_verification_request(
     # 1: Find the session
     session: Session = await Session().fetch(session_id=session_id)
     await session.fetch_links()
-    if str(session.assigned_user) != str(user_id):
+    if str(session.user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -203,7 +203,7 @@ async def handle_hold_request(session_id: ObjId, user_id: UUID) -> Optional[Sess
     # 1: Find the session and check whether it belongs to the user
     session: Session = await Session().fetch(session_id=session_id)
     await session.fetch_links()
-    if str(session.assigned_user) != str(user_id):
+    if str(session.user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -238,7 +238,7 @@ async def handle_payment_request(session_id: ObjId, user_id: UUID) -> Optional[S
     # 1: Find the session and check whether it belongs to the user
     session: Session = await Session().fetch(session_id=session_id)
     await session.fetch_links()
-    if str(session.assigned_user) != str(user_id):
+    if str(session.user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -292,7 +292,7 @@ async def handle_cancel_request(session_id: ObjId, user_id: UUID) -> Optional[Se
     # 1: Find the session and check whether it belongs to the user
     session: Session = await Session().fetch(session_id=session_id)
     await session.fetch_links()
-    if str(session.assigned_user) != str(user_id):
+    if str(session.user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)

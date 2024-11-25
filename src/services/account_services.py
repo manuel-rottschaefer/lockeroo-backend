@@ -3,9 +3,6 @@
 # Types
 from uuid import UUID
 
-# Beanie
-from beanie.operators import NotIn
-
 # Models
 from src.models.session_models import SessionModel
 
@@ -17,7 +14,7 @@ async def has_active_session(user_id: UUID) -> bool:
     """Check if the given user has an active session"""
 
     active_session = await SessionModel.find(
-        SessionModel.assigned_user == user_id,
+        SessionModel.belongs_to == user_id,
         SessionModel.session_state.is_active is True  # pylint: disable=no-member
     ).first_or_none()
 
