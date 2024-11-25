@@ -6,7 +6,7 @@ Station Models
 from enum import Enum
 import dataclasses
 from datetime import datetime, timedelta
-from typing import Optional, Tuple, Dict
+from typing import Optional, Dict
 from pydantic import Field
 
 # Beanie
@@ -38,7 +38,7 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a station in the database"""
 
     # Identification
-    id: Optional[ObjId] = Field(None, alias="_id")
+    id: ObjId = Field(alias="_id")
     full_name: str
     call_sign: str
 
@@ -102,7 +102,7 @@ class StationView(View):
         source = StationModel
 
     # Identification
-    id: Optional[ObjId] = Field(None, alias="_id")
+    id: ObjId = Field(alias="_id")
     full_name: str
     call_sign: str
 

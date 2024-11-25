@@ -86,7 +86,8 @@ class LoggingService:
 
         elif exception == ServiceExceptions.WRONG_SESSION_STATE:
             self.logging.info(
-                "Session '%s' is in state '%s' and can therefore not be handled.", session, detail.name)
+                "Session '%s' is in state '%s' and can therefore not be handled.",
+                session, detail.name)
 
         elif exception == ServiceExceptions.SESSION_EXPIRED:
             self.logging.info(
@@ -130,7 +131,7 @@ for logger in loggers:
 
 
 # Seperate entries
-with open(LOGFILE, 'r') as log:
+with open(LOGFILE, 'r', encoding='utf-8') as log:
     lines = log.readlines()
     if not lines or '---' not in lines[-1].strip():
         logging.info(

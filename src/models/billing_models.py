@@ -32,7 +32,7 @@ class BillModel(Document):  # pylint: disable=too-many-ancestors
     A session may only have one connected bill"""
 
     ### Identification ###
-    id: Optional[ObjId] = Field(None, alias="_id")
+    id: ObjId = Field(alias="_id")
 
     payment_method: BillPaymentMethods = Field(
         None, description="Selected payment method"
