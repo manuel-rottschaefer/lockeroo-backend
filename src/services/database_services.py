@@ -19,6 +19,7 @@ from src.models.station_models import StationModel
 from src.models.task_models import TaskItemModel
 from src.models.payment_models import PaymentModel
 from src.models.maintenance_models import MaintenanceModel
+from src.models.user_models import UserModel
 
 
 async def setup():
@@ -32,7 +33,8 @@ async def setup():
             LockerModel,
             PaymentModel,
             TaskItemModel,
-            MaintenanceModel
+            MaintenanceModel,
+            UserModel
         ],
     )
 

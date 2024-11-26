@@ -93,7 +93,6 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
         msg = f"Task '{self.id}' is now {self.task_state}"
         if self.task_state == TaskStates.PENDING:
             msg += f' with {self.assigned_session.session_state}.'  # pylint: disable=no-member
-        logger.debug(msg)
 
     @dataclass
     class Settings:  # pylint: disable=missing-class-docstring

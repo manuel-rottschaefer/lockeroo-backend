@@ -48,7 +48,7 @@ async def get_details(session_id: ObjId, user_id: UUID) -> Optional[SessionView]
 async def get_session_history(session_id: ObjId, user_id: UUID) -> Optional[List[ActionModel]]:
     """Get all actions of a session."""
     session: Session = await Session().find(session_id=session_id)
-    if str(session.assigned_user) != str(user_id):
+    if str(session.user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -80,7 +80,6 @@ async def handle_creation_request(
         )
 
     # 4: Check if the user already has a running session
-    logger.debug(user_id)
     session: Session = await Session().find(user_id=user_id, session_active=True)
     if session.exists:
         logger.info(ServiceExceptions.USER_HAS_ACTIVE_SESSION, user=user_id)

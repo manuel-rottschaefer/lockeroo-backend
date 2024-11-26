@@ -81,7 +81,8 @@ class Locker(Entity):
         stale_session = await SessionModel.find(
             SessionModel.assigned_station.id == station.id,  # pylint: disable=no-member
             SessionModel.assigned_locker.locker_type == locker_type,  # pylint: disable=no-member
-            SessionModel.session_state == SessionStates.STALE
+            SessionModel.session_state == SessionStates.STALE,
+            fetch_links=True
         ).first_or_none()
 
         if stale_session:
@@ -90,18 +91,18 @@ class Locker(Entity):
 
         # 2. Find all active sessions at this station
         active_sessions = await SessionModel.find(
-            SessionModel.assigned_station.id == station.id,
+            # SessionModel.assigned_station.id == station.id,  # pylint: disable=no-member
             SessionModel.is_active == True,
             fetch_links=True
         ).to_list()
-
+        active_lockers = [
+            session.assigned_locker.id for session in active_sessions]
         # 3: Find a locker at this station that matches the type and does not belong to such a session
         available_locker = await LockerModel.find(
-            # TODO; FIXME cannot find locker with this
             # LockerModel.station.id == station.id,  # pylint: disable=no-member
             LockerModel.locker_type == locker_type,
-            NotIn(LockerModel.id,  [
-                session.assigned_locker.id for session in active_sessions])  # pylint: disable=no-member
+            NotIn(LockerModel.id,  active_lockers),
+            fetch_links=True
         ).first_or_none()
         if available_locker:
             instance.document = available_locker

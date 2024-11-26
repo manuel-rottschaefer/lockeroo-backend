@@ -8,9 +8,9 @@ from enum import Enum
 
 # Types
 import dataclasses
-from typing import Optional, Dict
-from uuid import UUID
+from typing import Optional, Dict, Union
 from pydantic import Field
+from uuid import UUID
 
 # Beanie
 from beanie import Document, Link, View, Update, after_event
@@ -90,14 +90,14 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a session in the database.
          All relevant timestamps are stored in actions."""
     ### Identification ###
-    id: ObjId = Field(alias="_id")
+    id: Optional[ObjId] = Field(None, alias="_id")
     assigned_station: Link[StationModel] = Field(
         description="The assigned station to this session.")
 
     assigned_locker: Link[LockerModel] = Field(
         description="The assigned locker to this session.")
 
-    user: Link[UserModel] = Field(
+    user: Union[Link[UserModel], UUID] = Field(  # TODO: Remove union here
         None, description="The assigned user to this session.")
 
     created_ts: datetime = Field(
@@ -115,7 +115,7 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     session_state: SessionStates = Field(
         default=SessionStates.CREATED, description="The current, internal set session state.")
     is_active: bool = Field(
-        default=False, description="Maps the session state activeness into the database.")
+        default=True, description="Maps the session state activeness into the database.")
 
     ### Status Broadcasting ###
     @after_event(Update)
@@ -126,9 +126,9 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     @dataclasses.dataclass
     class Settings:  # pylint: disable=missing-class-docstring
         name = "sessions"
-        use_cache = True
+        use_cache = False
         # Set the expiration time to one second so the session state is not cached over requests
-        cache_expiration_time = timedelta(seconds=1)
+        # cache_expiration_time = timedelta(seconds=1)
         # cache_capacity = 5
 
 

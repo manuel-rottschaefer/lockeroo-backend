@@ -49,7 +49,7 @@ class Session(Entity):
 
         query = {
             SessionModel.id: session_id,
-            SessionModel.assigned_user: user_id,
+            SessionModel.user: user_id,
             SessionModel.session_state: session_state,
             SessionModel.is_active: session_active,
             SessionModel.assigned_station: assigned_station,
@@ -147,7 +147,6 @@ class Session(Entity):
             else:
                 await self.document.update(
                     Set({SessionModel.session_state: state}), skip_actions=[After])
-            logger.debug(state)
             if state['is_active'] and not self.is_active:
                 await self.document.update(Set({SessionModel.is_active: True}))
             elif not state['is_active'] and self.is_active:

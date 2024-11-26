@@ -11,6 +11,9 @@ from fastapi.security import OAuth2AuthorizationCodeBearer
 from fief_client import FiefAsync, FiefAccessTokenInfo
 from fief_client.integrations.fastapi import FiefAuth
 
+# Logging
+from src.services.logging_services import logger
+
 
 def require_auth(func):
     """Add authorization middleware to an endpoint."""

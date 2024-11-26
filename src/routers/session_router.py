@@ -54,7 +54,8 @@ async def get_session_details(
 async def request_new_session(
     station_callsign: Annotated[str, Query(pattern='^[A-Z]{6}$')],
     locker_type: LockerTypes,
-    access_info: FiefAccessTokenInfo = None
+    access_info: FiefAccessTokenInfo = None,
+    user_id: str = None
 ):
     """Handle request to create a new session"""
     return await session_services.handle_creation_request(
@@ -70,7 +71,8 @@ async def request_new_session(
 @require_auth
 async def request_session_cancel(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
-    access_info: FiefAccessTokenInfo = None
+    access_info: FiefAccessTokenInfo = None,
+    user_id: str = None
 ):
     """Handle request to cancel a locker session"""
     return await session_services.handle_cancel_request(
@@ -87,7 +89,8 @@ async def request_session_cancel(
 async def choose_session_payment_method(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
     payment_method: SessionPaymentTypes,
-    access_info: FiefAccessTokenInfo = None
+    access_info: FiefAccessTokenInfo = None,
+    user_id: str = None
 ):
     """Handle request to select a payment method"""
     return await session_services.handle_payment_selection(
@@ -105,6 +108,7 @@ async def choose_session_payment_method(
 async def request_session_verification(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
     access_info: FiefAccessTokenInfo = None,
+    user_id: str = None
 ):
     """Handle request to enter the verification queue of a session"""
     return await session_services.handle_verification_request(
