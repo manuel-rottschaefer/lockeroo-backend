@@ -7,7 +7,7 @@ from src.entities.locker_entity import Locker
 from src.entities.task_entity import Task
 
 # Models
-from src.models.locker_models import LockerModel, LockerStates
+from src.models.locker_models import LockerStates
 from src.models.session_models import SessionStates
 from src.models.task_models import TaskStates, TaskTypes
 
@@ -66,7 +66,7 @@ async def handle_lock_report(call_sign: str, locker_index: int) -> None:
     # 7: Catch a completed session here
     next_state: SessionStates = await session.next_state
     if next_state == SessionStates.COMPLETED:
-        await session.set_state(SessionStates.COMPLETED)
+        await session.complete()
         return
 
     # 8: Create a task

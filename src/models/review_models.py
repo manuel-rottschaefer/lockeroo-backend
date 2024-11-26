@@ -22,7 +22,7 @@ class ReviewModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a review in the database"""
 
     # Identification
-    id: Optional[ObjId] = Field(None, alias="_id")
+    id: ObjId = Field(alias="_id")
     assigned_session: Link[SessionModel] = Field(
         description="The session to which the review refers to.")
 
@@ -47,7 +47,7 @@ class ReviewView(View):  # pylint: disable=too-many-ancestors
     """View of the Review Model"""
 
     # Identification
-    id: Optional[ObjId] = Field(None, alias="_id")
+    id: ObjId = Field(alias="_id")
     assigned_session: ObjId
 
     submitted_ts: datetime

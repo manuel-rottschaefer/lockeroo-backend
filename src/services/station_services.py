@@ -112,7 +112,7 @@ async def reset_queue(call_sign: str) -> StationView:
     tasks: List[TaskItemModel] = await TaskItemModel.find(
         TaskItemModel.assigned_station == station.id,
         TaskItemModel.task_state == TaskStates.PENDING
-    ).sort(TaskItemModel.created_at)
+    ).sort(TaskItemModel.created_ts)
 
     # 3: Set all to state QUEUED
     await tasks.update(Set({TaskItemModel.task_state: TaskStates.QUEUED}))

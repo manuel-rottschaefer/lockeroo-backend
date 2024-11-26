@@ -10,16 +10,15 @@ __pycache__/
 
 # Ignore other common files and directories
 *.log
+*.csv
 
 # Ignore custom folders
 .vscode
 .idea
-dep
-tools
+dep/*
+tools/*
 docs
 environments
-mosquitto
-fief
 tools/mock_data
 Obsidian
 mkDocs

@@ -89,13 +89,11 @@ class Locker(Entity):
             return instance
 
         # 2. Find all active sessions at this station
-        active_sessions = await SessionModel.aggregate([
-            {
-                "$match": {
-                    "assigned_station.id": station.id,
-                    "session_state.is_active": True
-                }
-            }]).to_list()
+        active_sessions = await SessionModel.find(
+            SessionModel.assigned_station.id == station.id,
+            SessionModel.is_active == True,
+            fetch_links=True
+        ).to_list()
 
         # 3: Find a locker at this station that matches the type and does not belong to such a session
         available_locker = await LockerModel.find(

@@ -36,7 +36,7 @@ from src.services.exceptions import ServiceExceptions
 
 async def get_details(session_id: ObjId, user_id: UUID) -> Optional[SessionView]:
     """Get the details of a session."""
-    session: Session = await Session().fetch(session_id=session_id)
+    session: Session = await Session().find(session_id=session_id)
     await session.fetch_links()
     if str(session.user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
@@ -47,8 +47,8 @@ async def get_details(session_id: ObjId, user_id: UUID) -> Optional[SessionView]
 
 async def get_session_history(session_id: ObjId, user_id: UUID) -> Optional[List[ActionModel]]:
     """Get all actions of a session."""
-    session: Session = await Session().fetch(session_id=session_id)
-    if str(session.user) != str(user_id):
+    session: Session = await Session().find(session_id=session_id)
+    if str(session.assigned_user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -80,13 +80,18 @@ async def handle_creation_request(
         )
 
     # 4: Check if the user already has a running session
-    # if await has_active_session(user_id):
-    #    logger.info(ServiceExceptions.USER_HAS_ACTIVE_SESSION, user=user_id)
-    #    raise HTTPException(
-    #        status_code=400, detail=ServiceExceptions.USER_HAS_ACTIVE_SESSION.value
-    #    )
+    logger.debug(user_id)
+    session: Session = await Session().find(user_id=user_id, session_active=True)
+    if session.exists:
+        logger.info(ServiceExceptions.USER_HAS_ACTIVE_SESSION, user=user_id)
+        raise HTTPException(
+            status_code=400, detail=ServiceExceptions.USER_HAS_ACTIVE_SESSION.value
+        )
 
-    # TODO: 5: Check whether the user has had more than 2 expired session in the last 12 hours.
+    # 5: Check whether the user has had more than 2 expired session in the last 12 hours.
+    session: Session = await Session().find(user_id=user_id, session_state=SessionStates.EXPIRED)
+    if session.exists:  # TODO: Add handler here
+        return
 
     # 5: Try to claim a locker at this station
     locker: Locker = await Locker().find_available(
@@ -127,7 +132,7 @@ async def handle_payment_selection(
         )
 
     # 2: Check if the session exists
-    session: Session = await Session().fetch(session_id=session_id)
+    session: Session = await Session().find(session_id=session_id)
     await session.fetch_links()
     if str(session.user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
@@ -155,7 +160,7 @@ async def handle_verification_request(
 ) -> Optional[SessionView]:
     """Enter the verification queue of a session."""
     # 1: Find the session
-    session: Session = await Session().fetch(session_id=session_id)
+    session: Session = await Session().find(session_id=session_id)
     await session.fetch_links()
     if str(session.user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
@@ -201,7 +206,7 @@ async def handle_hold_request(session_id: ObjId, user_id: UUID) -> Optional[Sess
     This is only possible when the payment method is a digital one for safety reasons.
     """
     # 1: Find the session and check whether it belongs to the user
-    session: Session = await Session().fetch(session_id=session_id)
+    session: Session = await Session().find(session_id=session_id)
     await session.fetch_links()
     if str(session.user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
@@ -236,7 +241,7 @@ async def handle_hold_request(session_id: ObjId, user_id: UUID) -> Optional[Sess
 async def handle_payment_request(session_id: ObjId, user_id: UUID) -> Optional[SessionView]:
     """Put the station into payment mode"""
     # 1: Find the session and check whether it belongs to the user
-    session: Session = await Session().fetch(session_id=session_id)
+    session: Session = await Session().find(session_id=session_id)
     await session.fetch_links()
     if str(session.user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
@@ -290,7 +295,7 @@ async def handle_cancel_request(session_id: ObjId, user_id: UUID) -> Optional[Se
     :returns: A View of the modified session
     """
     # 1: Find the session and check whether it belongs to the user
-    session: Session = await Session().fetch(session_id=session_id)
+    session: Session = await Session().find(session_id=session_id)
     await session.fetch_links()
     if str(session.user) != str(user_id):
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
@@ -322,7 +327,7 @@ async def handle_cancel_request(session_id: ObjId, user_id: UUID) -> Optional[Se
 async def handle_update_subscription_request(session_id: ObjId, socket: WebSocket):
     """Process a user request to get updates for a session."""
     # 1: Check whether the session exists
-    session: Session = await Session().fetch(session_id=session_id)
+    session: Session = await Session().find(session_id=session_id)
     if not session.exists:
         return
 

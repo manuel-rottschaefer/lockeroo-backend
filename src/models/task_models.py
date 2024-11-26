@@ -39,8 +39,9 @@ class TaskTypes(str, Enum):
 
 
 class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
-    """Allows for both user and station tasks to be registered, queued and also to handle timeouts."""
-    id: Optional[ObjId] = Field(None, alias="_id")
+    """Allows for both user and station tasks to be registered, queued
+    at a station terminal and to register and handle timeout situations."""
+    id: ObjId = Field(None, alias="_id")
 
     task_type: TaskTypes = Field(
         TaskTypes.USER, description="The type of action being queued/awaited.")
@@ -56,7 +57,8 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
         description='State of the task item. Not related to the session state.')
 
     queue_enabled: bool = Field(
-        False, description="The task can be put into a queue at its assigned station or be immediately activated.")
+        False, description="The task can be put into a queue at its\
+        assigned station or be immediately activated.")
 
     queued_state: Union[LockerStates, SessionStates] = Field(
         None,
@@ -74,7 +76,7 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     expires_at: Optional[datetime] = Field(
         None, description="The timestamp when the task will time out.")
 
-    created_at: datetime = Field(
+    created_ts: datetime = Field(
         datetime.now(),
         description="The datetime when the task item was created.")
 

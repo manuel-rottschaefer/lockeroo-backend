@@ -114,6 +114,8 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     ### State management ###
     session_state: SessionStates = Field(
         default=SessionStates.CREATED, description="The current, internal set session state.")
+    is_active: bool = Field(
+        default=False, description="Maps the session state activeness into the database.")
 
     ### Status Broadcasting ###
     @after_event(Update)

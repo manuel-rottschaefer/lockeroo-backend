@@ -29,7 +29,7 @@ class AccountModel(BeanieBaseUser, Document):  # pylint: disable=too-many-ancest
     """Representation of a user in the database"""
 
     # Identification
-    id: Optional[ObjId] = Field(None, alias="_id")
+    id: ObjId = Field(alias="_id")
     first_name: str
     last_name: str
     email: Optional[str]
@@ -55,7 +55,7 @@ class AccountModel(BeanieBaseUser, Document):  # pylint: disable=too-many-ancest
 class AccountSummary(View):
     """Summary of an account."""
     # Identification
-    id: Optional[ObjId] = Field(None, alias="_id")
+    id: ObjId = Field(alias="_id")
     first_name: str
     total_sessions: int = 0
     total_session_duration: int = 0

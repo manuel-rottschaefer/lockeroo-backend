@@ -28,10 +28,6 @@ async def get_active_session_count(
     _access_info: FiefAccessTokenInfo = None
 ) -> int:
     """Get the amount of currently active sessions."""
-    return await SessionModel.aggregate([
-        {
-            "$match": {
-                "session_state.is_active": True  # Match documents where the second element is True
-            }
-        },
-    ]).count()
+    return await SessionModel.find(
+        SessionModel.is_active == True
+    ).to_list()
