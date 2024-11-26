@@ -66,7 +66,7 @@ async def get_session_review(session_id: ObjId, user_id: UUID) -> Optional[Revie
         return None
 
     # 2: Find the assigned session
-    session: Session = await Session().fetch(session_id=review.assigned_session.id)
+    session: Session = await Session().find(session_id=review.assigned_session.id)
     if not session:
         logger.warning(
             f'Session {review.assigned_session.id} does not exist, but should.')

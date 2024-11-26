@@ -57,7 +57,7 @@ class Task(Entity):
             task_state=TaskStates.QUEUED,
             queued_state=queued_state,
             timeout_states=timeout_states,
-            created_at=datetime.now(),
+            created_ts=datetime.now(),
             queue_enabled=has_queue
 
         )
@@ -100,7 +100,7 @@ class Task(Entity):
 
         task_item: TaskItemModel = await TaskItemModel.find(
             query, fetch_links=True
-        ).sort((TaskItemModel.created_at, SortDirection.DESCENDING)).first_or_none()
+        ).sort((TaskItemModel.created_ts, SortDirection.DESCENDING)).first_or_none()
 
         if task_item:
             instance.document = task_item
@@ -114,7 +114,7 @@ class Task(Entity):
             TaskItemModel.assigned_station.id == self.assigned_station.id,  # pylint: disable=no-member
             TaskItemModel.task_state == TaskStates.QUEUED,
             fetch_links=True
-        ).sort((TaskItemModel.created_at, SortDirection.DESCENDING)).first_or_none()
+        ).sort((TaskItemModel.created_ts, SortDirection.DESCENDING)).first_or_none()
 
         if not next_item:
             logger.info("No queued session at station '%s'.",
@@ -148,7 +148,7 @@ class Task(Entity):
 
         # 2: Calculate the timeout timestamp
         timeout_window = session.session_state.value['timeout_secs']
-        timeout_date: datetime = self.document.created_at + \
+        timeout_date: datetime = self.document.created_ts + \
             timedelta(seconds=timeout_window)
 
         # 5: Update queue item

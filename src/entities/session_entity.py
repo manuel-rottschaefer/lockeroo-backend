@@ -5,10 +5,10 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 # Types
-from typing import List
+from typing import List, Optional
 
 # Beanie
-from beanie import After, SortDirection, PydanticObjectId as ObjId
+from beanie import After, SortDirection
 from beanie.operators import Set
 
 # Models
@@ -25,7 +25,6 @@ from src.entities.entity_utils import Entity
 
 # Services
 from src.services.logging_services import logger
-from src.services.exceptions import ServiceExceptions
 
 
 class Session(Entity):
@@ -36,42 +35,36 @@ class Session(Entity):
         self.document = document
 
     @classmethod
-    async def fetch(
+    async def find(
         cls,
-        session_id: ObjId = None,
+        session_id: Optional[str] = None,
+        user_id: Optional[UUID] = None,
+        session_state: Optional[SessionStates] = None,
+        session_active: Optional[bool] = None,
+        assigned_station: Optional[StationModel] = None,
+        locker_index: Optional[int] = None
     ):
-        """Create a Session instance and fetch the object async."""
+        """Find a session in the database"""
         instance = cls()
-        if session_id is not None:
-            instance.document = await SessionModel.get(session_id, ignore_cache=True)
 
-        if not instance.exists:
-            logger.info(ServiceExceptions.SESSION_NOT_FOUND,
-                        session=session_id)
+        query = {
+            SessionModel.id: session_id,
+            SessionModel.assigned_user: user_id,
+            SessionModel.session_state: session_state,
+            SessionModel.is_active: session_active,
+            SessionModel.assigned_station: assigned_station,
+            SessionModel.assigned_locker.station_index: locker_index,  # pylint: disable=no-member
+        }
 
-        return instance
+        # Filter out None values
+        query = {k: v for k, v in query.items() if v is not None}
 
-    @classmethod
-    async def at_locker(
-        cls,
-        locker_id: ObjId = None
-    ):
-        """Get the active session at a locker."""
-        instance = cls()
-        sessions: SessionModel = await SessionModel.aggregate([
-            {"$match": {
-                "assigned_locker.id": locker_id,
-                # "session_state.is_active": True
-            }},
-            {"$sort": {
-                "created_ts": SortDirection.DESCENDING.value
-            }}
-        ]).to_list()
-        instance.document = sessions[0] if sessions else None
+        session_item: SessionModel = await SessionModel.find(
+            query, fetch_links=True
+        ).sort((SessionModel.created_ts, SortDirection.DESCENDING)).first_or_none()
 
-        if not instance.exists:
-            logger.info(ServiceExceptions.SESSION_NOT_FOUND)
-
+        if session_item:
+            instance.document = session_item
         return instance
 
     @classmethod
@@ -149,12 +142,16 @@ class Session(Entity):
     async def set_state(self, state: SessionStates, notify: bool = True) -> None:
         """Update the current state of a session."""
         try:
-            self.document.session_state = state
             if notify:
                 await self.document.update(Set({SessionModel.session_state: state}))
             else:
                 await self.document.update(
                     Set({SessionModel.session_state: state}), skip_actions=[After])
+            logger.debug(state)
+            if state['is_active'] and not self.is_active:
+                await self.document.update(Set({SessionModel.is_active: True}))
+            elif not state['is_active'] and self.is_active:
+                await self.document.update(Set({SessionModel.is_active: False}))
 
             logger.debug(
                 f"Session '{self.id}' updated to {self.session_state}."

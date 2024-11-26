@@ -76,7 +76,7 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     expires_at: Optional[datetime] = Field(
         None, description="The timestamp when the task will time out.")
 
-    created_at: datetime = Field(
+    created_ts: datetime = Field(
         datetime.now(),
         description="The datetime when the task item was created.")
 
