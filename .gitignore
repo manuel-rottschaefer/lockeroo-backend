@@ -12,13 +12,17 @@ __pycache__/
 *.log
 *.csv
 
-# Ignore custom folders
+# Ignore IDE configurations
 .vscode
 .idea
+
+# Ignore tool and external app data
 dep/*
 tools/*
-docs
+Obsidian/*
+
+# Ignore environments (API Keys in there!!)
 environments
-tools/mock_data
-Obsidian
-mkDocs
+
+# Ignore the MongoDB Base Dump
+src/config/database/base_dump/*

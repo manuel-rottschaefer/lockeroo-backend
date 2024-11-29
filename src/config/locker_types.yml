@@ -1,0 +1,48 @@
+mini:
+  description: Phones and wallets.
+  stations:
+    - ML_B_W_1
+  dimensions:
+    - 20
+    - 10
+    - 40
+  payment_model: phones-wallets
+  has_outlet: true
+  maintenance_interval: 45
+
+small:
+  description: Small items and bags.
+  stations:
+    - ML_B_W_1
+  dimensions:
+    - 20
+    - 10
+    - 40
+  payment_model: storage-small
+  has_outlet: False
+  maintenance_interval: 45
+  
+
+medium:
+  description: Bags and small luggage.
+  stations:
+    - ML_B_W_1
+  dimensions:
+    - 20
+    - 20
+    - 40
+  payment_model: storage-small
+  has_outlet: true
+  maintenance_interval: 30
+
+large:
+  description: Luggage and suitcases
+  stations:
+    - ML_B_W_1
+  dimensions:
+    - 40
+    - 40
+    - 40
+  payment_model: storage-medium
+  has_outlet: false
+  maintenance_interval: 30

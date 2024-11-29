@@ -1,0 +1,29 @@
+economy-base:
+  base_fee: 50
+  charge_fee: 0
+  base_duration: 30
+  rate_minute: 1
+
+economy-power:
+  base_fee: 50
+  charge_fee: 40
+  base_duration: 30
+  rate_minute: 1
+
+storage-small:
+  base_fee: 75
+  charge_fee: 0
+  base_duration: 60
+  rate_minute: 1.5
+
+storage-medium:
+  base_fee: 100
+  charge_fee: 0
+  base_duration: 60
+  rate_minute: 2
+
+storage-large:
+  base_fee: 150
+  charge_fee: 0
+  base_duration: 60
+  rate_minute: 1
