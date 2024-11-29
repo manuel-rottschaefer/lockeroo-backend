@@ -5,13 +5,11 @@ making additional features easier to implement.
 A bill is only issued after a completed session,
 it is not meant for use within an active session
 """
-
 # Basics
 from datetime import datetime
 from enum import Enum
 
 # Types
-from typing import Optional
 from pydantic import Field
 
 # Database mapping

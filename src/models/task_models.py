@@ -1,5 +1,4 @@
-"""Models for task items."""
-
+"""This module provides the Models for Station Maintenance events."""
 # Types
 from dataclasses import dataclass
 from datetime import datetime
@@ -16,9 +15,6 @@ from beanie import PydanticObjectId as ObjId
 from src.models.session_models import SessionModel, SessionStates
 from src.models.station_models import StationModel
 from src.models.locker_models import LockerStates
-
-# Services
-from src.services.logging_services import logger
 
 
 load_dotenv('src/environments/.env')

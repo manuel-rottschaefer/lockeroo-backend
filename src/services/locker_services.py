@@ -1,5 +1,12 @@
 """Provides utility functions for the locker management backend."""
 
+# Basics
+import yaml
+
+# Typing
+from typing import Dict
+from enum import Enum
+
 # Entities
 from src.entities.station_entity import Station
 from src.entities.session_entity import Session
@@ -7,7 +14,7 @@ from src.entities.locker_entity import Locker
 from src.entities.task_entity import Task
 
 # Models
-from src.models.locker_models import LockerStates
+from src.models.locker_models import LockerType, LockerStates
 from src.models.session_models import SessionStates
 from src.models.task_models import TaskStates, TaskTypes
 
@@ -15,6 +22,27 @@ from src.models.task_models import TaskStates, TaskTypes
 from src.services.logging_services import logger
 from src.services.exceptions import ServiceExceptions
 from src.services.action_services import create_action
+
+# Singleton for pricing models
+LOCKER_TYPES: Dict[str, LockerType] = None
+
+CONFIG_PATH = 'src/config/locker_types.yml'
+
+if LOCKER_TYPES is None:
+    try:
+        with open(CONFIG_PATH, 'r', encoding='utf-8') as cfg:
+            type_dicts = yaml.safe_load(cfg)
+            LOCKER_TYPES = {name: LockerType(name=name, **details)
+                            for name, details in type_dicts.items()}
+    except FileNotFoundError:
+        logger.warning(f"Configuration file not found: {CONFIG_PATH}.")
+        LOCKER_TYPES = {}
+    except yaml.YAMLError as e:
+        logger.warning(f"Error parsing YAML configuration: {e}")
+        LOCKER_TYPES = {}
+    except TypeError as e:
+        logger.warning(f"Data structure mismatch: {e}")
+        LOCKER_TYPES = {}
 
 
 async def handle_lock_report(call_sign: str, locker_index: int) -> None:
@@ -66,7 +94,10 @@ async def handle_lock_report(call_sign: str, locker_index: int) -> None:
     # 7: Catch a completed session here
     next_state: SessionStates = await session.next_state
     if next_state == SessionStates.COMPLETED:
-        await session.complete()
+        await session.set_state(SessionStates.COMPLETED)
+        await create_action(session_id=session.id,
+                            action_type=SessionStates.COMPLETED)
+        await session.handle_conclude()
         return
 
     # 8: Create a task

@@ -55,71 +55,7 @@ class LoggingService:
         it does not accept regular strings as messages.
         The method also only accepts basic information about an incident
         as all details can be looked up in the FastApi log"""
-        ### Stations ###
-        if exception == ServiceExceptions.STATION_NOT_FOUND:
-            self.logging.info("Could not find station '%s'.", station)
-
-        elif exception == ServiceExceptions.STATION_NOT_AVAILABLE:
-            self.logging.info(
-                "Station '%s' is currently not available.", station)
-
-        elif exception == ServiceExceptions.STATION_PAYMENT_NOT_AVAILABLE:
-            self.logging.info(
-                "Payment method '%s' is currently not supported.", detail)
-
-        elif exception == ServiceExceptions.INVALID_PAYMENT_METHOD:
-            self.logging.info(
-                "Session '%s' does not support payment method '%s'.", session, detail)
-
-        elif exception == ServiceExceptions.PAYMENT_METHOD_NOT_SUPPORTED:
-            self.logging.info(
-                "Station '%s' does currently not support %s as a payment method", station, detail)
-
-        ### Sessions ###
-        elif exception == ServiceExceptions.SESSION_NOT_FOUND:
-            if session:
-                self.logging.info(
-                    "Could not find session '%s' in database.", session)
-            elif station:
-                self.logging.info(
-                    "Could not find an active session at station '%s'.", station)
-
-        elif exception == ServiceExceptions.WRONG_SESSION_STATE:
-            self.logging.info(
-                "Session '%s' is in state '%s' and can therefore not be handled.",
-                session, detail.name)
-
-        elif exception == ServiceExceptions.SESSION_EXPIRED:
-            self.logging.info(
-                "Session '%s' expired while waiting for %s", session, detail)
-
-        elif exception == ServiceExceptions.PAYMENT_METHOD_NOT_SUPPORTED:
-            self.logging.info(
-                "Payment method '%s' does not exist or is not available for session '%s'.",
-                detail, session)
-
-        ### Lockers ###
-        elif exception == ServiceExceptions.LOCKER_NOT_FOUND:
-            self.logging.info(
-                "Could not find locker #%s at station '%s'.", detail, station)
-
-        elif exception == ServiceExceptions.LOCKER_NOT_AVAILABLE:
-            self.logging.info(
-                "No locker currently available at station '%s'.", station)
-
-        elif exception == ServiceExceptions.INVALID_LOCKER_STATE:
-            self.logging.info(
-                "Invalid state reported for locker '%s' at station '%s'.", locker, station)
-
-        ### Users ###
-        elif exception == ServiceExceptions.USER_HAS_ACTIVE_SESSION:
-            self.logging.info(
-                "User '%s' tried to create a session, but already has an active one.", user)
-
-        ### Reviews ###
-        elif exception == ServiceExceptions.REVIEW_NOT_FOUND:
-            self.logging.info(
-                "Could not find review for session '%s'.", session)
+        self.logging.info(exception)
 
 
 loggers = [name for name, logger in logging.Logger.manager.loggerDict.items()

@@ -1,13 +1,10 @@
-"""
-Station Models
-"""
-
+"""This module provides the Models for Station management."""
 # Types
-from enum import Enum
 import dataclasses
+from enum import Enum
 from datetime import datetime, timedelta
-from typing import Optional, Dict
-from pydantic import Field
+from typing import Dict, Optional
+from pydantic import BaseModel, Field
 
 # Beanie
 from beanie import Document, View, Update, after_event
@@ -18,32 +15,49 @@ from src.services.mqtt_services import fast_mqtt
 
 
 class StationStates(str, Enum):
-    """States for a station"""
-
+    """General status information for physical locker stations,
+    relevant for session requests and internal maintenance management."""
     AVAILABLE = "available"  # Station terminal is passive and waiting for sessions
     MAINTENANCE = "maintenance"  # Station terminal is offline for maintenance
     OUTOFSERVICE = "outOfService"  # Station terminal is offline and awaiting repair
 
 
 class TerminalStates(str, Enum):
-    """States for a terminal"""
-
+    """Modes of station terminals.
+    Should always be idle except for short periods when users are interacting."""
+    # TODO: Add a watch service that checks whether terminals are reported
+    # as out of service or not being idle for longer times.
     IDLE = "idle"  # Terminal is idle
     VERIFICATION = "verification"  # Terminal is in verification mode
     PAYMENT = "payment"  # Terminal is in payment mode
     OUTOFSERVICE = "outOfService"  # Terminal is offline or awaiting repair
 
 
-class StationModel(Document):  # pylint: disable=too-many-ancestors
-    """Representation of a station in the database"""
+class StationType(BaseModel):
+    """Config representation of station types."""
+    name: str = Field(description="Name of the station type."),
+    code: str = Field(description="Short identifier for the type.")
+    description: str = Field(
+        description="You would've guessed it- a description :)"),
+    locker_amount: int = Field(
+        description="The amount of individual lockers."),
+    render: str = Field(description="Path to a static render of the model.")
+    has_gsm: bool = Field(
+        description="Whether the station has a mobile antenna."),
+    has_wifi: bool = Field(
+        description="Whether the station has a WiFi antenna."),
+    has_solar: bool = Field(
+        description="Whether the station can house a solar panel.")
+    is_embedded: bool = Field(
+        description="Whether the station is embedded into the ground (or has legs).")
 
+
+class StationModel(Document):  # pylint: disable=too-many-ancestors
+    """Representation of a station in the database."""
     # Identification
     id: ObjId = Field(alias="_id")
     full_name: str
     call_sign: str
-
-    # Authentification
-    secret: str = ""
 
     # Internal Properties
     station_type: str
@@ -62,7 +76,7 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
 
     # Operation history
     total_sessions: int
-    total_session_duration: int
+    total_session_duration: timedelta
     last_service_date: datetime
 
     # Service states

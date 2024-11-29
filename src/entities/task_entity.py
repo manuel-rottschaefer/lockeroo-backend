@@ -143,38 +143,34 @@ class Task(Entity):
         # 1: Move the session to the next state
         session: Session = Session(self.document.assigned_session)
 
-        if self.document.task_type == TaskTypes.USER:
+        # 2: Execute user task activation handlers
+        if self.document.task_type == TaskTypes.STATION:
+            timeout_window = int(os.getenv("STATION_EXPIRATION"))
+        else:
             await session.set_state(self.document.queued_state)
 
-        # 2: Calculate the timeout timestamp
-        timeout_window = session.session_state.value['timeout_secs']
+            station: Station = Station(session.assigned_station)
+
+            timeout_window = session.session_state.value['timeout_secs']
+
+            if self.document.queued_state == SessionStates.VERIFICATION:
+                # TODO: Also create an activate() method for a verification
+                await station.register_terminal_state(TerminalStates.VERIFICATION)
+
+            elif self.document.queued_state == SessionStates.PAYMENT:
+                payment: Payment = await Payment.fetch(session=session.document)
+                await payment.activate()
+
         timeout_date: datetime = self.document.created_ts + \
             timedelta(seconds=timeout_window)
 
-        # 5: Update queue item
+        # 3: Update queue item
         await self.document.update(Set({
             TaskItemModel.task_state: TaskStates.PENDING,
             TaskItemModel.activated_at: datetime.now(),
             TaskItemModel.expires_at: timeout_date,
             TaskItemModel.expiration_window: timeout_window
         }))
-
-        # 3: If the session is pending verification, update the terminal state
-        if session.session_state == SessionStates.VERIFICATION:
-            station: Station = Station(session.assigned_station)
-            await station.set_terminal_state(terminal_state=TerminalStates.VERIFICATION)
-
-        # 4: If the session is pending payment, activate it
-        if session.session_state == SessionStates.PAYMENT and self.document.task_state == TaskStates.PENDING:
-            payment: Payment = await Payment.fetch(session=session.document)
-            station: Station = Station(session.assigned_station)
-            await station.set_terminal_state(terminal_state=TerminalStates.PAYMENT)
-            await payment.get_price()
-            # await payment.set_state(PaymentStates.PENDING)
-
-        # 6: Get the expiration time depending on queue type
-        if self.document.task_type != TaskTypes.USER:
-            timeout_window = os.getenv("STATION_EXPIRATION")
 
         # 4: Create an expiration handler
         asyncio.create_task(self.register_timeout(

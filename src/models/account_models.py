@@ -1,5 +1,4 @@
 """User Models."""
-
 # Types
 import dataclasses
 

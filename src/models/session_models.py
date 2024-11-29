@@ -1,16 +1,13 @@
-"""
-    Session Models
-"""
-
+"""This module provides the Models for Session management."""
 # Basics
 from datetime import datetime, timedelta
 from enum import Enum
 
 # Types
 import dataclasses
+from uuid import UUID
 from typing import Optional, Dict, Union
 from pydantic import Field
-from uuid import UUID
 
 # Beanie
 from beanie import Document, Link, View, Update, after_event
@@ -80,7 +77,7 @@ class SessionStates(Dict, Enum):
                "is_active": False, "next": ''}
 
 
-class SessionPaymentTypes(str, Enum):
+class PaymentTypes(str, Enum):
     """All possible payment methods."""
     TERMINAL = "terminal"
     ONLINE = "online"
@@ -107,8 +104,8 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     session_type: SessionTypes = Field(
         default=SessionTypes.PERSONAL, description="The type of session service.\
             Affects price and user flow.")
-    payment_method: Optional[SessionPaymentTypes] = Field(
-        default=SessionPaymentTypes.TERMINAL, description="The type of payment method.\
+    payment_method: Optional[PaymentTypes] = Field(
+        default=PaymentTypes.TERMINAL, description="The type of payment method.\
             Affects ability to hold and resume sessions.")
 
     ### State management ###
@@ -116,6 +113,12 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
         default=SessionStates.CREATED, description="The current, internal set session state.")
     is_active: bool = Field(
         default=True, description="Maps the session state activeness into the database.")
+
+    # Statistics
+    total_duration: Optional[timedelta] = Field(
+        None,
+        description=("Total duration between session creation and completion.",
+                     "This value is only being calculated on demand and can be None."))
 
     ### Status Broadcasting ###
     @after_event(Update)

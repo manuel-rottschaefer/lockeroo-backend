@@ -3,7 +3,6 @@ This module describes the database model for actions, which are representations
 of events related to a sessionthat are seperately to provide
 detailed session history data and better understand special cases.
 """
-
 # Basics
 from datetime import datetime
 
@@ -32,6 +31,7 @@ class ActionModel(Document):  # pylint: disable=too-many-ancestors
     timestamp: datetime = Field(
         None, description="The timestamp of when this action was registered."
     )
+    # TODO: For now this is expressed as a session state
     action_type: str = Field(
         None, description="The type of action expressed as a session state name")
 

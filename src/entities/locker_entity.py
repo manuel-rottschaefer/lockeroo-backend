@@ -7,7 +7,7 @@ from beanie.operators import Set, NotIn
 # Models
 from src.models.station_models import StationModel
 from src.models.session_models import SessionModel, SessionStates
-from src.models.locker_models import LockerModel, LockerStates
+from src.models.locker_models import LockerModel, LockerStates, LockerType
 
 # Services
 from src.services.logging_services import logger
@@ -73,14 +73,14 @@ class Locker(Entity):
         return instance
 
     @classmethod
-    async def find_available(cls, station: StationModel, locker_type: str):
+    async def find_available(cls, station: StationModel, locker_type: LockerType):
         """Find an available locker at this station."""
         instance = cls()
 
         # 1. Find a stale sessions at this station
         stale_session = await SessionModel.find(
             SessionModel.assigned_station.id == station.id,  # pylint: disable=no-member
-            SessionModel.assigned_locker.locker_type == locker_type,  # pylint: disable=no-member
+            SessionModel.assigned_locker.locker_type == locker_type.name,  # pylint: disable=no-member
             SessionModel.session_state == SessionStates.STALE,
             fetch_links=True
         ).first_or_none()
@@ -100,7 +100,7 @@ class Locker(Entity):
         # 3: Find a locker at this station that matches the type and does not belong to such a session
         available_locker = await LockerModel.find(
             # LockerModel.station.id == station.id,  # pylint: disable=no-member
-            LockerModel.locker_type == locker_type,
+            LockerModel.locker_type == locker_type.name,
             NotIn(LockerModel.id,  active_lockers),
             fetch_links=True
         ).first_or_none()

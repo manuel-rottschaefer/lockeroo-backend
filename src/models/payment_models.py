@@ -4,20 +4,22 @@ import dataclasses
 
 # Basics
 from datetime import datetime
+from typing import List, Optional
 from enum import Enum
-from typing import Optional
+import yaml
 
 # Types
 from beanie import Document, Link, Update, after_event
 from beanie import PydanticObjectId as ObjId
 from beanie.operators import Set
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 # Entities
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
 
 # Models
+from src.models.station_models import StationModel
 from src.models.session_models import SessionModel
 
 # Services
@@ -33,11 +35,27 @@ class PaymentStates(Enum):
     ABORTED = 'aborted'
 
 
+class PricingModel(BaseModel):
+    """Config representation of pricing models."""
+    name: str = Field(description="Name of the pricing model"),
+    base_fee: int = Field(
+        description="Minimal charge when starting a session (cent)."),
+    charge_fee: int = Field(
+        description="Additional fee for connecting a device to the outlet.")
+    base_duration: int = Field(
+        description="Minutes until the charge exceeds the base charge."),
+    rate_minute: float = Field(
+        description="Charge for every started minue (cent)")
+
+
 class PaymentModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a payment object in the database"""
     ### Identification ###
     id: Optional[ObjId] = Field(
         None, alias="_id", description='ObjectID in the database')
+
+    assigned_station: Link[StationModel] = Field(
+        description="Station at which the payment process is conducted.")
 
     assigned_session: Link[SessionModel] = Field(
         description='Session to which the payment belongs to.')

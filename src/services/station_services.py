@@ -1,7 +1,8 @@
 """Provides utility functions for the station management backend."""
 
 # Basics
-from typing import List
+from typing import Dict, List
+import yaml
 
 # API services
 from fastapi import HTTPException
@@ -20,12 +21,33 @@ from src.entities.task_entity import Task
 from src.models.locker_models import LockerModel, LockerStates
 from src.models.session_models import SessionModel, SessionStates
 from src.models.task_models import TaskItemModel, TaskStates, TaskTypes
-from src.models.station_models import (StationLockerAvailabilities, StationModel,
-                                       StationView, StationStates, TerminalStates)
+from src.models.station_models import (
+    StationModel, StationView, StationType, StationStates, TerminalStates, StationLockerAvailabilities)
 
 # Services
 from src.services.exceptions import ServiceExceptions
 from src.services.logging_services import logger
+
+# Singleton for pricing models
+STATION_TYPES: Dict[str, StationType] = None
+
+CONFIG_PATH = 'src/config/station_types.yml'
+
+if STATION_TYPES is None:
+    try:
+        with open(CONFIG_PATH, 'r', encoding='utf-8') as cfg:
+            type_dicts = yaml.safe_load(cfg)
+            STATION_TYPES = {name: StationType(name=name, **details)
+                             for name, details in type_dicts.items()}
+    except FileNotFoundError:
+        logger.warning(f"Configuration file not found: {CONFIG_PATH}.")
+        STATION_TYPES = {}
+    except yaml.YAMLError as e:
+        logger.warning(f"Error parsing YAML configuration: {e}")
+        STATION_TYPES = {}
+    except TypeError as e:
+        logger.warning(f"Data structure mismatch: {e}")
+        STATION_TYPES = {}
 
 
 async def discover(lat: float, lon: float, radius: int,
@@ -98,7 +120,7 @@ async def get_locker_overview(call_sign: str) -> StationLockerAvailabilities:
 async def set_station_state(call_sign: str, station_state: StationStates) -> StationView:
     """Set the state of a station."""
     station: Station = Station().fetch(call_sign=call_sign)
-    await station.set_station_state(station_state)
+    await station.register_station_state(station_state)
     return station.document
 
 
@@ -157,7 +179,7 @@ async def handle_terminal_report(
     locker: Locker = Locker(session.assigned_locker)
 
     # 5: Set terminal state to idle
-    await station.set_terminal_state(TerminalStates.IDLE)
+    await station.register_terminal_state(TerminalStates.IDLE)
     # await session.set_state(await session.next_state)
 
     # 6: Instruct the locker to open

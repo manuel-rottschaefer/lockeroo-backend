@@ -1,13 +1,9 @@
-"""
-Review Models
-"""
-
+"""This module provides the Models for review management."""
 # Types
 import dataclasses
 
 # Basics
 from datetime import datetime
-from typing import Optional
 from pydantic import Field
 
 # Beanie

@@ -12,9 +12,9 @@ from fastapi import APIRouter, WebSocket, Path, Query
 from fief_client import FiefAccessTokenInfo
 
 # Models
-from src.models.session_models import SessionView, SessionPaymentTypes
+from src.models.session_models import PaymentTypes
+from src.models.session_models import SessionView
 from src.models.action_models import ActionView
-from src.models.locker_models import LockerTypes
 
 # Services
 from src.services import session_services
@@ -53,7 +53,7 @@ async def get_session_details(
 @require_auth
 async def request_new_session(
     station_callsign: Annotated[str, Query(pattern='^[A-Z]{6}$')],
-    locker_type: LockerTypes,
+    locker_type: str,
     access_info: FiefAccessTokenInfo = None,
     user_id: str = None
 ):
@@ -88,7 +88,7 @@ async def request_session_cancel(
 @require_auth
 async def choose_session_payment_method(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
-    payment_method: SessionPaymentTypes,
+    payment_method: PaymentTypes,
     access_info: FiefAccessTokenInfo = None,
     user_id: str = None
 ):

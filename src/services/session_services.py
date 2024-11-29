@@ -1,5 +1,8 @@
 """Provides utility functions for the sesssion management backend."""
 
+# Basics
+from datetime import datetime, timedelta
+
 # Typing
 from typing import List, Optional
 from uuid import UUID
@@ -18,9 +21,10 @@ from src.entities.locker_entity import Locker
 from src.entities.payment_entity import Payment
 
 # Models
+from src.models.session_models import PaymentTypes
 from src.models.session_models import (
+    SessionModel,
     SessionView,
-    SessionPaymentTypes,
     SessionStates,
 )
 
@@ -29,6 +33,7 @@ from src.models.action_models import ActionModel
 
 # Services
 from src.services.action_services import create_action
+from src.services.locker_services import LOCKER_TYPES
 from src.services.logging_services import logger
 from src.services import websocket_services
 from src.services.exceptions import ServiceExceptions
@@ -38,7 +43,7 @@ async def get_details(session_id: ObjId, user_id: UUID) -> Optional[SessionView]
     """Get the details of a session."""
     session: Session = await Session().find(session_id=session_id)
     await session.fetch_links()
-    if str(session.user) != str(user_id):
+    if str(session.user) != user_id:
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -48,7 +53,7 @@ async def get_details(session_id: ObjId, user_id: UUID) -> Optional[SessionView]
 async def get_session_history(session_id: ObjId, user_id: UUID) -> Optional[List[ActionModel]]:
     """Get all actions of a session."""
     session: Session = await Session().find(session_id=session_id)
-    if str(session.user) != str(user_id):
+    if str(session.user) != user_id:
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -87,12 +92,27 @@ async def handle_creation_request(
             status_code=400, detail=ServiceExceptions.USER_HAS_ACTIVE_SESSION.value
         )
 
-    # 5: Check whether the user has had more than 2 expired session in the last 12 hours.
-    session: Session = await Session().find(user_id=user_id, session_state=SessionStates.EXPIRED)
-    if session.exists:  # TODO: Add handler here
-        return
+    # 5: Check whether the user has had too many expired sessions recently
+    expired_session_count = await SessionModel.find(
+        SessionModel.user.id == user_id,  # pylint: disable=no-member
+        SessionModel.session_state == SessionStates.EXPIRED,
+        SessionModel.created_ts >= (datetime.now() - timedelta(hours=24)),
+        fetch_links=True
+    ).count()
+    if expired_session_count > 1:  # TODO: Add handler here
+        logger.info(ServiceExceptions.LIMIT_EXCEEDED, user=user_id)
+        raise HTTPException(
+            status_code=400, detail=ServiceExceptions.LIMIT_EXCEEDED.value
+        )
 
-    # 5: Try to claim a locker at this station
+    # 6: Check whether the given locker type exists
+    if locker_type not in LOCKER_TYPES.keys():
+        raise HTTPException(
+            status_code=400, detail=ServiceExceptions.INVALID_LOCKER_TYPE
+        )
+    locker_type = LOCKER_TYPES[locker_type]
+
+    # 7: Try to claim a locker at this station
     locker: Locker = await Locker().find_available(
         station=station, locker_type=locker_type)
     if not locker.exists:
@@ -108,7 +128,7 @@ async def handle_creation_request(
         f"Created session '{session.id}' at locker '{locker.id}'."
     )
 
-    # 7: Log the action
+    # 8: Log the action
     await create_action(session.id, SessionStates.CREATED)
 
     return await session.view
@@ -120,7 +140,7 @@ async def handle_payment_selection(
     """Assign a payment method to a session."""
     # 1: Check if payment method is available
     payment_method: str = payment_method.lower()
-    if payment_method not in SessionPaymentTypes:
+    if payment_method not in PaymentTypes:
         logger.info(
             ServiceExceptions.PAYMENT_METHOD_NOT_SUPPORTED,
             session=session_id,
@@ -133,7 +153,7 @@ async def handle_payment_selection(
     # 2: Check if the session exists
     session: Session = await Session().find(session_id=session_id)
     await session.fetch_links()
-    if str(session.user) != str(user_id):
+    if str(session.user) != user_id:
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -161,7 +181,7 @@ async def handle_verification_request(
     # 1: Find the session
     session: Session = await Session().find(session_id=session_id)
     await session.fetch_links()
-    if str(session.user) != str(user_id):
+    if str(session.user) != user_id:
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -207,7 +227,7 @@ async def handle_hold_request(session_id: ObjId, user_id: UUID) -> Optional[Sess
     # 1: Find the session and check whether it belongs to the user
     session: Session = await Session().find(session_id=session_id)
     await session.fetch_links()
-    if str(session.user) != str(user_id):
+    if str(session.user) != user_id:
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -220,7 +240,7 @@ async def handle_hold_request(session_id: ObjId, user_id: UUID) -> Optional[Sess
             status_code=400, detail=ServiceExceptions.WRONG_SESSION_STATE.value
         )
     # 3: Check whether the user has chosen the app method for payment.
-    if session.payment_method == SessionPaymentTypes.TERMINAL:
+    if session.payment_method == PaymentTypes.TERMINAL:
         logger.info(ServiceExceptions.INVALID_PAYMENT_METHOD,
                     session=session_id)
         raise HTTPException(
@@ -242,7 +262,7 @@ async def handle_payment_request(session_id: ObjId, user_id: UUID) -> Optional[S
     # 1: Find the session and check whether it belongs to the user
     session: Session = await Session().find(session_id=session_id)
     await session.fetch_links()
-    if str(session.user) != str(user_id):
+    if str(session.user) != user_id:
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
@@ -296,7 +316,7 @@ async def handle_cancel_request(session_id: ObjId, user_id: UUID) -> Optional[Se
     # 1: Find the session and check whether it belongs to the user
     session: Session = await Session().find(session_id=session_id)
     await session.fetch_links()
-    if str(session.user) != str(user_id):
+    if str(session.user) != user_id:
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)

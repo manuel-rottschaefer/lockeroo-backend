@@ -11,9 +11,6 @@ from fastapi.security import OAuth2AuthorizationCodeBearer
 from fief_client import FiefAsync, FiefAccessTokenInfo
 from fief_client.integrations.fastapi import FiefAuth
 
-# Logging
-from src.services.logging_services import logger
-
 
 def require_auth(func):
     """Add authorization middleware to an endpoint."""
@@ -29,7 +26,7 @@ def require_auth(func):
                 kwargs['access_info'] = access_info
         else:
             # Use the provided user_id if available, otherwise use the default user ID
-            user_id = kwargs.get('user_id', os.getenv('DEFAULT_USER_ID'))
+            user_id = kwargs.get('user_id') or os.getenv('DEFAULT_USER_ID')
             # logger.info(f"Authentication disabled. Using user ID: {user_id}")
             kwargs['access_info'] = {'id': user_id}
 

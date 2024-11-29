@@ -8,20 +8,19 @@ from datetime import datetime, timedelta
 from beanie import SortDirection
 from beanie.operators import In, Set
 
-# Configuration
-from src.config.config import locker_config
-
 # Entities
 from src.entities.entity_utils import Entity
+from src.entities.station_entity import Station
 from src.entities.session_entity import Session
 from src.entities.locker_entity import Locker
 
 # Models
+from src.models.station_models import TerminalStates
 from src.models.session_models import SessionModel
-from src.models.payment_models import PaymentModel, PaymentStates
+from src.models.payment_models import PaymentModel, PaymentStates, PricingModel
 
 # Services
-from src.services.logging_services import logger
+from src.services.payment_services import PRICING_MODELS
 
 
 class Payment(Entity):
@@ -33,8 +32,7 @@ class Payment(Entity):
 
     @classmethod
     async def fetch(cls,
-                    session: SessionModel,
-                    with_linked: bool = False):
+                    session: SessionModel):
         """Get the current active or latest payment item of a session."""
         # 1: Create the instance
         instance = cls()
@@ -44,12 +42,12 @@ class Payment(Entity):
             PaymentModel.assigned_session.id == session.id,  # pylint: disable=no-member
             In(PaymentModel.state, [
                PaymentStates.SCHEDULED, PaymentStates.PENDING]),
-            fetch_links=with_linked
+            fetch_links=True
         ).sort((PaymentModel.last_updated, SortDirection.DESCENDING)).first_or_none()
 
         last_payment: PaymentModel = await PaymentModel.find(
             PaymentModel.assigned_session.id == session.id,  # pylint: disable=no-member
-            fetch_links=with_linked
+            fetch_links=True
         ).sort((PaymentModel.last_updated, SortDirection.DESCENDING)).first_or_none()
 
         if active_payment:
@@ -66,6 +64,7 @@ class Payment(Entity):
         instance = cls()
 
         instance.document = PaymentModel(
+            assigned_station=session.assigned_station,
             assigned_session=session,
             state=PaymentStates.SCHEDULED,
             last_updated=datetime.now()
@@ -74,13 +73,8 @@ class Payment(Entity):
         return instance
 
     async def set_state(self, state: PaymentStates):
+        """Set the state of the current session."""
         await self.document.update(Set({PaymentModel.state: state}))
-
-    async def get_price(self) -> Optional[int]:
-        price = await self.current_price
-        # TODO: FIXME Execution is halting here
-        # await self.document.update(Set({PaymentModel.price: price}))
-        return price
 
     @property
     async def current_price(self) -> Optional[int]:
@@ -92,20 +86,24 @@ class Payment(Entity):
         # 2: Get the locker assigned to this session
         locker: Locker = Locker(session.assigned_locker)
 
-        # 3: Get the pricing model for this session
-        locker_type = locker_config[locker.locker_type]
+        pricing_model: PricingModel = PRICING_MODELS[locker.pricing_model]
 
         # 4:Calculate the total cost
         active_duration: timedelta = await session.active_duration
-        calculated_price: int = locker_type['minute_rate'] * \
+        calculated_price: int = pricing_model.rate_minute * \
             (active_duration.total_seconds() / 60)
         # 5: Assure that price is withing bounds
-        calculated_price = min(
-            max(calculated_price,
-                locker_type['base_price']), locker_type['max_price']
-        )
-
-        logger.debug(
-            f"Calculated price of {calculated_price} cents for session '{session.id}'.")
+        # calculated_price = min(
+        #    max(calculated_price,
+        #        pricing_model['base_fee']), pricing_model['max_price']
+        # )
 
         return calculated_price
+
+    async def activate(self):
+        """Activate the session by calculating the price, then sending it to the terminal."""
+        await self.document.fetch_all_links()
+        self.document.price = await self.current_price
+
+        station: Station = Station(self.document.assigned_station)
+        await station.register_terminal_state(TerminalStates.PAYMENT)

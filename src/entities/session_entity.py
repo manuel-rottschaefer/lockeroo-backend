@@ -12,13 +12,14 @@ from beanie import After, SortDirection
 from beanie.operators import Set
 
 # Models
+from src.models.session_models import PaymentTypes
 from src.models.station_models import StationModel
 from src.models.locker_models import LockerModel
 from src.models.action_models import ActionModel
+from src.models.user_models import UserModel
 from src.models.session_models import (SessionModel,
                                        SessionView,
-                                       SessionPaymentTypes,
-                                       SessionStates,)
+                                       SessionStates)
 
 # Entities
 from src.entities.entity_utils import Entity
@@ -106,9 +107,20 @@ class Session(Entity):
         return self.document is not None
 
     @property
-    def total_duration(self) -> int:
+    async def total_duration(self) -> timedelta:
         """Returns the amount of seconds between session creation and completion or now."""
-        return 0
+        # Return the seconds since the session was created if it is still running
+        if self.document.session_state != SessionStates.COMPLETED:
+            return timedelta(datetime.now() - self.document.created_ts)
+
+        # Otherwise, return the seconds between creation and completion
+        completed: ActionModel = await ActionModel.find(
+            ActionModel.assigned_session.id == self.id,  # pylint: disable=no-member
+            ActionModel.action_type == SessionStates.COMPLETED.name,
+            fetch_links=True
+        ).first_or_none()
+
+        return completed.timestamp - self.document.created_ts
 
     @property
     async def active_duration(self) -> timedelta:
@@ -160,7 +172,7 @@ class Session(Entity):
             logger.error(f"Failed to update state of session '{
                          self.id}': {e}.")
 
-    async def assign_payment_method(self, method: SessionPaymentTypes):
+    async def assign_payment_method(self, method: PaymentTypes):
         """Assign a payment method to a session."""
         try:
             self.document.payment_method = method
@@ -175,10 +187,20 @@ class Session(Entity):
                     method} to session {self.id}: {e}"
             )
 
-    async def complete(self):
-        """Complete the session."""
-        await self.set_state(SessionStates.COMPLETED)
+    async def handle_conclude(self):
+        """Calculate and store statistical data when session completes/expires/aborts."""
+        total_duration: timedelta = await self.total_duration
+        await self.document.update(Set({
+            SessionModel.total_duration: total_duration
+        }))
         # Update station statistics
-        await self.assigned_station.inc({StationModel.total_sessions: 1})
-        await self.assigned_station.inc({StationModel.total_session_duration: self.total_duration})
+        await self.assigned_station.inc(
+            {StationModel.total_sessions: 1,
+             StationModel.total_session_duration: total_duration})
         # Update user statistics
+        # TODO: Make this UserModel only
+        if type(self.document.user == UUID):
+            return
+        await self.document.user.inc(
+            {UserModel.total_sessions: 1,
+             UserModel.total_session_duration: total_duration})

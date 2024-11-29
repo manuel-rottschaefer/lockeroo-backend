@@ -31,6 +31,7 @@ class ServiceExceptions(Enum):
 
     # Generics
     NOT_AUTHORIZED = 'not_authorized'
+    LIMIT_EXCEEDED = 'limit_exceeded'
 
     # Stations
     STATION_NOT_FOUND = "station_not_found"

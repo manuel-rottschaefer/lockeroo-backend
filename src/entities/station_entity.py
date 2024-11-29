@@ -99,22 +99,21 @@ class Station(Entity):
                       )
     ### Terminal setters ###
 
-    async def set_station_state(
-        self: StationModel, new_state: StationStates
+    async def register_station_state(
+        self: StationModel, new_station_state: StationStates
     ) -> StationStates:
         """Update the state of a station.
         No checks are performed here, as the request is assumed to be valid."""
-        self.document.station_state = new_state
-        await self.replace(skip_actions=['notify_terminal_state'])
+        await self.document.update(Set({StationModel.station_state: new_station_state}), skip_actions=['notify_station_state'])
         logger.debug(f"Station '{self.call_sign}' state set to {
                      self.station_state}.")
-        return new_state
+        return new_station_state
 
-    async def set_terminal_state(
-        self: StationModel, terminal_state: TerminalStates = None
+    async def register_terminal_state(
+        self: StationModel, new_terminal_state: TerminalStates = None
     ) -> None:
         """Update the terminal state of a station. This function either accepts a TerminalState or a SessionState. """
-        await self.document.update(Set({StationModel.terminal_state: terminal_state}),
+        await self.document.update(Set({StationModel.terminal_state: new_terminal_state}),
                                    skip_actions=['notify_station_state'])
         logger.debug(
             f"Terminal at station '{self.id}' set to {
@@ -123,8 +122,9 @@ class Station(Entity):
 
     async def activate_payment(self):
         """Activate a payment process at the station."""
-        self.document.terminal_state = TerminalStates.PAYMENT
-        await self.document.replace(skip_actions=['notify_station_state'])
+        await self.document.update(
+            Set({StationModel.terminal_state: TerminalStates.PAYMENT}),
+            skip_actions=['notify_station_state'])
 
     async def increase_completed_sessions_count(self: StationModel):
         """Increase the count of completed sessions at the station.

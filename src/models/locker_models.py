@@ -2,15 +2,14 @@
 This module provides a model for the locker representation in the database
 as well as other Enums and configurations.
 """
+# Basics
+from typing import Optional, List
+from enum import Enum
+from datetime import datetime, timedelta
 
 # Types
 import dataclasses
-
-# Basics
-from datetime import datetime
-from enum import Enum
-from typing import Optional
-from pydantic import Field
+from pydantic import BaseModel, Field
 
 # Types
 from beanie import Document, Link, View, Update, after_event
@@ -29,12 +28,19 @@ class LockerStates(str, Enum):
     UNLOCKED = 'unlocked'
 
 
-class LockerTypes(str, Enum):
-    """States of a locker."""
-    # TODO: Make this dynamically allocatable
-    SMALL = 'small'
-    MEDIUM = 'medium'
-    LARGE = 'large'
+class LockerType(BaseModel):
+    """Config representation of deployable locker types."""
+    name: str = Field(description="Name of the locker type family."),
+    description: str = Field("Well... a description.")
+    stations: List[str] = Field(
+        "List of station types at which this locker is installed."),
+    dimensions: List[int] = Field(
+        description="Physical dimensions in cm (x,y,z)."),
+    payment_model: str = Field(description="Name of associated price model."),
+    has_charging: bool = Field(
+        description="Whether the lockers come with outlets."),
+    maintenance_interval: timedelta = Field(
+        description="Interval at which locker should be cleaned.")
 
 
 class LockerModel(Document):  # pylint: disable=too-many-ancestors
@@ -46,8 +52,11 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
     station: Link[StationModel] = Field(
         description='Station this locker belongs to.')
 
+    pricing_model: str = Field(
+        description="The pricing model assigned to this locker.")
+
     #### Locker Properties ###
-    locker_type: LockerTypes
+    locker_type: str
     station_index: int = Field(
         ..., description='Index of the locker in the station (Also printed on the doors).')
 
@@ -83,7 +92,7 @@ class LockerView(View):
                            description='Station this locker belongs to.')
 
     #### Locker Properties ###
-    locker_type: LockerTypes
+    locker_type: str
     station_index: int = Field(
         ..., description='Index of the locker in the station (Also printed on the doors).')
 
