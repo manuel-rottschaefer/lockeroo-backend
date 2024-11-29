@@ -1,0 +1,44 @@
+[
+  {
+    "_id": "66e30a67a81b69cf467d4b25",
+    "firstName": "Manuel",
+    "lastName": "Rottschäfer",
+    "email": "manuel@rottscha.de",
+
+    "hashed_password": "$2a$10$Q6",
+
+    "activeAuthMethod": "email",
+
+    "signedUpTS": "2024-09-01T00:00:00Z",
+    "totalSessionCount": 0,
+    "totalSessionDuration": 0
+  },
+  {
+    "_id": "6714ced8e2809bdac7054f80",
+    "firstName": "Josephine",
+    "lastName": "Bresack",
+    "email": "josephine@bresack.de",
+
+    "hashed_password": "$2a$10$Q6",
+
+    "activeAuthMethod": "google",
+
+    "signedUpTS": "2024-010-01T00:00:00Z",
+    "totalSessionCount": 0,
+    "totalSessionDuration": 0
+  },
+  {
+    "_id": "6714ced8e2809bdac7054f81",
+    "firstName": "Deine",
+    "lastName": "Mum",
+    "email": "deine.mum@unexcellent.de",
+
+    "hashed_password": "$2a$10$Q6",
+
+    "activeAuthMethod": "email",
+
+    "signedUpTS": "2024-10-16T00:00:00Z",
+    "totalSessionCount": 0,
+    "totalSessionDuration": 0
+  }
+]

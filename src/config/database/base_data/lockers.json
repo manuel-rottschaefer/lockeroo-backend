@@ -1,0 +1,287 @@
+[
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "small",
+    "pricing_model": "economy-base",
+    "station_index": 1,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "small",
+    "pricing_model": "economy-base",
+    "station_index": 2,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "small",
+    "pricing_model": "economy-base",
+    "station_index": 3,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "small",
+    "pricing_model": "economy-base",
+    "station_index": 4,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "small",
+    "pricing_model": "economy-base",
+    "station_index": 4,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "small",
+    "pricing_model": "economy-base",
+    "station_index": 5,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "small",
+    "pricing_model": "economy-base",
+    "station_index": 6,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "small",
+    "pricing_model": "economy-base",
+    "station_index": 7,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "small",
+    "pricing_model": "economy-base",
+    "station_index": 8,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "station_index": 9,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "station_index": 10,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "station_index": 11,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "station_index": 12,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "station_index": 13,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "station_index": 14,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "large",
+    "pricing_model": "storage-large",
+    "station_index": 15,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "large",
+    "pricing_model": "storage-large",
+    "station_index": 16,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "large",
+    "pricing_model": "storage-large",
+    "station_index": 17,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "locker_type": "large",
+    "pricing_model": "storage-large",
+    "station_index": 18,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  }
+]

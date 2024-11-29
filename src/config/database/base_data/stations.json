@@ -1,0 +1,25 @@
+[
+  {
+    "_id": "66e6b53a71580df1e30b1f7a",
+    "full_name": "München Odeonsplatz",
+    "call_sign": "MUCODE",
+    "station_type": "V1M",
+    "hw_version": "V1",
+    "sw_version": "1.0.0",
+    "installation_ts": "2024-09-01T00:00:00Z",
+    "installed_lockers": 18,
+    "station_state": "available",
+    "terminal_state": "idle",
+    "next_service_date": "2024-12-01T00:00:00Z",
+    "service_due": "false",
+    "total_sessions": 0,
+    "total_session_duration": 0,
+    "last_service_date": "2024-09-01T00:00:00Z",
+    "is_storage_available": true,
+    "is_charging_available": false,
+    "city_name": "München",
+    "address": "Odeonsplatz 1",
+    "location": { "coordinates": [48.143, 11.577], "type": "Point" },
+    "nearby_public_transit": "Odeonsplatz"
+  }
+]
