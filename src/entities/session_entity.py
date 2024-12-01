@@ -65,6 +65,7 @@ class Session(Entity):
         ).sort((SessionModel.created_ts, SortDirection.DESCENDING)).first_or_none()
 
         if session_item:
+            print(session_item)
             instance.document = session_item
         return instance
 

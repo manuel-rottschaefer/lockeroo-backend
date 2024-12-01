@@ -100,7 +100,7 @@ async def handle_lock_report(call_sign: str, locker_index: int) -> None:
         await session.handle_conclude()
         return
 
-    # 8: Create a task
+    # 8: Await user to return to the locker to pick up his stuff.
     await Task().create(
         task_type=TaskTypes.USER,
         station=station.document,
@@ -116,7 +116,7 @@ async def handle_unlock_confirmation(
     """Process and verify a station report that a locker has been unlocked"""
     # 1: Look for a task that is pending
     task: Task = await Task().find(call_sign=call_sign,
-                                   task_type=TaskTypes.STATION,
+                                   task_type=TaskTypes.LOCKER,
                                    task_state=TaskStates.PENDING)
     await task.fetch_links()
 

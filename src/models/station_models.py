@@ -97,7 +97,7 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
 
     ### State broadcasting ###
     @after_event(Update)
-    def notify_terminal_state(self):
+    def instruct_terminal_state(self):
         """Send an update message regarding the session state to the mqtt broker."""
         fast_mqtt.publish(
             f"stations/{self.call_sign}/terminal", self.terminal_state)

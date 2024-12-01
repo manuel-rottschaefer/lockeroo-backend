@@ -103,15 +103,19 @@ async def handle_terminal_mode_confirmation(
     """Handle a confirmation from a station that it entered a mode at its terminal"""
     call_sign = topic.split('/')[1]
     mode = payload.decode('utf-8')
+    terminal_state: TerminalStates
 
     if not mode:
         logger.warning(
             f"Invalid station terminal report from station {call_sign}.")
         return
 
-    logger.debug(
-        "Received confirmation that the terminal at station '{call_sign}' entered {mode} mode.")
-    await station_services.handle_terminal_mode_confirmation(call_sign, mode)
+    if mode == 'VERIFICATION':
+        terminal_state = TerminalStates.VERIFICATION
+    elif mode == 'PAYMENT':
+        terminal_state = TerminalStates.PAYMENT
+
+    await station_services.handle_terminal_confirmation(call_sign, terminal_state)
 
 
 @validate_mqtt_topic('stations/+/verification/report', [ObjId])
@@ -128,13 +132,12 @@ async def handle_verification_report(
         return
 
     logger.debug(
-        f"Received verification report for station '{call_sign}' with card id '{card_id}'.")
+        f"Station '{call_sign}' reported {SessionStates.VERIFICATION} with card '#{card_id}'.")
 
-    await station_services.handle_terminal_report(
+    await station_services.handle_action_report(
         call_sign=call_sign,
         expected_session_state=SessionStates.VERIFICATION,
         expected_terminal_state=TerminalStates.VERIFICATION,
-
     )
 
 
@@ -145,9 +148,9 @@ async def handle_station_payment_report(
     """Handle a payment report from a station"""
     call_sign = topic.split('/')[1]
 
-    logger.debug(f"Received payment report from station '{call_sign}'.")
+    logger.debug(f"Station '{call_sign}' reported {SessionStates.PAYMENT}.")
 
-    await station_services.handle_terminal_report(
+    await station_services.handle_action_report(
         call_sign=call_sign,
         expected_session_state=SessionStates.PAYMENT,
         expected_terminal_state=TerminalStates.PAYMENT

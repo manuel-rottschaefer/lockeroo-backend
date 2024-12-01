@@ -8,13 +8,13 @@ import os
 
 # Beanie
 from beanie.operators import Set
-from beanie import SortDirection
+from beanie import PydanticObjectId as ObjId, SortDirection
+
 
 # Entities
 from src.entities.entity_utils import Entity
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
-from src.entities.payment_entity import Payment
 
 # Models
 from src.models.station_models import StationModel, TerminalStates
@@ -79,19 +79,19 @@ class Task(Entity):
         call_sign: Optional[str] = None,
         task_type: Optional[TaskTypes] = None,
         task_state: Optional[TaskStates] = None,
-        assigned_session: Optional[SessionModel] = None,
-        assigned_station: Optional[StationModel] = None,
+        assigned_session: Optional[ObjId] = None,
+        assigned_station: Optional[ObjId] = None,
         locker_index: Optional[int] = None
     ):
         """Get a task at a station."""
         instance = cls()
 
         query = {
-            TaskItemModel.assigned_station.call_sign: call_sign,   # pylint: disable=no-member
+            TaskItemModel.assigned_station.call_sign: call_sign,  # pylint: disable=no-member
             TaskItemModel.task_type: task_type,
             TaskItemModel.task_state: task_state,
-            TaskItemModel.assigned_session: assigned_session,
-            TaskItemModel.assigned_station: assigned_station,
+            TaskItemModel.assigned_session.id: assigned_session,  # pylint: disable=no-member
+            TaskItemModel.assigned_station.id: assigned_station,  # pylint: disable=no-member
             TaskItemModel.assigned_session.assigned_locker.station_index: locker_index  # pylint: disable=no-member
         }
 
@@ -125,7 +125,7 @@ class Task(Entity):
 
         if is_next:
             logger.debug(
-                f"Session '{next_item.assigned_session.id}' identified as next in queue at station '{
+                f"Task '{next_item.id}' identified as next in queue at station '{
                     self.id}'."
             )
         return is_next
@@ -138,31 +138,70 @@ class Task(Entity):
 
     ### Session runner ###
 
-    async def activate(self) -> None:
-        """Activate the assigned session and set this queue item as completed."""
-        # 1: Move the session to the next state
-        session: Session = Session(self.document.assigned_session)
+    async def terminal_activation_handler(self) -> None:
+        """After task has passed the queue, instruct a station terminal state and await confirmation."""
+        # 1: Instruct terminal state
+        station: Station = Station(self.document.assigned_station)
+        await station.document.update(Set({
+            StationModel.terminal_state: TerminalStates.VERIFICATION}),
+            skip_actions=['notify_station_state'])
 
-        # 2: Execute user task activation handlers
-        if self.document.task_type == TaskTypes.STATION:
-            timeout_window = int(os.getenv("STATION_EXPIRATION"))
-        else:
-            await session.set_state(self.document.queued_state)
-
-            station: Station = Station(session.assigned_station)
-
-            timeout_window = session.session_state.value['timeout_secs']
-
-            if self.document.queued_state == SessionStates.VERIFICATION:
-                # TODO: Also create an activate() method for a verification
-                await station.register_terminal_state(TerminalStates.VERIFICATION)
-
-            elif self.document.queued_state == SessionStates.PAYMENT:
-                payment: Payment = await Payment.fetch(session=session.document)
-                await payment.activate()
-
+        # 2: Get the timeout window for terminal confirmation
+        timeout_window = int(os.getenv("STATION_EXPIRATION"))
         timeout_date: datetime = self.document.created_ts + \
             timedelta(seconds=timeout_window)
+
+        # 3: Update task item
+        await self.document.update(Set({
+            TaskItemModel.task_state: TaskStates.PENDING,
+            TaskItemModel.activated_at: datetime.now(),
+            TaskItemModel.expires_at: timeout_date,
+            TaskItemModel.expiration_window: timeout_window
+        }))
+
+        # 4: Create an expiration handler
+        asyncio.create_task(self.register_timeout(
+            secs_to_timeout=int(timeout_window)
+        ))
+
+    async def locker_activation_handler(self) -> None:
+        """Instruct a station to report the state of one of its lockers."""
+        # 1: Get the assigned session
+        _session: Session = Session(self.document.assigned_session)
+
+        # 2: Get the timeout window for locker confirmation
+        timeout_window = int(os.getenv("STATION_EXPIRATION"))
+        timeout_date: datetime = self.document.created_ts + \
+            timedelta(seconds=timeout_window)
+
+        # 3: Update task item
+        await self.document.update(Set({
+            TaskItemModel.task_state: TaskStates.PENDING,
+            TaskItemModel.activated_at: datetime.now(),
+            TaskItemModel.expires_at: timeout_date,
+            TaskItemModel.expiration_window: timeout_window
+        }))
+
+        # 4: Create an expiration handler
+        asyncio.create_task(self.register_timeout(
+            secs_to_timeout=int(timeout_window)
+        ))
+
+    async def user_activation_handler(self) -> None:
+        """Wait for the user to complete an action (verification/payment)"""
+        # 1: Get the assigned session and enable the queued state
+        session: Session = Session(self.document.assigned_session)
+        if self.document.queued_state:
+            await session.set_state(self.document.queued_state)
+
+        # Get the timeout window for the user action
+        timeout_window = session.session_state.value['timeout_secs']
+        timeout_date: datetime = self.document.created_ts + \
+            timedelta(seconds=timeout_window)
+
+        # elif self.document.queued_state == SessionStates.PAYMENT:
+        #    payment: Payment = await Payment.fetch(session=session.document)
+        #    await payment.activate()
 
         # 3: Update queue item
         await self.document.update(Set({
@@ -177,11 +216,20 @@ class Task(Entity):
             secs_to_timeout=int(timeout_window)
         ))
 
+    async def activate(self) -> None:
+        """Call the correct activation handler based on task type."""
+        if self.document.task_type == TaskTypes.USER:
+            await self.user_activation_handler()
+        if self.document.task_type == TaskTypes.TERMINAL:
+            await self.terminal_activation_handler()
+        if self.document.task_type == TaskTypes.LOCKER:
+            await self.locker_activation_handler()
+
     async def register_timeout(self,
                                secs_to_timeout: int):
         """Register an expiration handler. This waits until the expiration duration
         has passed and then fires up the expiration handler."""
-        logger.debug(f"Task '{self.document.id}' will time out in {
+        logger.debug(f"Task '{self.document.id}' will time out to {self.document.timeout_states[0]} in {
             secs_to_timeout} seconds."
         )
 

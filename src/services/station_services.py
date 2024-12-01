@@ -62,7 +62,7 @@ async def discover(lat: float, lon: float, radius: int,
 async def get_details(call_sign: str) -> StationView:
     """Get detailed information about a station."""
     # Get station data from the database
-    station: Station = await Station().fetch(call_sign=call_sign)
+    station: Station = await Station().find(call_sign=call_sign)
     if not station:
         raise HTTPException(
             status_code=404, detail=ServiceExceptions.STATION_NOT_FOUND)
@@ -72,7 +72,7 @@ async def get_details(call_sign: str) -> StationView:
 
 async def get_active_session_count(call_sign: str) -> int:
     """Get the amount of currently active sessions at this station."""
-    station: Station = await Station().fetch(call_sign=call_sign)
+    station: Station = await Station().find(call_sign=call_sign)
     if not station:
         raise HTTPException(
             status_code=404, detail=ServiceExceptions.STATION_NOT_FOUND)
@@ -85,7 +85,7 @@ async def get_active_session_count(call_sign: str) -> int:
 
 async def get_locker_by_index(call_sign: str, locker_index: int):
     """Get the locker at a station by its index."""
-    station: Station = await Station().fetch(call_sign=call_sign)
+    station: Station = await Station().find(call_sign=call_sign)
     return await Locker().fetch(station=station.id, index=locker_index)
 
 
@@ -93,7 +93,7 @@ async def get_locker_overview(call_sign: str) -> StationLockerAvailabilities:
     """Determine for each locker type if it is available at the given station."""
 
     # 1: Check whether the station exists
-    station: Station = await Station().fetch(call_sign=call_sign)
+    station: Station = await Station().find(call_sign=call_sign)
 
     if not station:
         logger.warning("Station '%s' does not exist.", call_sign)
@@ -119,7 +119,7 @@ async def get_locker_overview(call_sign: str) -> StationLockerAvailabilities:
 
 async def set_station_state(call_sign: str, station_state: StationStates) -> StationView:
     """Set the state of a station."""
-    station: Station = Station().fetch(call_sign=call_sign)
+    station: Station = Station().find(call_sign=call_sign)
     await station.register_station_state(station_state)
     return station.document
 
@@ -128,7 +128,7 @@ async def reset_queue(call_sign: str) -> StationView:
     """Reset the queue of the station by putting all queue
     items in state QUEUED and re-evaluating the queue."""
     # 1: Get the station
-    station: Station = await Station().fetch(call_sign=call_sign)
+    station: Station = await Station().find(call_sign=call_sign)
 
     # 2: Get all stale queue items at the station
     tasks: List[TaskItemModel] = await TaskItemModel.find(
@@ -144,7 +144,7 @@ async def reset_queue(call_sign: str) -> StationView:
     await first_task.activate()
 
 
-async def handle_terminal_report(
+async def handle_action_report(
         call_sign: str,
         expected_session_state: SessionStates,
         expected_terminal_state: TerminalStates
@@ -162,11 +162,8 @@ async def handle_terminal_report(
     session = Session(task.assigned_session)
     await session.fetch_links()
 
-    if task.assigned_session.session_state != expected_session_state:
-        # TODO: Implement logger for warnings
-        logger.warning(
-            f"Session {task.assigned_session.id} is in wrong state.")
-        return
+    assert task.assigned_session.session_state == expected_session_state, f"Session {
+        task.assigned_session.id} is in wrong state"
 
     # 3: Check whether the station is currently told to await an action
     station: Station = Station(session.assigned_station)
@@ -188,9 +185,9 @@ async def handle_terminal_report(
     # 7: Set the verification/payment queue item to completed
     await task.set_state(TaskStates.COMPLETED)
 
-    # 8: Create a new queue item for the station to report the unlock
+    # 8: Await station to confirm locker state
     await Task().create(
-        task_type=TaskTypes.STATION,
+        task_type=TaskTypes.LOCKER,
         station=station.document,
         session=session.document,
         queued_state=await session.next_state,
@@ -199,12 +196,32 @@ async def handle_terminal_report(
     )
 
 
-async def handle_terminal_mode_confirmation(call_sign: str, _mode: str):
-    """This handler processes reports of stations whose terminals entered an active state.
-    It verifies the authenticity and then notifies the client about the new state."""
-    # 1: Get the station object
-    station: StationModel = await StationModel.find_one(
-        StationModel.call_sign == call_sign
+async def handle_terminal_confirmation(call_sign: str, terminal_state: TerminalStates):
+    """Process a station report about its terminal state."""
+    # 1: Find the assigned station
+    station: Station = await Station().find(call_sign=call_sign)
+    await station.register_terminal_state(terminal_state)
+
+    # 2: Find assigned task
+    task: Task = await Task().find(
+        call_sign=call_sign,
+        task_type=TaskTypes.TERMINAL,
+        task_state=TaskStates.PENDING)
+    await task.fetch_links()
+
+    # 3: Find assigned session and set to queued state
+    session: Session = Session(task.assigned_session)
+
+    # 2: Complete previous task
+    await task.set_state(TaskStates.COMPLETED)
+
+    # 3: Launch the new user task
+    await Task().create(
+        task_type=TaskTypes.USER,
+        station=station.document,
+        session=session.document,
+        queued_state=await session.next_state,
+        timeout_states=[SessionStates.PAYMENT_SELECTED,
+                        SessionStates.EXPIRED],
+        has_queue=False
     )
-    if not station:
-        logger.info(ServiceExceptions.STATION_NOT_FOUND, call_sign)
