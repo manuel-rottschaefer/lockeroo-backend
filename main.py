@@ -12,8 +12,11 @@ from fastapi.middleware.cors import CORSMiddleware
 # Environments
 from dotenv import load_dotenv
 
-# MQTT
+# Services
 from src.services.mqtt_services import fast_mqtt
+
+# Entities
+from src.entities.task_entity import start_expiration_manager
 
 # Database
 import src.services.database_services as database
@@ -33,6 +36,7 @@ async def _lifespan(_fastapi_app: FastAPI):
     """Context manager for the application lifespan"""
     await database.setup()
     await fast_mqtt.mqtt_startup()
+    await start_expiration_manager()
     # Wait until server shutdown
     yield
     await fast_mqtt.mqtt_shutdown()

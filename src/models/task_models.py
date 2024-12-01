@@ -16,6 +16,9 @@ from src.models.session_models import SessionModel, SessionStates
 from src.models.station_models import StationModel
 from src.models.locker_models import LockerStates
 
+# Services
+from src.services.logging_services import logger
+
 
 load_dotenv('src/environments/.env')
 
@@ -84,12 +87,11 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
         None, description="The datetime when the task item was completed or expired.")
 
     @after_event(Update)
-    async def report_state(self) -> None:
+    async def log_state(self) -> None:
         """Log database operation."""
-        await self.fetch_all_links()
-        msg = f"Task '{self.id}' is now {self.task_state}"
-        if self.task_state == TaskStates.PENDING:
-            msg += f' with {self.assigned_session.session_state}.'  # pylint: disable=no-member
+        await self.sync()
+        logger.debug(f"Task '{self.id}' of type {
+                     self.task_type} set to {self.task_state}.")
 
     @dataclass
     class Settings:  # pylint: disable=missing-class-docstring

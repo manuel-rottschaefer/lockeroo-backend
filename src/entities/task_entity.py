@@ -3,13 +3,12 @@
 # Basics
 from typing import List, Optional
 from datetime import datetime, timedelta
-import asyncio
+from asyncio import sleep, create_task
 import os
 
 # Beanie
 from beanie.operators import Set
 from beanie import PydanticObjectId as ObjId, SortDirection
-
 
 # Entities
 from src.entities.entity_utils import Entity
@@ -107,6 +106,10 @@ class Task(Entity):
             return instance
 
     @property
+    def exists(self) -> bool:
+        return self.document != None
+
+    @property
     async def is_next_in_queue(self) -> bool:
         """Check whether this task is next in queue"""
         # 1: Find the next queued session item
@@ -138,108 +141,47 @@ class Task(Entity):
 
     ### Session runner ###
 
-    async def terminal_activation_handler(self) -> None:
-        """After task has passed the queue, instruct a station terminal state and await confirmation."""
-        # 1: Instruct terminal state
-        station: Station = Station(self.document.assigned_station)
-        await station.document.update(Set({
-            StationModel.terminal_state: TerminalStates.VERIFICATION}),
-            skip_actions=['notify_station_state'])
+    def get_timeout_window(self):
+        """Get the timeout window in seconds from the config file."""
+        if self.document.task_type == TaskTypes.USER:
+            timeout_window = self.assigned_session.session_state.value['timeout_secs']
+        elif self.document.task_type == TaskTypes.TERMINAL:
+            timeout_window = int(os.getenv("STATION_EXPIRATION"))
+        elif self.document.task_type == TaskTypes.LOCKER:
+            timeout_window = int(os.getenv("STATION_EXPIRATION"))
 
-        # 2: Get the timeout window for terminal confirmation
-        timeout_window = int(os.getenv("STATION_EXPIRATION"))
-        timeout_date: datetime = self.document.created_ts + \
-            timedelta(seconds=timeout_window)
-
-        # 3: Update task item
-        await self.document.update(Set({
-            TaskItemModel.task_state: TaskStates.PENDING,
-            TaskItemModel.activated_at: datetime.now(),
-            TaskItemModel.expires_at: timeout_date,
-            TaskItemModel.expiration_window: timeout_window
-        }))
-
-        # 4: Create an expiration handler
-        asyncio.create_task(self.register_timeout(
-            secs_to_timeout=int(timeout_window)
-        ))
-
-    async def locker_activation_handler(self) -> None:
-        """Instruct a station to report the state of one of its lockers."""
-        # 1: Get the assigned session
-        _session: Session = Session(self.document.assigned_session)
-
-        # 2: Get the timeout window for locker confirmation
-        timeout_window = int(os.getenv("STATION_EXPIRATION"))
-        timeout_date: datetime = self.document.created_ts + \
-            timedelta(seconds=timeout_window)
-
-        # 3: Update task item
-        await self.document.update(Set({
-            TaskItemModel.task_state: TaskStates.PENDING,
-            TaskItemModel.activated_at: datetime.now(),
-            TaskItemModel.expires_at: timeout_date,
-            TaskItemModel.expiration_window: timeout_window
-        }))
-
-        # 4: Create an expiration handler
-        asyncio.create_task(self.register_timeout(
-            secs_to_timeout=int(timeout_window)
-        ))
-
-    async def user_activation_handler(self) -> None:
-        """Wait for the user to complete an action (verification/payment)"""
-        # 1: Get the assigned session and enable the queued state
-        session: Session = Session(self.document.assigned_session)
-        if self.document.queued_state:
-            await session.set_state(self.document.queued_state)
-
-        # Get the timeout window for the user action
-        timeout_window = session.session_state.value['timeout_secs']
-        timeout_date: datetime = self.document.created_ts + \
-            timedelta(seconds=timeout_window)
-
-        # elif self.document.queued_state == SessionStates.PAYMENT:
-        #    payment: Payment = await Payment.fetch(session=session.document)
-        #    await payment.activate()
-
-        # 3: Update queue item
-        await self.document.update(Set({
-            TaskItemModel.task_state: TaskStates.PENDING,
-            TaskItemModel.activated_at: datetime.now(),
-            TaskItemModel.expires_at: timeout_date,
-            TaskItemModel.expiration_window: timeout_window
-        }))
-
-        # 4: Create an expiration handler
-        asyncio.create_task(self.register_timeout(
-            secs_to_timeout=int(timeout_window)
-        ))
+        logger.debug(f"Task '{self.document.id}' will time out to {self.document.timeout_states[0]} in {
+            timeout_window} seconds."
+        )  # pylint: disable=possibly_used_before_assignment
+        return timeout_window
 
     async def activate(self) -> None:
         """Call the correct activation handler based on task type."""
+        # 2: Get the timeout window for terminal confirmation
+        timeout_window = self.get_timeout_window()
+        timeout_date: datetime = self.document.created_ts + \
+            timedelta(seconds=timeout_window)
+
         if self.document.task_type == TaskTypes.USER:
-            await self.user_activation_handler()
+            session: Session = Session(self.document.assigned_session)
+            if self.document.queued_state:
+                await session.set_state(self.document.queued_state)
+
         if self.document.task_type == TaskTypes.TERMINAL:
-            await self.terminal_activation_handler()
-        if self.document.task_type == TaskTypes.LOCKER:
-            await self.locker_activation_handler()
+            station: Station = Station(self.document.assigned_station)
+            await station.document.update(Set({
+                StationModel.terminal_state: TerminalStates.VERIFICATION}),
+                skip_actions=['notify_station_state'])
 
-    async def register_timeout(self,
-                               secs_to_timeout: int):
-        """Register an expiration handler. This waits until the expiration duration
-        has passed and then fires up the expiration handler."""
-        logger.debug(f"Task '{self.document.id}' will time out to {self.document.timeout_states[0]} in {
-            secs_to_timeout} seconds."
-        )
+        # 3: Update task item
+        await self.document.update(Set({
+            TaskItemModel.task_state: TaskStates.PENDING,
+            TaskItemModel.activated_at: datetime.now(),
+            TaskItemModel.expires_at: timeout_date,
+            TaskItemModel.expiration_window: timeout_window
+        }))
 
-        # 1 Register the expiration handler
-        await asyncio.sleep(int(secs_to_timeout))
-
-        # 2: After the expiration time, fire up the expiration handler if requred
-        await self.document.sync()
-        if self.document.task_state == TaskStates.PENDING:
-            await self.handle_expiration()
+        await restart_expiration_manager()
 
     async def handle_expiration(self) -> None:
         """Checks whether the session has entered a state where the user needs to conduct an
@@ -247,6 +189,7 @@ class Task(Entity):
         completed, the session has to be expired and the user needs to request a new one
         """
         # 1: Set Session and queue state to expired
+        await self.fetch_links()
         session: Session = Session(self.document.assigned_session)
 
         # 3: Set the queue state of this item to expired
@@ -276,3 +219,37 @@ class Task(Entity):
             queued_state=self.queued_state,
             timeout_states=self.document.timeout_states[1:],
             has_queue=self.document.queue_enabled)
+
+
+async def expiration_manager_loop():
+    """Handle expirations."""
+    # 1: Get time to next expiration
+    next_expiring_task = await TaskItemModel.find(
+        TaskItemModel.task_state == TaskStates.PENDING
+    ).sort((TaskItemModel.expires_at, SortDirection.ASCENDING)).limit(1).first_or_none()
+    if not next_expiring_task:
+        return
+
+    next_expiration: datetime = next_expiring_task.expires_at
+
+    # 2: Wait until the task expired
+    await sleep((next_expiration - datetime.now()).total_seconds())
+
+    # 3: Check if the task is still pending, then fire up the expiration handler
+    if next_expiring_task.task_state == TaskStates.PENDING:
+        await Task(next_expiring_task).handle_expiration()
+
+
+async def restart_expiration_manager():
+    """Restart the expiration manager."""
+    EXPIRATION_MANAGER.cancel()
+    await start_expiration_manager()
+
+
+async def start_expiration_manager():
+    """Start the expiration manager."""
+    global EXPIRATION_MANAGER  # pylint: disable=global-statement
+    EXPIRATION_MANAGER = create_task(expiration_manager_loop())
+
+
+EXPIRATION_MANAGER = None

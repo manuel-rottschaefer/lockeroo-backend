@@ -5,13 +5,12 @@ import yaml
 
 # Typing
 from typing import Dict
-from enum import Enum
 
 # Entities
 from src.entities.station_entity import Station
 from src.entities.session_entity import Session
 from src.entities.locker_entity import Locker
-from src.entities.task_entity import Task
+from src.entities.task_entity import Task, restart_expiration_manager
 
 # Models
 from src.models.locker_models import LockerType, LockerStates
@@ -90,6 +89,7 @@ async def handle_lock_report(call_sign: str, locker_index: int) -> None:
 
     # 6: Complete the previous task item
     await task.set_state(TaskStates.COMPLETED)
+    await restart_expiration_manager()
 
     # 7: Catch a completed session here
     next_state: SessionStates = await session.next_state
@@ -154,6 +154,7 @@ async def handle_unlock_confirmation(
     # 5: Update locker and session states
     await locker.register_state(LockerStates.UNLOCKED)
     await task.set_state(TaskStates.COMPLETED)
+    await restart_expiration_manager()
 
     # 7: Create a queue item for the user
     await Task().create(
