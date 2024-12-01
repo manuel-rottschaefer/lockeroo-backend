@@ -20,6 +20,7 @@ __pycache__/
 dep/*
 tools/*
 Obsidian/*
+kanpilot.toml
 
 # Ignore environments (API Keys in there!!)
 environments

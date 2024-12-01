@@ -21,4 +21,4 @@ admin_router = APIRouter()
 @handle_exceptions(logger)
 async def reset_db():
     """Reset the db"""
-    return await restore_mock_data(os.getenv('MOCK_LOC'))
+    return await restore_mock_data(os.getenv('MOCK_LOCATION'))
