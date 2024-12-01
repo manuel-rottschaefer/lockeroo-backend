@@ -30,8 +30,9 @@ class TaskStates(str, Enum):
 
 class TaskTypes(str, Enum):
     """Types of queued actions."""
-    USER = "user"
-    STATION = "station"
+    USER = "user"                   # Awaiting action of user (verification/payment)
+    TERMINAL = "terminal"           # Awaiting station to confirm terminal state
+    LOCKER = "locker"               # Awaiting station to confirm locker state
 
 
 class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
@@ -56,7 +57,7 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
         False, description="The task can be put into a queue at its\
         assigned station or be immediately activated.")
 
-    queued_state: Union[LockerStates, SessionStates] = Field(
+    queued_state: Optional[Union[LockerStates, SessionStates]] = Field(
         None,
         description="The next state of the assigned session or terminal after activation.\
         State Type depends on task type.")

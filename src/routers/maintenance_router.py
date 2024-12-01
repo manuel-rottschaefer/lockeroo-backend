@@ -36,7 +36,7 @@ async def create_scheduled_maintenance(
         staff_id: str,
         _access_info: FiefAccessTokenInfo = None,) -> MaintenanceModel:
     """Get the availability of lockers at the station"""
-    station: Station = await Station().fetch(call_sign=call_sign)
+    station: Station = await Station().find(call_sign=call_sign)
 
     maintenance_item = await Maintenance().create(station_id=station.id,
                                                   staff_id=staff_id)
@@ -52,7 +52,7 @@ async def get_next_scheduled_maintenance(
     _access_info: FiefAccessTokenInfo = None
 ) -> MaintenanceModel:
     """Get the availability of lockers at the station"""
-    station: Station = await Station().fetch(call_sign=call_sign)
+    station: Station = await Station().find(call_sign=call_sign)
     return await maintenance_services.get_next(
         station_id=station.id
     )

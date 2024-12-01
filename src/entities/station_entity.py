@@ -1,8 +1,10 @@
 """This module provides utilities for  database for stations."""
 
+# Basics
+from typing import Optional
 
 # Beanie
-from beanie import PydanticObjectId as ObjId
+from beanie import PydanticObjectId as ObjId, SortDirection
 from beanie.operators import Set
 
 
@@ -30,27 +32,31 @@ class Station(Entity):
         self.document = document
 
     @classmethod
-    async def fetch(
+    async def find(
         cls,
-        station_id: ObjId = None,
-        call_sign: str = None
+        station_id: Optional[ObjId] = None,
+        call_sign: Optional[str] = None,
+        station_state: Optional[StationStates] = None,
+        terminal_state: Optional[TerminalStates] = None,
     ):
-        """Create a Station instance and fetch the object asynchronously."""
+        """Find a session in the database"""
         instance = cls()
 
-        if station_id is not None:
-            instance.document = await StationModel.get(station_id)
-        elif call_sign is not None:
-            instance.document = await StationModel.find_one(
-                StationModel.call_sign == call_sign)
-        else:
-            logger.error("Failed to initialize Station Entity.")
+        query = {
+            StationModel.id: station_id,
+            StationModel.call_sign: call_sign,
+            StationModel.station_state: station_state,
+            StationModel.terminal_state: terminal_state,
+        }
 
-        if instance.document is None:
-            logger.error(
-                "Failed to initialize Station Entity: No document found.")
-            raise ValueError("Station document could not be found.")
+        # Filter out None values
+        query = {k: v for k, v in query.items() if v is not None}
 
+        station_item: StationModel = await StationModel.find(
+            query, fetch_links=True
+        ).sort((SessionModel.created_ts, SortDirection.DESCENDING)).first_or_none()
+
+        instance.document = station_item if station_item else None
         return instance
 
     ### Attributes ###

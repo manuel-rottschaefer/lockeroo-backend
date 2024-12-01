@@ -16,7 +16,7 @@ from fastapi import HTTPException, WebSocket, WebSocketDisconnect
 # Entities
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
-from src.entities.task_entity import Task, TaskTypes
+from src.entities.task_entity import Task, TaskTypes, TaskStates
 from src.entities.locker_entity import Locker
 from src.entities.payment_entity import Payment
 
@@ -68,15 +68,15 @@ async def handle_creation_request(
 ) -> Optional[SessionView]:
     """Create a locker session for the user
     at the given station matching the requested locker type."""
-    # 2: Check if the station exists
-    station: Station = await Station.fetch(call_sign=callsign)
+    # 1: Check if the station exists
+    station: Station = await Station.find(call_sign=callsign)
     if not station:
         logger.info(ServiceExceptions.STATION_NOT_FOUND, station=callsign)
         raise HTTPException(
             status_code=404, detail=ServiceExceptions.STATION_NOT_FOUND.value
         )
 
-    # 3: Check if the station is available
+    # 2: Check if the station is available
     if not await station.is_available:
         # Check whether the station is available
         logger.info(ServiceExceptions.STATION_NOT_AVAILABLE, station=callsign)
@@ -84,7 +84,7 @@ async def handle_creation_request(
             status_code=400, detail=ServiceExceptions.STATION_NOT_AVAILABLE.value
         )
 
-    # 4: Check if the user already has a running session
+    # 3: Check if the user already has a running session
     session: Session = await Session().find(user_id=user_id, session_active=True)
     if session.exists:
         logger.info(ServiceExceptions.USER_HAS_ACTIVE_SESSION, user=user_id)
@@ -92,7 +92,7 @@ async def handle_creation_request(
             status_code=400, detail=ServiceExceptions.USER_HAS_ACTIVE_SESSION.value
         )
 
-    # 5: Check whether the user has had too many expired sessions recently
+    # 4: Check whether the user has had too many expired sessions recently
     expired_session_count = await SessionModel.find(
         SessionModel.user.id == user_id,  # pylint: disable=no-member
         SessionModel.session_state == SessionStates.EXPIRED,
@@ -105,14 +105,14 @@ async def handle_creation_request(
             status_code=400, detail=ServiceExceptions.LIMIT_EXCEEDED.value
         )
 
-    # 6: Check whether the given locker type exists
+    # 5: Check whether the given locker type exists
     if locker_type not in LOCKER_TYPES.keys():
         raise HTTPException(
             status_code=400, detail=ServiceExceptions.INVALID_LOCKER_TYPE
         )
     locker_type = LOCKER_TYPES[locker_type]
 
-    # 7: Try to claim a locker at this station
+    # 6: Try to claim a locker at this station
     locker: Locker = await Locker().find_available(
         station=station, locker_type=locker_type)
     if not locker.exists:
@@ -120,12 +120,23 @@ async def handle_creation_request(
             status_code=404, detail=ServiceExceptions.LOCKER_NOT_AVAILABLE.value
         )
 
-    # 6: Create a new session
-    session: Session = await Session.create(user_id=user_id,
-                                            locker=locker.document,
-                                            station=station.document)
+    # 7: Create a new session
+    session: Session = await Session.create(
+        user_id=user_id,
+        locker=locker.document,
+        station=station.document)
     logger.debug(
         f"Created session '{session.id}' at locker '{locker.id}'."
+    )
+
+    # 8: Await user to select payment method
+    await Task().create(
+        task_type=TaskTypes.USER,
+        station=station.document,
+        session=session.document,
+        queued_state=None,
+        timeout_states=[SessionStates.EXPIRED],
+        has_queue=False
     )
 
     # 8: Log the action
@@ -154,11 +165,18 @@ async def handle_payment_selection(
     session: Session = await Session().find(session_id=session_id)
     await session.fetch_links()
     if str(session.user) != user_id:
-        logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
+        logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session.id)
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
 
-    # 3: Check if the session is in the correct state
+    # 3: Find the related task
+    task: Task = await Task().find(
+        assigned_session=session.id,
+        task_type=TaskTypes.USER,
+        task_state=TaskStates.PENDING)
+    await task.set_state(TaskStates.COMPLETED)
+
+    # 4: Check if the session is in the correct state
     if session.session_state != SessionStates.CREATED:
         logger.info(ServiceExceptions.WRONG_SESSION_STATE,
                     session=session_id, detail=session.session_state.name)
@@ -166,7 +184,7 @@ async def handle_payment_selection(
             status_code=400, detail=ServiceExceptions.WRONG_SESSION_STATE.value
         )
 
-    # 4: Assign the payment method to the session
+    # 5: Assign the payment method to the session
     await session.assign_payment_method(payment_method)
     await session.set_state(SessionStates.PAYMENT_SELECTED, notify=False)
 
@@ -178,9 +196,10 @@ async def handle_verification_request(
     user_id: UUID
 ) -> Optional[SessionView]:
     """Enter the verification queue of a session."""
-    # 1: Find the session
+    # 1: Find the related session
     session: Session = await Session().find(session_id=session_id)
     await session.fetch_links()
+    # TODO: Maybe we can write a custom AssertException handler that takes the ServiceException and creates a HTTPException
     if str(session.user) != user_id:
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session_id)
         raise HTTPException(
@@ -202,15 +221,14 @@ async def handle_verification_request(
             status_code=500, detail=ServiceExceptions.STATION_NOT_FOUND.value
         )
 
-    # 5: Create a task item at this station
+    # 5: Await station to enable terminal
     await session.document.fetch_all_links()
     await Task().create(
-        task_type=TaskTypes.USER,
+        task_type=TaskTypes.TERMINAL,
         station=session.assigned_station,
         session=session.document,
         queued_state=SessionStates.VERIFICATION,
-        timeout_states=[SessionStates.PAYMENT_SELECTED,
-                        SessionStates.EXPIRED],
+        timeout_states=[SessionStates.ABORTED],
         has_queue=True
     )
 
@@ -290,9 +308,9 @@ async def handle_payment_request(session_id: ObjId, user_id: UUID) -> Optional[S
     # 5: Create a payment object
     await Payment().create(session=session.document)
 
-    # 5: Create a task item and execute if it is next in the queue
+    # 5: Await station to enable terminal
     await Task().create(
-        task_type=TaskTypes.USER,
+        task_type=TaskTypes.TERMINAL,
         station=session.assigned_station,
         session=session.document,
         queued_state=SessionStates.PAYMENT,
