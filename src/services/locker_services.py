@@ -1,27 +1,25 @@
 """Provides utility functions for the locker management backend."""
 
 # Basics
-import yaml
-
 # Typing
 from typing import Dict
-from enum import Enum
 
+import yaml
+from beanie import PydanticObjectId as ObjId
+
+from src.entities.locker_entity import Locker
+from src.entities.session_entity import Session
 # Entities
 from src.entities.station_entity import Station
-from src.entities.session_entity import Session
-from src.entities.locker_entity import Locker
 from src.entities.task_entity import Task
-
 # Models
-from src.models.locker_models import LockerType, LockerStates
+from src.models.locker_models import LockerStates, LockerType
 from src.models.session_models import SessionStates
 from src.models.task_models import TaskStates, TaskTypes
-
+from src.services.action_services import create_action
+from src.services.exception_services import ServiceExceptions
 # Services
 from src.services.logging_services import logger
-from src.services.exceptions import ServiceExceptions
-from src.services.action_services import create_action
 
 # Singleton for pricing models
 LOCKER_TYPES: Dict[str, LockerType] = None
@@ -43,6 +41,34 @@ if LOCKER_TYPES is None:
     except TypeError as e:
         logger.warning(f"Data structure mismatch: {e}")
         LOCKER_TYPES = {}
+
+
+class LockerNotFoundException(Exception):
+    """Exception raised when a locker cannot be found by a given query."""
+
+    def __init__(self, locker_id: ObjId = None):
+        super().__init__()
+        self.locker = locker_id
+        logger.warning(
+            f"Could not find locker '{self.locker}' in database.")
+
+    def __str__(self):
+        return f"Locker '{self.locker}' not found.)"
+
+
+class InvalidLockerStateException(Exception):
+    """Exception raised when a locker is not matching the expected state."""
+
+    def __init__(self, locker_id: ObjId, expected_state: LockerStates, actual_state: LockerStates):
+        super().__init__()
+        self.locker_id = locker_id
+        self.expected_state = expected_state
+        self.actual_state = actual_state
+        logger.warning(
+            f"Locker '{locker_id}' should be in {expected_state}, but is currently registered as {actual_state}")
+
+    def __str__(self):
+        return f"Invalid state of locker '{self.locker_id}'.)"
 
 
 async def handle_lock_report(call_sign: str, locker_index: int) -> None:

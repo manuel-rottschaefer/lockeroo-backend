@@ -3,19 +3,19 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List, Union
+from typing import List, Optional, Union
+
+# Beanie
+from beanie import Document, Link
+from beanie import PydanticObjectId as ObjId
+from beanie import Update, after_event
 from dotenv import load_dotenv
 from pydantic import Field
 
-# Beanie
-from beanie import Document, Link, Update, after_event
-from beanie import PydanticObjectId as ObjId
-
+from src.models.locker_models import LockerStates
 # Models
 from src.models.session_models import SessionModel, SessionStates
 from src.models.station_models import StationModel
-from src.models.locker_models import LockerStates
-
 
 load_dotenv('src/environments/.env')
 

@@ -4,15 +4,13 @@
 
 # FastAPI
 from fastapi import APIRouter
-
 # Auth
 from fief_client import FiefAccessTokenInfo
 
 # Models
 from src.models.session_models import SessionModel
-
 # Services
-from src.services.exceptions import handle_exceptions
+from src.services.exception_services import handle_exceptions
 from src.services.logging_services import logger
 
 # Create the router

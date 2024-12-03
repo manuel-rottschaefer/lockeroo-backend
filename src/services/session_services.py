@@ -1,42 +1,57 @@
 """Provides utility functions for the sesssion management backend."""
-
-# Basics
-from datetime import datetime, timedelta
-
 # Typing
 from typing import List, Optional
 from uuid import UUID
 
 # ObjectID handling
 from beanie import PydanticObjectId as ObjId
-
 # FastAPI utilities
 from fastapi import HTTPException, WebSocket, WebSocketDisconnect
 
+from src.entities.locker_entity import Locker
+from src.entities.payment_entity import Payment
 # Entities
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
-from src.entities.task_entity import Task, TaskTypes, TaskStates
-from src.entities.locker_entity import Locker
-from src.entities.payment_entity import Payment
-
-# Models
-from src.models.session_models import PaymentTypes
-from src.models.session_models import (
-    SessionModel,
-    SessionView,
-    SessionStates,
-)
-
+from src.entities.task_entity import Task, TaskStates, TaskTypes
 from src.models.action_models import ActionModel
-
-
+# Models
+from src.models.session_models import PaymentTypes, SessionStates, SessionView
+from src.services import websocket_services
 # Services
+from src.services.account_services import get_expired_session_count
 from src.services.action_services import create_action
+from src.services.exception_services import ServiceExceptions
 from src.services.locker_services import LOCKER_TYPES
 from src.services.logging_services import logger
-from src.services import websocket_services
-from src.services.exceptions import ServiceExceptions
+
+
+class SessionNotFoundException(Exception):
+    """Exception raised when a station cannot be found by a given query."""
+
+    def __init__(self, session_id: ObjId = None):
+        super().__init__()
+        self.session = session_id
+        logger.warning(
+            f"Could not find session '{self.session}' in database.")
+
+    def __str__(self):
+        return f"Session '{self.session}' not found.)"
+
+
+class InvalidSessionStateException(Exception):
+    """Exception raised when a session is not matching the expected state."""
+
+    def __init__(self, session_id: ObjId, expected_state: SessionStates, actual_state: SessionStates):
+        super().__init__()
+        self.session_id = session_id
+        self.expected_state = expected_state
+        self.actual_state = actual_state
+        logger.warning(
+            f"Session '{session_id}' should be in {expected_state}, but is currently registered as {actual_state}.")
+
+    def __str__(self):
+        return f"Invalid state of session '{self.session_id}'.)"
 
 
 async def get_details(session_id: ObjId, user_id: UUID) -> Optional[SessionView]:
@@ -93,12 +108,7 @@ async def handle_creation_request(
         )
 
     # 4: Check whether the user has had too many expired sessions recently
-    expired_session_count = await SessionModel.find(
-        SessionModel.user.id == user_id,  # pylint: disable=no-member
-        SessionModel.session_state == SessionStates.EXPIRED,
-        SessionModel.created_ts >= (datetime.now() - timedelta(hours=24)),
-        fetch_links=True
-    ).count()
+    expired_session_count = await get_expired_session_count(user_id)
     if expired_session_count > 1:  # TODO: Add handler here
         logger.info(ServiceExceptions.LIMIT_EXCEEDED, user=user_id)
         raise HTTPException(

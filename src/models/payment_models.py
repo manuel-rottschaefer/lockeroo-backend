@@ -1,27 +1,25 @@
 """This module provides the Models for Payment events."""
 # Types
 import dataclasses
-
 # Basics
 from datetime import datetime
-from typing import List, Optional
 from enum import Enum
-import yaml
+from typing import List, Optional
 
+import yaml
 # Types
-from beanie import Document, Link, Update, after_event
+from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
+from beanie import Update, after_event
 from beanie.operators import Set
 from pydantic import BaseModel, Field
 
 # Entities
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
-
+from src.models.session_models import SessionModel
 # Models
 from src.models.station_models import StationModel
-from src.models.session_models import SessionModel
-
 # Services
 from src.services.mqtt_services import fast_mqtt
 

@@ -19,7 +19,7 @@ from src.services.mqtt_services import fast_mqtt
 import src.services.database_services as database
 
 # Routers
-from src.routers.account_router import account_router
+from src.routers.user_router import user_router
 from src.routers.session_router import session_router
 from src.routers.station_router import station_router
 from src.routers.auth_router import auth_router
@@ -64,17 +64,15 @@ app.add_middleware(
 )
 
 # Load dotenv config
-load_dotenv('src/environments/.env')
+load_dotenv('environments/.env.local')
 
 # Include routers
 app.include_router(station_router, prefix="/stations", tags=["Stations"])
 app.include_router(session_router, prefix="/sessions", tags=["Sessions"])
-app.include_router(account_router, prefix="/account",
-                   tags=["Personal Account"])
+app.include_router(user_router, prefix="/users", tags=["Users"])
 app.include_router(auth_router, prefix='/auth', tags=['Authentification'])
-app.include_router(review_router, prefix='/review', tags=['Session Reviews'])
-app.include_router(admin_router, prefix='/admin',
-                   tags=['Administrative endpoints'])
+app.include_router(review_router, prefix='/review', tags=['Reviews'])
+app.include_router(admin_router, prefix='/admin', tags=['Admin'])
 app.include_router(dashboard_router, prefix='/dashboard', tags=['Dashboard'])
 
 if __name__ == "__main__":

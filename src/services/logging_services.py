@@ -1,15 +1,15 @@
 """Provides utility functions for the logging manager."""
 
 # Basics
-from typing import Union
 import logging
-
 # Types
 from datetime import datetime
+from typing import Union
+
 from beanie import PydanticObjectId as ObjId
 
 # Service exceptions
-from src.services.exceptions import ServiceExceptions
+from src.services.exception_services import ServiceExceptions
 
 # UNIX_TS = (datetime.now() - datetime(1970, 1, 1)).total_seconds()
 LOGFILE = f"src/logs/{datetime.today().strftime('%Y-%m-%d')}.log"

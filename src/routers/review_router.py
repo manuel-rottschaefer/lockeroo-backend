@@ -6,21 +6,18 @@ from typing import Annotated
 
 # Database utils
 from beanie import PydanticObjectId as ObjId
-
 # FastAPI
-from fastapi import APIRouter, Path, Query, Depends
-
+from fastapi import APIRouter, Depends, Path, Query
 # Auth
 from fief_client import FiefAccessTokenInfo
 
 # Models
 from src.models.review_models import ReviewModel
-
-# Services
-from src.services.exceptions import handle_exceptions
-from src.services.logging_services import logger
-from src.services.auth_services import auth
 from src.services import review_services
+from src.services.auth_services import auth
+# Services
+from src.services.exception_services import handle_exceptions
+from src.services.logging_services import logger
 
 # Create the router
 review_router = APIRouter()

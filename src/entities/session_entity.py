@@ -2,28 +2,23 @@
 
 # Basics
 from datetime import datetime, timedelta
-from uuid import UUID
-
 # Types
 from typing import List, Optional
+from uuid import UUID
 
 # Beanie
 from beanie import After, SortDirection
 from beanie.operators import Set
 
-# Models
-from src.models.session_models import PaymentTypes
-from src.models.station_models import StationModel
-from src.models.locker_models import LockerModel
-from src.models.action_models import ActionModel
-from src.models.user_models import UserModel
-from src.models.session_models import (SessionModel,
-                                       SessionView,
-                                       SessionStates)
-
 # Entities
 from src.entities.entity_utils import Entity
-
+from src.models.action_models import ActionModel
+from src.models.locker_models import LockerModel
+# Models
+from src.models.session_models import (PaymentTypes, SessionModel,
+                                       SessionStates, SessionView)
+from src.models.station_models import StationModel
+from src.models.user_models import UserModel
 # Services
 from src.services.logging_services import logger
 
@@ -50,7 +45,7 @@ class Session(Entity):
 
         query = {
             SessionModel.id: session_id,
-            SessionModel.user: user_id,
+            SessionModel.user.fief_id: user_id,  # pylint: disable=no-member
             SessionModel.session_state: session_state,
             SessionModel.is_active: session_active,
             SessionModel.assigned_station: assigned_station,
@@ -65,7 +60,6 @@ class Session(Entity):
         ).sort((SessionModel.created_ts, SortDirection.DESCENDING)).first_or_none()
 
         if session_item:
-            print(session_item)
             instance.document = session_item
         return instance
 
@@ -161,10 +155,12 @@ class Session(Entity):
                 await self.document.update(
                     Set({SessionModel.session_state: state}), skip_actions=[After])
             if state['is_active'] and not self.is_active:
-                await self.document.update(Set({SessionModel.is_active: True}))
+                await self.document.update(
+                    Set({SessionModel.is_active: True}), skip_actions=[After])
             elif not state['is_active'] and self.is_active:
-                await self.document.update(Set({SessionModel.is_active: False}))
-
+                await self.document.update(
+                    Set({SessionModel.is_active: False}), skip_actions=[After])
+            # TODO: FIXME: Flow does not reach debug statement
             logger.debug(
                 f"Session '{self.id}' updated to {self.session_state}."
             )

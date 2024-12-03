@@ -3,16 +3,16 @@ This module describes the database model for actions, which are representations
 of events related to a sessionthat are seperately to provide
 detailed session history data and better understand special cases.
 """
+# Types
+import dataclasses
 # Basics
 from datetime import datetime
 
-# Types
-import dataclasses
-from pydantic import Field
-
 # Beanie
-from beanie import Document, Link, View
+from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
+from beanie import View
+from pydantic import Field
 
 # Models
 from src.models.session_models import SessionModel, SessionStates

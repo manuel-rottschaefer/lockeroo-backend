@@ -2,9 +2,8 @@
 
 # Basics
 import logging
-from functools import wraps
 import re
-
+from functools import wraps
 
 # FastAPI
 from fastapi_mqtt import FastMQTT, MQTTConfig

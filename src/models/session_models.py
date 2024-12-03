@@ -1,23 +1,22 @@
 """This module provides the Models for Session management."""
 # Basics
-from datetime import datetime, timedelta
-from enum import Enum
-
 # Types
 import dataclasses
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Dict, Optional, Union
 from uuid import UUID
-from typing import Optional, Dict, Union
-from pydantic import Field
 
 # Beanie
-from beanie import Document, Link, View, Update, after_event
+from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
+from beanie import Update, View, after_event
+from pydantic import Field
 
+from src.models.locker_models import LockerModel
 # Models
 from src.models.station_models import StationModel
-from src.models.locker_models import LockerModel
 from src.models.user_models import UserModel
-
 # Services
 from src.services import websocket_services
 
