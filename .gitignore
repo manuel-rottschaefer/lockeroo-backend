@@ -21,6 +21,7 @@ dep/*
 tools/*
 Obsidian/*
 kanpilot.toml
+docs/*
 
 # Ignore environments (API Keys in there!!)
 environments
