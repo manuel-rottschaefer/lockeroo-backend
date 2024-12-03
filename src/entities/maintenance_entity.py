@@ -3,21 +3,18 @@
 # Basics
 from datetime import datetime
 
+# Types
+from beanie import PydanticObjectId as ObjId
 # FastAPI
 from fastapi import HTTPException
 
-# Types
-from beanie import PydanticObjectId as ObjId
-
-# Models
-from src.models.maintenance_models import MaintenanceModel, MaintenanceStates
-
 # Entities
 from src.entities.entity_utils import Entity
-
+# Models
+from src.models.maintenance_models import MaintenanceModel, MaintenanceStates
+from src.services.exception_services import ServiceExceptions
 # Services
 from src.services.logging_services import logger
-from src.services.exceptions import ServiceExceptions
 
 
 class Maintenance(Entity):

@@ -9,20 +9,19 @@ from uuid import UUID
 # FastAPI
 from fastapi import APIRouter, HTTPException
 
+from src.models.account_models import UserSummary
 # Models
 from src.models.session_models import SessionModel, SessionView
-from src.models.account_models import AccountSummary
-
 # Services
-from src.services.exceptions import ServiceExceptions
+from src.services.exception_services import ServiceExceptions
 
 # Initialize the router
-account_router = APIRouter()
+user_router = APIRouter()
 
 
-@account_router.get('/{user_id}/history',
-                    response_model=List[SessionView],
-                    description='Get a list of sessions from a user')
+@user_router.get('/{user_id}/history',
+                 response_model=List[SessionView],
+                 description='Get a list of sessions from a user')
 async def get_account_history(user_id: str, count: int = 100):
     """Get a list of completed sessions of this account"""
     # Get station data from the database
@@ -37,9 +36,9 @@ async def get_account_history(user_id: str, count: int = 100):
     return session_list
 
 
-@account_router.get('/summary',
-                    response_model=AccountSummary,
-                    description='Get a quick summary of the user activity')
+@user_router.get('/summary',
+                 response_model=UserSummary,
+                 description='Get a quick summary of the user activity')
 async def get_account_summary(_user_id: str):
     """Return user summary"""
     return None

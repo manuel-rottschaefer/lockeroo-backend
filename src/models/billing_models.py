@@ -9,12 +9,11 @@ it is not meant for use within an active session
 from datetime import datetime
 from enum import Enum
 
-# Types
-from pydantic import Field
-
 # Database mapping
 from beanie import Document
 from beanie import PydanticObjectId as ObjId
+# Types
+from pydantic import Field
 
 
 class BillPaymentMethods(Enum, str):

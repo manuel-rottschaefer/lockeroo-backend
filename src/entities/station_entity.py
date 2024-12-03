@@ -4,24 +4,22 @@
 from typing import Optional
 
 # Beanie
-from beanie import PydanticObjectId as ObjId, SortDirection
+from beanie import PydanticObjectId as ObjId
+from beanie import SortDirection
 from beanie.operators import Set
-
 
 # Entities
 from src.entities.entity_utils import Entity
 from src.entities.locker_entity import Locker
-
+from src.models.locker_models import LockerModel
 # Models
 from src.models.session_models import SessionModel, SessionStates
-from src.models.station_models import StationModel, StationStates, TerminalStates
-from src.models.locker_models import LockerModel
-
-# Services
-from src.services.maintenance_services import has_scheduled
-
+from src.models.station_models import (StationModel, StationStates,
+                                       TerminalStates)
 # Logging
 from src.services.logging_services import logger
+# Services
+from src.services.maintenance_services import has_scheduled
 
 
 class Station(Entity):
@@ -60,6 +58,11 @@ class Station(Entity):
         return instance
 
     ### Attributes ###
+    @property
+    def exists(self) -> bool:
+        """Check whether the station entity has a document."""
+        return self.document != None
+
     @property
     async def is_available(self) -> bool:
         """Check whether the station is available for new sessions at the moment.

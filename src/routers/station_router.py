@@ -3,22 +3,23 @@ This module contains the station router which handles all station related reques
 """
 
 # Basics
-from typing import List, Optional, Annotated
+from typing import Annotated, List, Optional
 
-# FastAPI & Beanie
-from fastapi import APIRouter, Path
 from beanie import PydanticObjectId as ObjId
+# FastAPI & Beanie
+from fastapi import APIRouter, Path, Response
 
-# Models
-from src.models.station_models import StationView, StationStates, TerminalStates
-from src.models.session_models import SessionView, SessionStates
 from src.models.locker_models import LockerView
-
+from src.models.session_models import SessionStates, SessionView
+# Models
+from src.models.station_models import (StationStates, StationView,
+                                       TerminalStates)
 # Services
 from src.services import locker_services, station_services
+from src.services.exception_services import (ServiceExceptions,
+                                             handle_exceptions)
 from src.services.logging_services import logger
 from src.services.mqtt_services import fast_mqtt, validate_mqtt_topic
-from src.services.exceptions import ServiceExceptions, handle_exceptions
 
 # Create the router
 station_router = APIRouter()
@@ -40,9 +41,11 @@ async def get_nearby_stations(
                     )
 @handle_exceptions(logger)
 async def get_station_details(
-        call_sign: Annotated[str, Path(pattern='^[A-Z]{6}$')]) -> StationView:
+        call_sign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
+        response: Response) -> StationView:
     """Get detailed information about a station"""
-    return await station_services.get_details(call_sign)
+    return await station_services.get_details(
+        call_sign=call_sign, response=response)
 
 
 @station_router.get('/{call_sign}/active_session_count',
@@ -51,29 +54,35 @@ async def get_station_details(
                     )
 @handle_exceptions(logger)
 async def get_active_session_count(
-        call_sign: Annotated[str, Path(pattern='^[A-Z]{6}$')]) -> StationView:
+        call_sign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
+        response: Response) -> StationView:
     """Get detailed information about a station"""
-    return await station_services.get_active_session_count(call_sign)
+    return await station_services.get_active_session_count(
+        call_sign=call_sign, response=response)
 
 
 @station_router.get('/{call_sign}/lockers/{locker_index}', response_model=LockerView)
 @handle_exceptions(logger)
 async def get_locker_by_index(
         call_sign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
-        locker_index: int) -> Optional[LockerView]:
+        locker_index: int,
+        response: Response) -> Optional[LockerView]:
     """Get the availability of lockers at the station"""
     return await station_services.get_locker_by_index(
         call_sign=call_sign,
-        locker_index=locker_index
+        locker_index=locker_index,
+        response=response
     )
 
 
 @station_router.get('/{call_sign}/lockers/overview', response_model=SessionView)
 @handle_exceptions(logger)
 async def get_locker_overview(
-        call_sign: Annotated[str, Path(pattern='^[A-Z]{6}$')],) -> SessionView:
+        call_sign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
+        response=Response) -> SessionView:
     """Get the availability of lockers at the station"""
-    return await station_services.get_locker_overview(call_sign)
+    return await station_services.get_locker_overview(
+        call_sign=call_sign, response=Response)
 
 
 @station_router.put('/{call_sign}/state', response_model=StationView)
@@ -89,10 +98,13 @@ async def set_station_state(
 
 @station_router.patch('/{call_sign}/reset_queue', response_model=StationView)
 @handle_exceptions(logger)
-async def reset_station_queue(call_sign: Annotated[str, Path(pattern='^[A-Z]{6}$')]) -> StationView:
+async def reset_station_queue(
+        call_sign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
+        response: Response) -> StationView:
     """Reset the queue at the station. This is helpful if the queue is stale."""
     return await station_services.reset_queue(
-        call_sign=call_sign
+        call_sign=call_sign,
+        response=response
     )
 
 

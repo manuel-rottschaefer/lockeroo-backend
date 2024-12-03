@@ -2,19 +2,17 @@
 
 # Types
 from beanie import PydanticObjectId as ObjId
-from beanie.operators import Set, NotIn
-
-# Models
-from src.models.station_models import StationModel
-from src.models.session_models import SessionModel, SessionStates
-from src.models.locker_models import LockerModel, LockerStates, LockerType
-
-# Services
-from src.services.logging_services import logger
-from src.services.mqtt_services import fast_mqtt
+from beanie.operators import NotIn, Set
 
 # Entities
 from src.entities.entity_utils import Entity
+from src.models.locker_models import LockerModel, LockerStates, LockerType
+from src.models.session_models import SessionModel, SessionStates
+# Models
+from src.models.station_models import StationModel
+# Services
+from src.services.logging_services import logger
+from src.services.mqtt_services import fast_mqtt
 
 
 class Locker(Entity):

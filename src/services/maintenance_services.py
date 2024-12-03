@@ -1,8 +1,8 @@
 """Provides utility functions for the maintenance management backend."""
 
 # Typing
-from typing import Optional
 from datetime import datetime, timedelta
+from typing import Optional
 
 # ObjectID handling
 from beanie import PydanticObjectId as ObjId

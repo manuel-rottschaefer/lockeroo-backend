@@ -1,13 +1,13 @@
 """This module provides the Models for Station Maintenance events."""
 # Types
+from datetime import datetime, timedelta
 from enum import Enum
 from typing import Optional
-from datetime import datetime, timedelta
-from pydantic import Field
 
 # Beanie
 from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
+from pydantic import Field
 
 # Models
 from src.models.station_models import StationModel

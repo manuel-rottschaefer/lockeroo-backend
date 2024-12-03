@@ -1,13 +1,13 @@
 """Models for users."""
 
 # Types
-from typing import Optional, List
-from pydantic import Field
+from typing import List, Optional
 from uuid import UUID
 
 # Beanie
 from beanie import Document
 from beanie import PydanticObjectId as ObjId
+from pydantic import Field
 
 
 class UserModel(Document):

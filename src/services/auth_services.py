@@ -1,14 +1,13 @@
 """Provides utility functions for the auth backend."""
 
 # Basics
-from functools import wraps
 import os
+from functools import wraps
 
 # FastAPI
 from fastapi.security import OAuth2AuthorizationCodeBearer
-
 # Fief
-from fief_client import FiefAsync, FiefAccessTokenInfo
+from fief_client import FiefAccessTokenInfo, FiefAsync
 from fief_client.integrations.fastapi import FiefAuth
 
 

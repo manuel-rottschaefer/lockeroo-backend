@@ -1,8 +1,12 @@
 """Provides custom service exceptions for the backend."""
+##########
+# In HTTP services, we raise custom exceptions if something actually unexpected happens
+# and http exceptions if the user requested weird shit.
+#########
 
+from enum import Enum
 # Basics
 from functools import wraps
-from enum import Enum
 
 # Exceptions
 from fastapi import HTTPException
@@ -30,7 +34,7 @@ class ServiceExceptions(Enum):
     """Custom exceptions for the session services"""
 
     # Generics
-    NOT_AUTHORIZED = 'not_authorized'
+    NOT_AUTHORIZED = 'not_authorized'  # replace
     LIMIT_EXCEEDED = 'limit_exceeded'
 
     # Stations
@@ -38,18 +42,18 @@ class ServiceExceptions(Enum):
     STATION_NOT_AVAILABLE = "station_not_available"
     STATION_PAYMENT_NOT_AVAILABLE = "station_payment_not_available"
     PAYMENT_METHOD_NOT_SUPPORTED = "payment_method_not_supported"
-    INVALID_TERMINAL_STATE = "invalid_terminal_state"
+    INVALID_TERMINAL_STATE = "invalid_terminal_state"  # replace
 
     # Sessions
     SESSION_NOT_FOUND = "session_not_found"
-    WRONG_SESSION_STATE = "invalid_session_state"
-    SESSION_EXPIRED = "session_expired"
+    WRONG_SESSION_STATE = "invalid_session_state"  # replace
+    SESSION_EXPIRED = "session_expired"  # remove
     INVALID_PAYMENT_METHOD = "invalid_payment_method"
 
     # Locker
     LOCKER_NOT_FOUND = "locker_not_found"
     LOCKER_NOT_AVAILABLE = "locker_not_available"
-    INVALID_LOCKER_STATE = "invalid_locker_state"
+    INVALID_LOCKER_STATE = "invalid_locker_state"  # replace
     INVALID_LOCKER_TYPE = "invalid_locker_type"
 
     # Users

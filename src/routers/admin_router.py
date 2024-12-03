@@ -7,9 +7,9 @@ import os
 # FastAPI
 from fastapi import APIRouter
 
-# Services
-from src.services.exceptions import handle_exceptions
 from src.services.database_services import restore_mock_data
+# Services
+from src.services.exception_services import handle_exceptions
 from src.services.logging_services import logger
 
 # Create the router
