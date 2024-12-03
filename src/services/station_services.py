@@ -14,7 +14,7 @@ from src.entities.locker_entity import Locker
 from src.entities.session_entity import Session
 # Entities
 from src.entities.station_entity import Station
-from src.entities.task_entity import Task
+from src.entities.task_entity import Task, restart_expiration_manager
 # Models
 from src.models.locker_models import LockerModel, LockerStates
 from src.models.session_models import SessionModel, SessionStates
@@ -22,7 +22,7 @@ from src.models.station_models import (StationLockerAvailabilities,
                                        StationModel, StationStates,
                                        StationType, StationView,
                                        TerminalStates)
-from src.models.task_models import TaskItemModel, TaskStates, TaskTypes
+from src.models.task_models import TaskItemModel, TaskTypes, TaskStates
 # Services
 from src.services.exception_services import ServiceExceptions
 from src.services.logging_services import logger
@@ -209,7 +209,7 @@ async def handle_action_report(
         call_sign=call_sign,
         task_type=TaskTypes.USER,
         task_state=TaskStates.PENDING)
-    if not task.exists():
+    if not task.exists:
         raise InvalidStationReportException(
             call_sign, expected_terminal_state.value,)
     await task.fetch_links()
