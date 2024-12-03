@@ -7,18 +7,11 @@ from typing import Dict
 import yaml
 from beanie import PydanticObjectId as ObjId
 
-from src.entities.locker_entity import Locker
-from src.entities.session_entity import Session
 # Entities
 from src.entities.station_entity import Station
-<<<<<<< HEAD
 from src.entities.session_entity import Session
 from src.entities.locker_entity import Locker
 from src.entities.task_entity import Task, restart_expiration_manager
-
-=======
-from src.entities.task_entity import Task
->>>>>>> newCustomExceptions
 # Models
 from src.models.locker_models import LockerStates, LockerType
 from src.models.session_models import SessionStates
@@ -86,6 +79,10 @@ async def handle_lock_report(call_sign: str, locker_index: int) -> None:
         task_type=TaskTypes.USER,
         task_state=TaskStates.PENDING,
         locker_index=locker_index)
+    if not task.exists:
+        logger.info(f"Cannot find task of {
+                    TaskTypes.USER} at station '{call_sign}'.")
+        return
     await task.fetch_links()
 
     # 2: Find the affected locker
