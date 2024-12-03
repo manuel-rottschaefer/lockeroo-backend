@@ -25,10 +25,10 @@ def require_auth(func):
                 access_info = await auth.authenticated()
                 kwargs['access_info'] = access_info
         else:
-            # Use the provided user_id if available, otherwise use the default user ID
-            user_id = kwargs.get('user_id') or os.getenv('DEFAULT_USER_ID')
-            # logger.info(f"Authentication disabled. Using user ID: {user_id}")
-            kwargs['access_info'] = {'id': user_id}
+            # Use the provided account ID if available, otherwise use the default account ID
+            account_id = kwargs.get(
+                'account_id') or os.getenv('DEFAULT_USER_ID')
+            kwargs['access_info'] = {'id': account_id}
 
         return await func(*args, **kwargs)
 

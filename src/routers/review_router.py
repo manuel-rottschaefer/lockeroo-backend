@@ -37,7 +37,7 @@ async def get_review(
     """Handle request to get a review for a session"""
     return await review_services.get_session_review(
         session_id=ObjId(session_id),
-        user_id=ObjId(access_info['id'])
+        account_id=ObjId(access_info['id'])
     )
 
 
@@ -55,7 +55,7 @@ async def submit_review(
     """Handle request to submit a review for a completed session"""
     return await review_services.handle_review_submission(
         session_id=session_id,
-        user_id=access_info['id'],
+        account_id=access_info['id'],
         experience_rating=experience_rating,
         cleanliness_rating=cleanliness_rating,
         details=details

@@ -24,7 +24,7 @@ from src.services.logging_services import logger
 
 
 async def handle_review_submission(session_id: ObjId,
-                                   user_id: UUID,
+                                   account_id: UUID,
                                    experience_rating: int,
                                    cleanliness_rating: int,
                                    details: str):
@@ -32,7 +32,7 @@ async def handle_review_submission(session_id: ObjId,
     # 1: Get session
     session: SessionModel = await SessionModel.find_one(
         SessionModel.id == session_id,
-        SessionModel.user == user_id
+        SessionModel.assigned_account == account_id
     )
     if not session:
         raise HTTPException(status_code=404,
@@ -41,7 +41,7 @@ async def handle_review_submission(session_id: ObjId,
     # 2: Check if the session has already been completed
     if session.session_state != SessionStates.COMPLETED:
         logger.info(ServiceExceptions.WRONG_SESSION_STATE,
-                    user=user_id, session=session_id)
+                    account=account_id, session=session_id)
         raise HTTPException(
             status_code=404, detail=ServiceExceptions.WRONG_SESSION_STATE.value)
 
@@ -55,7 +55,7 @@ async def handle_review_submission(session_id: ObjId,
     ).insert()
 
 
-async def get_session_review(session_id: ObjId, user_id: UUID) -> Optional[ReviewModel]:
+async def get_session_review(session_id: ObjId, account_id: UUID) -> Optional[ReviewModel]:
     """Return a review for a session from the database."""
     # 1: Find the review entry
     review: ReviewModel = await ReviewModel.find_one(
@@ -71,7 +71,7 @@ async def get_session_review(session_id: ObjId, user_id: UUID) -> Optional[Revie
         logger.warning(
             f'Session {review.assigned_session.id} does not exist, but should.')
         return None
-    if session.user != user_id:
+    if session.assigned_account != account_id:
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
 

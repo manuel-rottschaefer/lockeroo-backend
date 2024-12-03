@@ -1,4 +1,4 @@
-"""User Models."""
+"""This module provides the Models for account management."""
 # Types
 import dataclasses
 
@@ -36,11 +36,11 @@ class AccountModel(BeanieBaseUser, Document):  # pylint: disable=too-many-ancest
     # Authentication
     hashed_password: Optional[str] = None
 
-    # User Properties
+    # Properties
     active_auth_method: AuthMethod = AuthMethod.EMAIL
     has_active_session: bool = False
 
-    # User statistics
+    # statistics
     signedUpTS: datetime
     lastLoginTS: Optional[datetime] = None
     totalSessions: int = 0
@@ -48,7 +48,7 @@ class AccountModel(BeanieBaseUser, Document):  # pylint: disable=too-many-ancest
 
     @dataclasses.dataclass
     class Settings:  # pylint: disable=missing-class-docstring
-        name = "users"
+        name = "accounts"
 
 
 class AccountSummary(View):
@@ -58,24 +58,3 @@ class AccountSummary(View):
     first_name: str
     total_sessions: int = 0
     total_session_duration: int = 0
-
-
-class AccountCreate(BeanieBaseUser):
-    """View after creation of a user."""
-
-    firstName: str
-    lastName: str
-    email: Optional[str]
-    password: str
-    activeAuthMethod: AuthMethod = AuthMethod.EMAIL
-
-
-class AccountUpdate(BeanieBaseUser):
-    """View after update of a user."""
-
-    firstName: Optional[str] = None
-    lastName: Optional[str] = None
-
-
-# async def get_user_db():
-#    yield BeanieUserDatabase(UserModel)

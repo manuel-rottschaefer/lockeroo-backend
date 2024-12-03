@@ -16,7 +16,7 @@ from src.models.session_models import PaymentTypes
 from src.models.station_models import StationModel
 from src.models.locker_models import LockerModel
 from src.models.action_models import ActionModel
-from src.models.user_models import UserModel
+from src.models.account_models import AccountModel
 from src.models.session_models import (SessionModel,
                                        SessionView,
                                        SessionStates)
@@ -39,7 +39,8 @@ class Session(Entity):
     async def find(
         cls,
         session_id: Optional[str] = None,
-        user_id: Optional[UUID] = None,
+        # Change to accountModel.id
+        account_id: Optional[UUID] = None,
         session_state: Optional[SessionStates] = None,
         session_active: Optional[bool] = None,
         assigned_station: Optional[StationModel] = None,
@@ -50,7 +51,7 @@ class Session(Entity):
 
         query = {
             SessionModel.id: session_id,
-            SessionModel.user: user_id,
+            SessionModel.assigned_account: account_id,
             SessionModel.session_state: session_state,
             SessionModel.is_active: session_active,
             SessionModel.assigned_station: assigned_station,
@@ -65,20 +66,19 @@ class Session(Entity):
         ).sort((SessionModel.created_ts, SortDirection.DESCENDING)).first_or_none()
 
         if session_item:
-            print(session_item)
             instance.document = session_item
         return instance
 
     @classmethod
     async def create(
-        cls, user_id: UUID,
+        cls, account_id: UUID,  # TODO: Change to accountModel.id
         station: StationModel,
         locker: LockerModel
     ):
         """Create a new session item and insert it into the database."""
         instance = cls()
         instance.document = SessionModel(
-            user=user_id,
+            assigned_account=account_id,
             assigned_station=station,
             assigned_locker=locker,
             session_state=SessionStates.CREATED,
@@ -93,21 +93,21 @@ class Session(Entity):
         return SessionView(
             id=document.id,
             assigned_station=document.assigned_station.id,
-            user=document.user,
+            assigned_account=document.assigned_account,
             locker_index=document.assigned_locker.station_index if document.assigned_locker else None,
             session_type=document.session_type,
             session_state=document.session_state.name,
             created_ts=document.created_ts
         )
 
-    ### Calculated Properties ###
+        ### Calculated Properties ###
 
-    @property
+    @ property
     def exists(self) -> bool:
         """Check whether this object exists."""
         return self.document is not None
 
-    @property
+    @ property
     async def total_duration(self) -> timedelta:
         """Returns the amount of seconds between session creation and completion or now."""
         # Return the seconds since the session was created if it is still running
@@ -123,7 +123,7 @@ class Session(Entity):
 
         return completed.timestamp - self.document.created_ts
 
-    @property
+    @ property
     async def active_duration(self) -> timedelta:
         """Returns the amount of seconds the session has been active until now,
         i.e time that the user gets charged for."""
@@ -145,9 +145,9 @@ class Session(Entity):
                 cycle_start = action.timestamp
             elif action.action_type in hold_states:
                 active_duration += action.timestamp - cycle_start
-        return active_duration
+                return active_duration
 
-    @property
+    @ property
     async def next_state(self) -> SessionStates:
         """Return the next logical state of the session."""
         return getattr(SessionStates, self.session_state['next'])
@@ -160,18 +160,18 @@ class Session(Entity):
             else:
                 await self.document.update(
                     Set({SessionModel.session_state: state}), skip_actions=[After])
-            if state['is_active'] and not self.is_active:
-                await self.document.update(Set({SessionModel.is_active: True}))
-            elif not state['is_active'] and self.is_active:
-                await self.document.update(Set({SessionModel.is_active: False}))
+                if state['is_active'] and not self.is_active:
+                    await self.document.update(Set({SessionModel.is_active: True}))
+                elif not state['is_active'] and self.is_active:
+                    await self.document.update(Set({SessionModel.is_active: False}))
 
-            logger.debug(
-                f"Session '{self.id}' updated to {self.session_state}."
-            )
+                logger.debug(
+                    f"Session '{self.id}' updated to {self.session_state}."
+                )
 
         except (ValueError, TypeError) as e:
             logger.error(f"Failed to update state of session '{
-                         self.id}': {e}.")
+                self.id}': {e}.")
 
     async def assign_payment_method(self, method: PaymentTypes):
         """Assign a payment method to a session."""
@@ -197,11 +197,11 @@ class Session(Entity):
         # Update station statistics
         await self.assigned_station.inc(
             {StationModel.total_sessions: 1,
-             StationModel.total_session_duration: total_duration})
-        # Update user statistics
-        # TODO: Make this UserModel only
-        if type(self.document.user == UUID):
+                StationModel.total_session_duration: total_duration})
+        # Update account statistics
+        # TODO: Make this AccountModel only
+        if type(self.document.account == UUID):
             return
-        await self.document.user.inc(
-            {UserModel.total_sessions: 1,
-             UserModel.total_session_duration: total_duration})
+            await self.document.account.inc(
+                {AccountModel.total_sessions: 1,
+                    AccountModel.total_session_duration: total_duration})

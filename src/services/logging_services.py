@@ -49,7 +49,7 @@ class LoggingService:
              session: Union[str, ObjId] = '',
              station: Union[str, ObjId] = '',
              locker: Union[str, ObjId] = '',
-             user: Union[str, ObjId] = '',
+             account: Union[str, ObjId] = '',
              detail: str = ''):
         """As the info level is for strictly defined service exceptions,
         it does not accept regular strings as messages.

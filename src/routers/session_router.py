@@ -43,7 +43,7 @@ async def get_session_details(
     for refreshingthe app-state in case of disconnect or re-open."""
     return await session_services.get_details(
         session_id=ObjId(session_id),
-        user_id=access_info['id']
+        account_id=access_info['id']
     )
 
 
@@ -55,11 +55,11 @@ async def request_new_session(
     station_callsign: Annotated[str, Query(pattern='^[A-Z]{6}$')],
     locker_type: str,
     access_info: FiefAccessTokenInfo = None,
-    user_id: str = None
+    account_id: str = None
 ):
     """Handle request to create a new session"""
     return await session_services.handle_creation_request(
-        user_id=access_info['id'],
+        account_id=access_info['id'],
         callsign=station_callsign,
         locker_type=locker_type
     )
@@ -72,12 +72,12 @@ async def request_new_session(
 async def request_session_cancel(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
     access_info: FiefAccessTokenInfo = None,
-    user_id: str = None
+    account_id: str = None
 ):
     """Handle request to cancel a locker session"""
     return await session_services.handle_cancel_request(
         session_id=session_id,
-        user_id=access_info['id']
+        account_id=access_info['id']
     )
 
 
@@ -90,12 +90,12 @@ async def choose_session_payment_method(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
     payment_method: PaymentTypes,
     access_info: FiefAccessTokenInfo = None,
-    user_id: str = None
+    account_id: str = None
 ):
     """Handle request to select a payment method"""
     return await session_services.handle_payment_selection(
         session_id=ObjId(session_id),
-        user_id=access_info['id'],
+        account_id=access_info['id'],
         payment_method=payment_method
     )
 
@@ -108,12 +108,12 @@ async def choose_session_payment_method(
 async def request_session_verification(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
     access_info: FiefAccessTokenInfo = None,
-    user_id: str = None
+    account_id: str = None
 ):
     """Handle request to enter the verification queue of a session"""
     return await session_services.handle_verification_request(
         session_id=ObjId(session_id),
-        user_id=access_info['id'])
+        account_id=access_info['id'])
 
 
 @ session_router.put('/{session_id}/hold',
@@ -128,7 +128,7 @@ async def request_session_hold(
     """Handle request to pause a locker session"""
     return await session_services.handle_hold_request(
         session_id=ObjId(session_id),
-        user_id=access_info['id']
+        account_id=access_info['id']
     )
 
 
@@ -144,7 +144,7 @@ async def request_session_payment(
     """Handle request to enter the payment phase of a session"""
     return await session_services.handle_payment_request(
         session_id=ObjId(session_id),
-        user_id=access_info['id']
+        account_id=access_info['id']
     )
 
 
@@ -160,7 +160,7 @@ async def get_session_history(
     """Handle request to obtain a list of all actions from a session."""
     return await session_services.get_session_history(
         session_id=session_id,
-        user_id=access_info['id']
+        account_id=access_info['id']
     )
 
 

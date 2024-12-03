@@ -16,7 +16,7 @@ from beanie import PydanticObjectId as ObjId
 # Models
 from src.models.station_models import StationModel
 from src.models.locker_models import LockerModel
-from src.models.user_models import UserModel
+from src.models.account_models import AccountModel
 
 # Services
 from src.services import websocket_services
@@ -69,7 +69,7 @@ class SessionStates(Dict, Enum):
     # Session has expired but locker remained open
     STALE = {"name": "STALE", "timeout_secs": 0,
              "is_active": False, "next": ''}
-    # Session has expired due to exceeded time window by user
+    # Session has expired because user exceeded a time window
     EXPIRED = {"name": "EXPIRED", "timeout_secs": 0,
                "is_active": False, "next": ''}
     # Session has expired due to internal failure / no response from station
@@ -94,8 +94,8 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     assigned_locker: Link[LockerModel] = Field(
         description="The assigned locker to this session.")
 
-    user: Union[Link[UserModel], UUID] = Field(  # TODO: Remove union here
-        None, description="The assigned user to this session.")
+    assigned_account: Union[Link[AccountModel], UUID] = Field(  # TODO: Remove union here
+        None, description="The assigned account to this session.")
 
     created_ts: datetime = Field(
         datetime.now(), description="Datetime of session creation.")
@@ -103,7 +103,7 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     ### Session Properties ###
     session_type: SessionTypes = Field(
         default=SessionTypes.PERSONAL, description="The type of session service.\
-            Affects price and user flow.")
+            Affects price and session flow.")
     payment_method: Optional[PaymentTypes] = Field(
         default=PaymentTypes.TERMINAL, description="The type of payment method.\
             Affects ability to hold and resume sessions.")
@@ -142,7 +142,7 @@ class SessionView(View):
     assigned_station: ObjId = Field(
         description="Station at which the session takes place")
 
-    user: UUID = Field(
+    assigned_account: UUID = Field(
         None, description="The assigned user to this session.")
 
     locker_index: Optional[int] = Field(
@@ -166,7 +166,7 @@ class SessionView(View):
         source = SessionModel
         projection = {
             "id": "$_id",
-            "user": "$user",
+            "assigned_account": "$assigned_account",
             "session_state": "$session_state.name",
             "session_type": "$session_type",
             "assigned_station": "$assigned_station._id",
