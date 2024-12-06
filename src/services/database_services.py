@@ -67,11 +67,11 @@ async def restore_mock_data(directory):
                     db["stations"].create_index([("location", "2dsphere")])
                 for item in data:
                     item = convert_oid(item)
-                    if collection_name == "stations":
-                        station = StationModel(**item)
-                        await station.insert()
-                    else:
-                        await collection.insert_one(item)
+                    # if collection_name == "stations":
+                    #    station = StationModel(**item)
+                    #    await station.insert()
+                    # else:
+                    await collection.insert_one(item)
 
             elif data:
                 data = convert_oid(data)

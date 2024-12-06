@@ -17,6 +17,7 @@ from src.entities.session_entity import Session
 # Nodels
 from src.models.review_models import ReviewModel
 from src.models.session_models import SessionModel, SessionStates
+from src.models.user_models import UserModel
 
 # Services
 from src.services.exceptions import ServiceExceptions
@@ -24,7 +25,7 @@ from src.services.logging_services import logger
 
 
 async def handle_review_submission(session_id: ObjId,
-                                   account_id: UUID,
+                                   user: UserModel,
                                    experience_rating: int,
                                    cleanliness_rating: int,
                                    details: str):
@@ -32,7 +33,7 @@ async def handle_review_submission(session_id: ObjId,
     # 1: Get session
     session: SessionModel = await SessionModel.find_one(
         SessionModel.id == session_id,
-        SessionModel.assigned_account == account_id
+        SessionModel.user == user
     )
     if not session:
         raise HTTPException(status_code=404,
@@ -41,7 +42,7 @@ async def handle_review_submission(session_id: ObjId,
     # 2: Check if the session has already been completed
     if session.session_state != SessionStates.COMPLETED:
         logger.info(ServiceExceptions.WRONG_SESSION_STATE,
-                    account=account_id, session=session_id)
+                    account=user.id, session=session_id)
         raise HTTPException(
             status_code=404, detail=ServiceExceptions.WRONG_SESSION_STATE.value)
 
@@ -55,7 +56,9 @@ async def handle_review_submission(session_id: ObjId,
     ).insert()
 
 
-async def get_session_review(session_id: ObjId, account_id: UUID) -> Optional[ReviewModel]:
+async def get_session_review(
+        session_id: ObjId,
+        user: UserModel) -> Optional[ReviewModel]:
     """Return a review for a session from the database."""
     # 1: Find the review entry
     review: ReviewModel = await ReviewModel.find_one(
@@ -71,7 +74,8 @@ async def get_session_review(session_id: ObjId, account_id: UUID) -> Optional[Re
         logger.warning(
             f'Session {review.assigned_session.id} does not exist, but should.')
         return None
-    if session.assigned_account != account_id:
+    await session.fetch_link(SessionModel.user)
+    if session.user.id != user.id:
         raise HTTPException(
             status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
 

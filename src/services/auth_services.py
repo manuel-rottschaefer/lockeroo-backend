@@ -5,34 +5,31 @@ from functools import wraps
 import os
 
 # FastAPI
+from fastapi import Header
 from fastapi.security import OAuth2AuthorizationCodeBearer
 
 # Fief
 from fief_client import FiefAsync, FiefAccessTokenInfo
 from fief_client.integrations.fastapi import FiefAuth
 
+# Models
+from src.models.user_models import UserModel
 
-def require_auth(func):
+# Types
+from uuid import UUID
+from typing import Annotated
+
+
+async def require_auth(user: Annotated[str | None, Header()] = None):
     """Add authorization middleware to an endpoint."""
-    @wraps(func)
-    async def wrapper(*args, **kwargs):
-        # Check if authentication is enabled
-        auth_enabled = os.getenv('AUTH_ENABLED').lower() == 'TRUE'
+    if user:
+        print('user:', user)
+        user_model = await UserModel.find(UserModel.fief_id == UUID(user)).first_or_none()
+        if not user_model:
+            print('created new user')
+            user_model = await UserModel.insert(UserModel(fief_id=user))
 
-        if auth_enabled:
-            access_info: FiefAccessTokenInfo = kwargs.get('access_info', None)
-            if not access_info:
-                access_info = await auth.authenticated()
-                kwargs['access_info'] = access_info
-        else:
-            # Use the provided account ID if available, otherwise use the default account ID
-            account_id = kwargs.get(
-                'account_id') or os.getenv('DEFAULT_USER_ID')
-            kwargs['access_info'] = {'id': account_id}
-
-        return await func(*args, **kwargs)
-
-    return wrapper
+    return user_model
 
 
 fief = FiefAsync(

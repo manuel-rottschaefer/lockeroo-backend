@@ -157,13 +157,16 @@ async def handle_action_report(
         call_sign=call_sign,
         task_type=TaskTypes.USER,
         task_state=TaskStates.PENDING)
-    await task.fetch_links()
+    if not task.exists:
+        raise InvalidStationReportException(
+            call_sign, expected_terminal_state.value,)
+    await task.fetch_link(TaskItemModel.assigned_session)
 
     session = Session(task.assigned_session)
-    await session.fetch_links()
 
-    assert task.assigned_session.session_state == expected_session_state, f"Session {
-        task.assigned_session.id} is in wrong state"
+    if session.session_state != expected_session_state:
+        raise InvalidSessionStateException(
+            session.id, expected_session_state, session.session_state)
 
     # 3: Check whether the station is currently told to await an action
     station: Station = Station(session.assigned_station)
@@ -195,6 +198,9 @@ async def handle_action_report(
         has_queue=False
     )
 
+    # 8: Save changes
+    await task.save_changes()
+
 
 async def handle_terminal_confirmation(call_sign: str, terminal_state: TerminalStates):
     """Process a station report about its terminal state."""
@@ -207,7 +213,7 @@ async def handle_terminal_confirmation(call_sign: str, terminal_state: TerminalS
         call_sign=call_sign,
         task_type=TaskTypes.TERMINAL,
         task_state=TaskStates.PENDING)
-    await task.fetch_links()
+    await task.fetch_link(TaskItemModel.assigned_session)
 
     # 3: Find assigned session and set to queued state
     session: Session = Session(task.assigned_session)
@@ -225,3 +231,6 @@ async def handle_terminal_confirmation(call_sign: str, terminal_state: TerminalS
                         SessionStates.EXPIRED],
         has_queue=False
     )
+
+    # 4: Update values
+    await task.save_changes()
