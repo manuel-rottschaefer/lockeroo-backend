@@ -4,9 +4,9 @@
 from typing import Dict, List, Optional
 
 import yaml
-from beanie import PydanticObjectId as ObjId
 # Beanie
-from beanie.operators import Near, Set
+from beanie import PydanticObjectId as ObjId
+from beanie.operators import In, Near, Set
 # API services
 from fastapi import Response, status
 
@@ -17,7 +17,7 @@ from src.entities.station_entity import Station
 from src.entities.task_entity import Task, restart_expiration_manager
 # Models
 from src.models.locker_models import LockerModel, LockerStates
-from src.models.session_models import SessionModel, SessionStates
+from src.models.session_models import SessionModel, SessionStates, ACTIVE_SESSION_STATES
 from src.models.station_models import (StationLockerAvailabilities,
                                        StationModel, StationStates,
                                        StationType, StationView,
@@ -123,7 +123,8 @@ async def get_active_session_count(call_sign: str, response: Response) -> Option
 
     return await SessionModel.find(
         SessionModel.assigned_station == station.id,
-        SessionModel.session_state.is_active is True,  # pylint: disable=no-member
+        In(SessionModel.session_state,
+           ACTIVE_SESSION_STATES),  # pylint: disable=no-member
         fetch_links=True
     ).count()
 

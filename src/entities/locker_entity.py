@@ -2,12 +2,12 @@
 
 # Types
 from beanie import PydanticObjectId as ObjId
-from beanie.operators import NotIn, Set
+from beanie.operators import In, NotIn
 
 # Entities
 from src.entities.entity_utils import Entity
 from src.models.locker_models import LockerModel, LockerStates, LockerType
-from src.models.session_models import SessionModel, SessionStates
+from src.models.session_models import SessionModel, SessionStates, ACTIVE_SESSION_STATES
 # Models
 from src.models.station_models import StationModel
 # Services
@@ -71,8 +71,8 @@ class Locker(Entity):
 
         # 2. Find all active sessions at this station
         active_sessions = await SessionModel.find(
-            # SessionModel.assigned_station.id == station.id,  # pylint: disable=no-member
-            SessionModel.is_active == True,  # pylint: disable=singleton-comparison
+            SessionModel.assigned_station.id == station.id,  # pylint: disable=no-member
+            In(SessionModel.session_state, ACTIVE_SESSION_STATES),
             fetch_links=True
         ).to_list()
         active_lockers = [

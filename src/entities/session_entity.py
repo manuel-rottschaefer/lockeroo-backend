@@ -3,8 +3,7 @@
 # Basics
 from datetime import datetime, timedelta
 # Types
-from typing import List, Optional
-from uuid import UUID
+from typing import Union, List, Optional
 
 # Beanie
 from beanie import SortDirection, WriteRules
@@ -12,21 +11,15 @@ from beanie.operators import Set
 
 # Entities
 from src.entities.entity_utils import Entity
-from src.models.action_models import ActionModel
-from src.models.locker_models import LockerModel
 # Models
-from src.models.session_models import (PaymentTypes, SessionModel,
-                                       SessionStates, SessionView)
 from src.models.station_models import StationModel
-from src.models.locker_models import LockerModel
 from src.models.action_models import ActionModel
-from src.models.account_models import AccountModel
+from src.models.locker_models import LockerModel
+from src.models.user_models import UserModel
 from src.models.session_models import (SessionModel,
                                        SessionView,
-                                       SessionStates)
-
-# Entities
-from src.entities.entity_utils import Entity
+                                       SessionStates,
+                                       FOLLOW_UP_STATES)
 
 # Services
 from src.services.logging_services import logger
@@ -39,8 +32,8 @@ class Session(Entity):
         cls,
         session_id: Optional[str] = None,
         user: Optional[UserModel] = None,
-        session_state: Optional[SessionStates] = None,
-        session_active: Optional[bool] = None,
+        session_states: Optional[Union[SessionStates,
+                                       List[SessionStates]]] = None,
         assigned_station: Optional[StationModel] = None,
         locker_index: Optional[int] = None
     ):
@@ -50,11 +43,16 @@ class Session(Entity):
         query = {
             SessionModel.id: session_id,
             SessionModel.user: user,
-            SessionModel.session_state: session_state,
-            SessionModel.is_active: session_active,
             SessionModel.assigned_station: assigned_station,
             SessionModel.assigned_locker.station_index: locker_index,  # pylint: disable=no-member
         }
+
+        # Handle session_state being either a single value or a list
+        if session_states is not None:
+            if isinstance(session_states, list):
+                query[SessionModel.session_state] = {"$in": session_states}
+            else:
+                query[SessionModel.session_state] = session_states
 
         # Filter out None values
         query = {k: v for k, v in query.items() if v is not None}
@@ -149,16 +147,12 @@ class Session(Entity):
     @ property
     async def next_state(self) -> SessionStates:
         """Return the next logical state of the session."""
-        return getattr(SessionStates, self.session_state['next'])
+        return FOLLOW_UP_STATES[self.session_state]
 
     async def set_state(self, state: SessionStates) -> None:
         """Update the current state of a session."""
         try:
             self.document.session_state = state
-            if state['is_active'] and not self.is_active:
-                self.document.is_active = True
-            elif not state['is_active'] and self.is_active:
-                self.document.is_active = False
             logger.debug(
                 f"Session '{self.id}' updated to {self.session_state}."
             )
@@ -167,7 +161,7 @@ class Session(Entity):
             logger.error(f"Failed to update state of session '{
                 self.id}': {e}.")
 
-    async def assign_payment_method(self, method: PaymentTypes):
+    async def assign_payment_method(self, method) -> None:
         """Assign a payment method to a session."""
         try:
             self.document.payment_method = method
@@ -192,9 +186,6 @@ class Session(Entity):
             {StationModel.total_sessions: 1,
              StationModel.total_session_duration: total_duration})
         # Update user statistics
-        # TODO: Make this UserModel only
-        if type(self.document.user.id) == UUID:
-            return
-            await self.document.account.inc(
-                {AccountModel.total_sessions: 1,
-                    AccountModel.total_session_duration: total_duration})
+        await self.document.user.inc({
+            UserModel.total_sessions: 1,
+            UserModel.total_session_duration: total_duration})
