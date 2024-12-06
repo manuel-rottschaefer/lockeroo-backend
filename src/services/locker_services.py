@@ -1,26 +1,25 @@
 """Provides utility functions for the locker management backend."""
 
 # Basics
-import yaml
-
 # Typing
 from typing import Dict
+
+import yaml
+from beanie import PydanticObjectId as ObjId
 
 # Entities
 from src.entities.station_entity import Station
 from src.entities.session_entity import Session
 from src.entities.locker_entity import Locker
 from src.entities.task_entity import Task, restart_expiration_manager
-
 # Models
 from src.models.locker_models import LockerStates, LockerType
-from src.models.task_models import TaskItemModel
 from src.models.session_models import SessionStates
 from src.models.task_models import TaskStates, TaskTypes
-# Services
-from src.services.logging_services import logger
 from src.services.action_services import create_action
 from src.services.exception_services import ServiceExceptions
+# Services
+from src.services.logging_services import logger
 
 # Singleton for pricing models
 LOCKER_TYPES: Dict[str, LockerType] = None
@@ -44,6 +43,34 @@ if LOCKER_TYPES is None:
         LOCKER_TYPES = {}
 
 
+class LockerNotFoundException(Exception):
+    """Exception raised when a locker cannot be found by a given query."""
+
+    def __init__(self, locker_id: ObjId = None):
+        super().__init__()
+        self.locker = locker_id
+        logger.warning(
+            f"Could not find locker '{self.locker}' in database.")
+
+    def __str__(self):
+        return f"Locker '{self.locker}' not found.)"
+
+
+class InvalidLockerStateException(Exception):
+    """Exception raised when a locker is not matching the expected state."""
+
+    def __init__(self, locker_id: ObjId, expected_state: LockerStates, actual_state: LockerStates):
+        super().__init__()
+        self.locker_id = locker_id
+        self.expected_state = expected_state
+        self.actual_state = actual_state
+        logger.warning(
+            f"Locker '{locker_id}' should be in {expected_state}, but is currently registered as {actual_state}")
+
+    def __str__(self):
+        return f"Invalid state of locker '{self.locker_id}'.)"
+
+
 async def handle_lock_report(call_sign: str, locker_index: int) -> None:
     """Process and verify a station report that a locker has been closed"""
     # 1: Find the affected task
@@ -56,7 +83,7 @@ async def handle_lock_report(call_sign: str, locker_index: int) -> None:
         logger.info(f"Cannot find task of {
                     TaskTypes.USER} at station '{call_sign}'.")
         return
-    await task.fetch_link(TaskItemModel.assigned_session)
+    await task.fetch_links()
 
     # 2: Find the affected locker
     locker: Locker = Locker(task.assigned_session.assigned_locker)

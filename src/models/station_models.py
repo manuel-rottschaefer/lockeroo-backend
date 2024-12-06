@@ -1,14 +1,15 @@
 """This module provides the Models for Station management."""
 # Types
 import dataclasses
-from enum import Enum
 from datetime import datetime, timedelta
+from enum import Enum
 from typing import Dict, Optional
-from pydantic import BaseModel, Field
 
 # Beanie
-from beanie import Document, View, Update, after_event
+from beanie import Document
 from beanie import PydanticObjectId as ObjId
+from beanie import Update, View, after_event
+from pydantic import BaseModel, Field
 
 # Services
 from src.services.mqtt_services import fast_mqtt

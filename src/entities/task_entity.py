@@ -5,7 +5,11 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 from asyncio import sleep, create_task
 import os
+from datetime import datetime, timedelta
+from typing import List, Optional
 
+from beanie import PydanticObjectId as ObjId
+from beanie import SortDirection
 # Beanie
 from beanie.operators import Set
 from beanie import PydanticObjectId as ObjId, SortDirection
@@ -14,15 +18,13 @@ from beanie import PydanticObjectId as ObjId, SortDirection
 from src.entities.entity_utils import Entity
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
-
+from src.models.session_models import SessionModel, SessionStates
 # Models
 from src.models.station_models import StationModel, TerminalStates
-from src.models.session_models import SessionModel, SessionStates
 from src.models.task_models import TaskItemModel, TaskStates, TaskTypes
-
+from src.services.exception_services import ServiceExceptions
 # Services
 from src.services.logging_services import logger
-from src.services.exceptions import ServiceExceptions
 
 
 class Task(Entity):

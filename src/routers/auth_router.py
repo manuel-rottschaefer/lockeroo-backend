@@ -10,7 +10,6 @@ from fastapi import APIRouter
 # Fief
 from src.services.auth_services import fief
 
-
 # Create the router
 auth_router = APIRouter()
 

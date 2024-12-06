@@ -2,22 +2,21 @@
 This module provides a model for the locker representation in the database
 as well as other Enums and configurations.
 """
-# Basics
-from typing import Optional, List
-from enum import Enum
-from datetime import datetime, timedelta
-
 # Types
 import dataclasses
-from pydantic import BaseModel, Field
+from datetime import datetime, timedelta
+from enum import Enum
+# Basics
+from typing import List, Optional
 
 # Types
-from beanie import Document, Link, View, Update, after_event
+from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
+from beanie import Update, View, after_event
+from pydantic import BaseModel, Field
 
 # Models
 from src.models.station_models import StationModel
-
 # Logging
 from src.services.logging_services import logger
 

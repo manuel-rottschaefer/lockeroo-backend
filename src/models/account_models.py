@@ -1,17 +1,16 @@
 """This module provides the Models for account management."""
 # Types
 import dataclasses
-
 # Basics
 from datetime import datetime
 from enum import Enum
 from typing import Optional
 
 # Beanie
-from beanie import Document, View
+from beanie import Document
 from beanie import PydanticObjectId as ObjId
+from beanie import View
 from fastapi_users_db_beanie import BeanieBaseUser
-
 # Types
 from pydantic import Field
 
@@ -24,7 +23,7 @@ class AuthMethod(str, Enum):
     APPLE = "apple"
 
 
-class AccountModel(BeanieBaseUser, Document):  # pylint: disable=too-many-ancestors
+class UserModel(BeanieBaseUser, Document):  # pylint: disable=too-many-ancestors
     """Representation of a user in the database"""
 
     # Identification
@@ -51,8 +50,8 @@ class AccountModel(BeanieBaseUser, Document):  # pylint: disable=too-many-ancest
         name = "accounts"
 
 
-class AccountSummary(View):
-    """Summary of an account."""
+class UserSummary(View):
+    """Summary of a user entity."""
     # Identification
     id: ObjId = Field(alias="_id")
     first_name: str

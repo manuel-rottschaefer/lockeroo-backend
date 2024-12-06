@@ -1,14 +1,14 @@
 """This module provides the Models for review management."""
 # Types
 import dataclasses
-
 # Basics
 from datetime import datetime
-from pydantic import Field
 
 # Beanie
-from beanie import Document, View, Link
+from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
+from beanie import View
+from pydantic import Field
 
 # Models
 from src.models.session_models import SessionModel

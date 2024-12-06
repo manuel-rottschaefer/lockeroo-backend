@@ -6,7 +6,6 @@ from typing import Annotated
 
 # Database utils
 from beanie import PydanticObjectId as ObjId
-
 # FastAPI
 from fastapi import APIRouter, Path, Query, Depends, Header
 

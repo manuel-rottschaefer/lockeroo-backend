@@ -2,11 +2,10 @@
     This module contains the FastAPI router for handling requests related sessions.
 """
 # Basics
-from typing import List, Annotated, Optional
+from typing import Annotated, List, Optional
 
 # Database utils
 from beanie import PydanticObjectId as ObjId
-
 # FastAPI
 from fastapi import APIRouter, Path, WebSocket, status, Query, Header, Depends
 from fief_client import FiefAccessTokenInfo
@@ -16,9 +15,9 @@ from src.models.action_models import ActionView
 from src.models.user_models import UserModel
 # Services
 from src.services import session_services
-from src.services.exceptions import handle_exceptions
-from src.services.logging_services import logger
 from src.services.auth_services import require_auth
+from src.services.exception_services import handle_exceptions
+from src.services.logging_services import logger
 from src.services.exception_services import handle_exceptions
 from src.services.logging_services import logger
 
@@ -31,6 +30,7 @@ session_router = APIRouter()
 
 @session_router.get('/{session_id}/details',
                     response_model=Optional[SessionView],
+                    status_code=status.HTTP_200_OK,
                     description=('Get the details of a session including (active) time,'
                                  'current price and locker state.')
                     )
@@ -49,6 +49,7 @@ async def get_session_details(
 
 @session_router.post('/create',
                      response_model=Optional[SessionView],
+                     status_code=status.HTTP_201_CREATED,
                      description='Request a new session at a given station')
 async def request_new_session(
     station_callsign: Annotated[str, Query(pattern='^[A-Z]{6}$')],
@@ -69,6 +70,7 @@ async def request_new_session(
 
 @ session_router.put('/{sessionID}/cancel',
                      response_model=Optional[SessionView],
+                     status_code=status.HTTP_200_OK,
                      description='Request to cancel a locker session before it has been started')
 async def request_session_cancel(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
@@ -88,6 +90,7 @@ async def request_session_cancel(
 
 @ session_router.put('/{session_id}/payment/select',
                      response_model=Optional[SessionView],
+                     status_code=status.HTTP_202_ACCEPTED,
                      description="Select a payment method for a session")
 @ handle_exceptions(logger)
 async def choose_session_payment_method(
@@ -109,6 +112,7 @@ async def choose_session_payment_method(
 
 @ session_router.put('/{session_id}/payment/verify',
                      response_model=Optional[SessionView],
+                     status_code=status.HTTP_202_ACCEPTED,
                      description='Request to enter the verification queue of a session')
 @ handle_exceptions(logger)
 async def request_session_verification(
@@ -127,6 +131,7 @@ async def request_session_verification(
 
 @ session_router.put('/{session_id}/hold',
                      response_model=Optional[SessionView],
+                     status_code=status.HTTP_202_ACCEPTED,
                      description='Request to hold (pause) a locker session')
 @ handle_exceptions(logger)
 async def request_session_hold(
@@ -146,6 +151,7 @@ async def request_session_hold(
 
 @ session_router.put('/{session_id}/payment',
                      response_model=Optional[SessionView],
+                     status_code=status.HTTP_202_ACCEPTED,
                      description='Request to enter the payment phase of a session')
 @ handle_exceptions(logger)
 async def request_session_payment(
@@ -165,6 +171,7 @@ async def request_session_payment(
 
 @ session_router.get('/{session_id}/history',
                      response_model=Optional[List[ActionView]],
+                     status_code=status.HTTP_200_OK,
                      description="Get a list of all actions of a session.")
 @ handle_exceptions(logger)
 async def get_session_history(

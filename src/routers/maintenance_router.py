@@ -6,22 +6,19 @@ from typing import Annotated
 
 # FastAPI
 from fastapi import APIRouter, Path
-
 # Auth
 from fief_client import FiefAccessTokenInfo
 
 # Entities
 from src.entities.maintenance_entity import Maintenance
 from src.entities.station_entity import Station
-
 # Models
 from src.models.maintenance_models import MaintenanceModel
-
-# Services
-from src.services.exceptions import handle_exceptions
-from src.services.logging_services import logger
-from src.services.auth_services import require_auth
 from src.services import maintenance_services
+from src.services.auth_services import require_auth
+# Services
+from src.services.exception_services import handle_exceptions
+from src.services.logging_services import logger
 
 # Create the router
 maintenance_router = APIRouter()

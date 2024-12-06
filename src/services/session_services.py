@@ -1,33 +1,19 @@
 """Provides utility functions for the sesssion management backend."""
-
-# Basics
-from datetime import datetime, timedelta
-
 # Typing
 from typing import List, Optional
 from uuid import UUID
 
 # ObjectID handling
 from beanie import PydanticObjectId as ObjId
-
 # FastAPI utilities
 from fastapi import HTTPException, WebSocket, WebSocketDisconnect
 
+from src.entities.locker_entity import Locker
+from src.entities.payment_entity import Payment
 # Entities
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
-from src.entities.task_entity import Task, TaskTypes, TaskStates
-from src.entities.locker_entity import Locker
-from src.entities.payment_entity import Payment
-
-# Models
-from src.models.session_models import PaymentTypes
-from src.models.session_models import (
-    SessionModel,
-    SessionView,
-    SessionStates,
-)
-
+from src.entities.task_entity import Task, TaskStates, TaskTypes
 from src.models.action_models import ActionModel
 # Models
 from src.models.session_models import SessionModel, PaymentTypes, SessionStates, SessionView
@@ -36,6 +22,7 @@ from src.services import websocket_services
 # Services
 from src.services.user_services import get_expired_session_count
 from src.services.action_services import create_action
+from src.services.exception_services import ServiceExceptions
 from src.services.locker_services import LOCKER_TYPES
 from src.services.logging_services import logger
 

@@ -1,11 +1,13 @@
-"""Provides utility functions for the the account management backend."""
+"""Provides utility functions for the the user management backend."""
 
 # Types
+from datetime import datetime, timedelta
 from uuid import UUID
 
-# Models
-from src.models.session_models import SessionModel
+from beanie import PydanticObjectId as ObjId
 
+# Models
+from src.models.session_models import SessionModel, SessionStates
 # Services
 from src.services.logging_services import logger
 
@@ -22,3 +24,12 @@ async def has_active_session(account_id: UUID) -> bool:
         logger.info(f"Account '{account_id}' already has an active session.")
 
     return active_session is not None
+
+
+async def get_expired_session_count(user_id: ObjId) -> int:
+    return await SessionModel.find(
+        SessionModel.user.id == user_id,  # pylint: disable=no-member
+        SessionModel.session_state == SessionStates.EXPIRED,
+        SessionModel.created_ts >= (datetime.now() - timedelta(hours=24)),
+        fetch_links=True
+    ).count()

@@ -6,11 +6,10 @@ from typing import Dict
 # Configuration
 import yaml
 
-# Services
-from src.services.logging_services import logger
-
 # Models
 from src.models.payment_models import PricingModel
+# Services
+from src.services.logging_services import logger
 
 # Singleton for pricing models
 PRICING_MODELS: Dict[str, PricingModel] = None
