@@ -148,7 +148,7 @@ async def handle_station_payment_report(
     """Handle a payment report from a station"""
     call_sign = topic.split('/')[1]
 
-    logger.debug(f"Station '{call_sign}' reported {SessionStates.PAYMENT}.")
+    logger.info(f"Station '{call_sign}' reported {SessionStates.PAYMENT}.")
 
     await station_services.handle_action_report(
         call_sign=call_sign,

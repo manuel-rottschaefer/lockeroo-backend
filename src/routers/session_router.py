@@ -8,19 +8,19 @@ from typing import List, Annotated, Optional
 from beanie import PydanticObjectId as ObjId
 
 # FastAPI
-from fastapi import APIRouter, WebSocket, Path, Query
+from fastapi import APIRouter, Path, WebSocket, status, Query, Header, Depends
 from fief_client import FiefAccessTokenInfo
-
 # Models
-from src.models.session_models import PaymentTypes
-from src.models.session_models import SessionView
+from src.models.session_models import PaymentTypes, SessionView
 from src.models.action_models import ActionView
-
+from src.models.user_models import UserModel
 # Services
 from src.services import session_services
 from src.services.exceptions import handle_exceptions
 from src.services.logging_services import logger
 from src.services.auth_services import require_auth
+from src.services.exception_services import handle_exceptions
+from src.services.logging_services import logger
 
 # Create the router
 session_router = APIRouter()
@@ -28,13 +28,13 @@ session_router = APIRouter()
 
 ### REST ENDPOINTS ###
 
+
 @session_router.get('/{session_id}/details',
                     response_model=Optional[SessionView],
                     description=('Get the details of a session including (active) time,'
                                  'current price and locker state.')
                     )
 @handle_exceptions(logger)
-@require_auth
 async def get_session_details(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
     access_info: FiefAccessTokenInfo = None
@@ -43,23 +43,25 @@ async def get_session_details(
     for refreshingthe app-state in case of disconnect or re-open."""
     return await session_services.get_details(
         session_id=ObjId(session_id),
-        account_id=access_info['id']
+        user=access_info
     )
 
 
 @session_router.post('/create',
                      response_model=Optional[SessionView],
                      description='Request a new session at a given station')
-@require_auth
 async def request_new_session(
     station_callsign: Annotated[str, Query(pattern='^[A-Z]{6}$')],
     locker_type: str,
-    access_info: FiefAccessTokenInfo = None,
-    account_id: str = None
+
+    user: str = Header(default=None),
+    access_info: UserModel = Depends(require_auth),
 ):
     """Handle request to create a new session"""
+    logger.info(f"User '{access_info.id}' is requesting a new session at station '{
+                station_callsign}'.")
     return await session_services.handle_creation_request(
-        account_id=access_info['id'],
+        user=access_info,
         callsign=station_callsign,
         locker_type=locker_type
     )
@@ -68,16 +70,19 @@ async def request_new_session(
 @ session_router.put('/{sessionID}/cancel',
                      response_model=Optional[SessionView],
                      description='Request to cancel a locker session before it has been started')
-@require_auth
 async def request_session_cancel(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
-    access_info: FiefAccessTokenInfo = None,
-    account_id: str = None
+
+    user: str = Header(default=None),
+    access_info: UserModel = Depends(require_auth),
 ):
     """Handle request to cancel a locker session"""
+
+    logger.info(f"User '{access_info.id}' is trying to cancel session '{
+                session_id}'.")
     return await session_services.handle_cancel_request(
         session_id=session_id,
-        account_id=access_info['id']
+        user=access_info
     )
 
 
@@ -85,17 +90,19 @@ async def request_session_cancel(
                      response_model=Optional[SessionView],
                      description="Select a payment method for a session")
 @ handle_exceptions(logger)
-@require_auth
 async def choose_session_payment_method(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
     payment_method: PaymentTypes,
-    access_info: FiefAccessTokenInfo = None,
-    account_id: str = None
+
+    user: str = Header(default=None),
+    access_info: UserModel = Depends(require_auth),
 ):
     """Handle request to select a payment method"""
+    logger.info(f"User '{access_info.id}' is choosing a payment method for session '{
+                session_id}'.")
     return await session_services.handle_payment_selection(
+        user=access_info,
         session_id=ObjId(session_id),
-        account_id=access_info['id'],
         payment_method=payment_method
     )
 
@@ -104,31 +111,36 @@ async def choose_session_payment_method(
                      response_model=Optional[SessionView],
                      description='Request to enter the verification queue of a session')
 @ handle_exceptions(logger)
-@require_auth
 async def request_session_verification(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
-    access_info: FiefAccessTokenInfo = None,
-    account_id: str = None
+
+    user: str = Header(default=None),
+    access_info: UserModel = Depends(require_auth),
 ):
     """Handle request to enter the verification queue of a session"""
+    logger.info(f"User '{
+                access_info.id}' is requesting to conduct a verification for session '{session_id}'.")
     return await session_services.handle_verification_request(
         session_id=ObjId(session_id),
-        account_id=access_info['id'])
+        user=access_info)
 
 
 @ session_router.put('/{session_id}/hold',
                      response_model=Optional[SessionView],
                      description='Request to hold (pause) a locker session')
 @ handle_exceptions(logger)
-@require_auth
 async def request_session_hold(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
-    access_info: FiefAccessTokenInfo = None,
+
+    user: str = Header(default=None),
+    access_info: UserModel = Depends(require_auth),
 ):
     """Handle request to pause a locker session"""
+    logger.info(f"User '{access_info.id}' is trying to hold session '{
+                session_id}'.")
     return await session_services.handle_hold_request(
         session_id=ObjId(session_id),
-        account_id=access_info['id']
+        user=access_info
     )
 
 
@@ -136,15 +148,18 @@ async def request_session_hold(
                      response_model=Optional[SessionView],
                      description='Request to enter the payment phase of a session')
 @ handle_exceptions(logger)
-@require_auth
 async def request_session_payment(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
-    access_info: FiefAccessTokenInfo = None,
+
+    user: str = Header(default=None),
+    access_info: UserModel = Depends(require_auth),
 ):
     """Handle request to enter the payment phase of a session"""
+    logger.info(f"User '{
+                access_info.id}' is requesting to conduct a payment for session '{session_id}'.")
     return await session_services.handle_payment_request(
         session_id=ObjId(session_id),
-        account_id=access_info['id']
+        user=access_info
     )
 
 
@@ -152,15 +167,15 @@ async def request_session_payment(
                      response_model=Optional[List[ActionView]],
                      description="Get a list of all actions of a session.")
 @ handle_exceptions(logger)
-@require_auth
 async def get_session_history(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
-    access_info: FiefAccessTokenInfo = None,
+    user: str = Header(default=None),
+    access_info: UserModel = Depends(require_auth),
 ):
     """Handle request to obtain a list of all actions from a session."""
     return await session_services.get_session_history(
         session_id=session_id,
-        account_id=access_info['id']
+        user=access_info
     )
 
 
