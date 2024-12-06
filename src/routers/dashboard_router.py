@@ -7,8 +7,11 @@ from fastapi import APIRouter
 # Auth
 from fief_client import FiefAccessTokenInfo
 
+# Beanie
+from beanie.operators import In
+
 # Models
-from src.models.session_models import SessionModel
+from src.models.session_models import SessionModel, ACTIVE_SESSION_STATES
 # Services
 from src.services.exception_services import handle_exceptions
 from src.services.logging_services import logger
@@ -27,5 +30,5 @@ async def get_active_session_count(
 ) -> int:
     """Get the amount of currently active sessions."""
     return await SessionModel.find(
-        SessionModel.is_active == True
+        In(SessionModel.session_state, ACTIVE_SESSION_STATES),
     ).to_list()

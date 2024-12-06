@@ -56,9 +56,9 @@ class ServiceExceptions(Enum):
     INVALID_LOCKER_STATE = "invalid_locker_state"  # replace
     INVALID_LOCKER_TYPE = "invalid_locker_type"
 
-    # Accounts
-    ACCOUNT_NOT_FOUND = "account_not_found"
-    ACCOUNT_HAS_ACTIVE_SESSION = "account_has_active session"
+    # Users
+    USER_NOT_FOUND = "user_not_found"
+    USER_HAS_ACTIVE_SESSION = "user_has_active session"
 
     # Reviews
     REVIEW_NOT_FOUND = "review_not_found"

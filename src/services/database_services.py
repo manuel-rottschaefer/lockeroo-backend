@@ -33,7 +33,7 @@ async def setup():
             PaymentModel,
             TaskItemModel,
             MaintenanceModel,
-            AccountModel
+            UserModel
         ],
     )
 
