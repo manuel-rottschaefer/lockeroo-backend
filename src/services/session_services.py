@@ -1,7 +1,6 @@
 """Provides utility functions for the sesssion management backend."""
 # Typing
 from typing import List, Optional
-from uuid import UUID
 
 # ObjectID handling
 from beanie import PydanticObjectId as ObjId
@@ -14,9 +13,9 @@ from src.entities.payment_entity import Payment
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
 from src.entities.task_entity import Task, TaskStates, TaskTypes
-from src.models.action_models import ActionModel
 # Models
-from src.models.session_models import SessionModel, PaymentTypes, SessionStates, SessionView
+from src.models.action_models import ActionModel
+from src.models.session_models import SessionModel, PaymentTypes, SessionStates, ACTIVE_SESSION_STATES, SessionView
 from src.models.user_models import UserModel
 from src.services import websocket_services
 # Services
@@ -25,8 +24,6 @@ from src.services.action_services import create_action
 from src.services.exception_services import ServiceExceptions
 from src.services.locker_services import LOCKER_TYPES
 from src.services.logging_services import logger
-
-import traceback
 
 
 class SessionNotFoundException(Exception):
@@ -105,11 +102,11 @@ async def handle_creation_request(
         )
 
     # 3: Check if the user already has a running session
-    session: Session = await Session().find(user=user, session_active=True)
+    session: Session = await Session().find(user=user, session_states=ACTIVE_SESSION_STATES)
     if session.exists:
         logger.info(ServiceExceptions.USER_HAS_ACTIVE_SESSION, user=user.id)
         raise HTTPException(
-            status_code=400, detail=ServiceExceptions.ACCOUNT_HAS_ACTIVE_SESSION.value
+            status_code=400, detail=ServiceExceptions.USER_HAS_ACTIVE_SESSION.value
         )
 
     # 4: Check whether the user has had too many expired sessions recently
@@ -150,7 +147,7 @@ async def handle_creation_request(
         task_type=TaskTypes.USER,
         station=station.document,
         session=session.document,
-        queued_state=None,
+        queued_state=SessionStates.CREATED,
         timeout_states=[SessionStates.EXPIRED],
         has_queue=False
     )
@@ -182,7 +179,6 @@ async def handle_payment_selection(
     # 2: Check if the session exists
     session: Session = await Session().find(session_id=session_id)
     await session.document.fetch_link(SessionModel.user)
-    print(user.id, session.user.id)
     if session.user.id != user.id:
         logger.info(ServiceExceptions.NOT_AUTHORIZED, session=session.id)
         raise HTTPException(
@@ -204,7 +200,6 @@ async def handle_payment_selection(
         )
 
     # 5: Assign the payment method to the session
-    print(type(session))
     await session.assign_payment_method(payment_method)
     await session.set_state(SessionStates.PAYMENT_SELECTED)
 
@@ -353,10 +348,10 @@ async def handle_payment_request(session_id: ObjId, user: UserModel) -> Optional
 async def handle_cancel_request(session_id: ObjId, user: UserModel) -> Optional[SessionView]:
     """Cancel a session before it has been started
     :param session_id: The ID of the assigned session
-    :param account_id: used for auth (depreceated)
+    :param user_id: used for auth (depreceated)
     :returns: A View of the modified session
     """
-    # 1: Find the session and check whether it belongs to the account
+    # 1: Find the session and check whether it belongs to the user
     session: Session = await Session().find(session_id=session_id)
     if not session.exists:
         raise SessionNotFoundException(session_id=session_id)
@@ -405,7 +400,7 @@ async def handle_update_subscription_request(session_id: ObjId, socket: WebSocke
         return
 
     # 3: Check if the session is not in an inactive state
-    if not session.session_state['is_active']:
+    if session.session_state not in ACTIVE_SESSION_STATES:
         logger.debug(
             f"Session '{session.id}' is not offering updates anymore.")
         return

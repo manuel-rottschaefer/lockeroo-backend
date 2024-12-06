@@ -4,7 +4,7 @@
 import dataclasses
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, Optional, Union
+from typing import List, Dict, Optional, Union
 from uuid import UUID
 
 # Beanie
@@ -17,8 +17,6 @@ from src.models.locker_models import LockerModel
 # Models
 from src.models.station_models import StationModel
 from src.models.locker_models import LockerModel
-from src.models.account_models import AccountModel
-
 from src.models.user_models import UserModel
 # Services
 from src.services import websocket_services
@@ -33,50 +31,81 @@ class SessionTypes(str, Enum):
     RETOUR = "retour"
 
 
-class SessionStates(Dict, Enum):
+class SessionStates(str, Enum):
     """A complete list of all session states with their timeout duration in seconds,
     whether the session is considered as 'active' in that state
     and the default follow-up session state."""
     # Session created and assigned to locker. Awaiting payment selection
-    CREATED = {"name": "CREATED", "timeout_secs": 180,
-               "is_active": True, "next": 'PAYMENT_SELECTED'}
+    CREATED = "created"
     # Payment method has been selected, now awaiting request to open locker
-    PAYMENT_SELECTED = {"name": "PAYMENT_SELECTED", "timeout_secs": 90,
-                        "is_active": True, "next": 'VERIFICATION'}
+    PAYMENT_SELECTED = "paymentSelected"
     # Terminal is awaiting verification
-    VERIFICATION = {"name": "VERIFICATION", "timeout_secs": 60,
-                    "is_active": True, "next": 'STASHING'}
+    VERIFICATION = "verification"
     # Locker opened for the first time, stashing underway.
-    STASHING = {"name": "STASHING", "timeout_secs": 120,
-                "is_active": True, "next": 'ACTIVE'}
+    STASHING = "stashing"
     # Locker closed and session timer is running
-    ACTIVE = {"name": "ACTIVE", "timeout_secs": 86400,
-              "is_active": True, "next": 'PAYMENT'}
+    ACTIVE = "active"
     # Locker opened for retrieving stuff (only digital payment)
-    HOLD = {"name": "HOLD", "timeout_secs": 300,
-            "is_active": True, "next": 'ACTIVE'}
+    HOLD = "hold"
     # Payment is pending at the terminal
-    PAYMENT = {"name": "PAYMENT", "timeout_secs": 60,
-               "is_active": True, "next": 'RETRIEVAL'}
+    PAYMENT = "payment"
     # Locker opens a last time for retrieval
-    RETRIEVAL = {"name": "RETRIEVAL", "timeout_secs": 120,
-                 "is_active": True, "next": 'COMPLETED'}
+    RETRIEVAL = "retrieval"
 
     # Session has been completed (paid for, locker closed)
-    COMPLETED = {"name": "COMPLETED", "timeout_secs": 0,
-                 "is_active": False, "next": ''}
+    COMPLETED = "completed"
     # Session has been canceled, no active time, no payment
-    CANCELLED = {"name": "CANCELLED", "timeout_secs": 0,
-                 "is_active": False, "next": ''}
+    CANCELLED = "cancelled"
     # Session has expired but locker remained open
-    STALE = {"name": "STALE", "timeout_secs": 0,
-             "is_active": False, "next": ''}
+    STALE = "stale"
     # Session has expired because user exceeded a time window
-    EXPIRED = {"name": "EXPIRED", "timeout_secs": 0,
-               "is_active": False, "next": ''}
+    EXPIRED = "expired"
     # Session has expired due to internal failure / no response from station
-    ABORTED = {"name": "ABORTED", "timeout_secs": 0,
-               "is_active": False, "next": ''}
+    ABORTED = "aborted"
+
+
+ACTIVE_SESSION_STATES: List[SessionStates] = [
+    SessionStates.ACTIVE,
+    SessionStates.PAYMENT_SELECTED,
+    SessionStates.VERIFICATION,
+    SessionStates.STASHING,
+    SessionStates.ACTIVE,
+    SessionStates.HOLD,
+    SessionStates.PAYMENT,
+    SessionStates.RETRIEVAL
+]
+
+SESSION_STATE_TIMEOUTS: Dict[SessionStates, int] = {
+    SessionStates.CREATED: 180,
+    SessionStates.PAYMENT_SELECTED: 120,
+    SessionStates.VERIFICATION: 60,
+    SessionStates.STASHING: 90,
+    SessionStates.ACTIVE: 86400,
+    SessionStates.HOLD: 300,
+    SessionStates.PAYMENT: 60,
+    SessionStates.RETRIEVAL: 90,
+    SessionStates.COMPLETED: 0,
+    SessionStates.CANCELLED: 0,
+    SessionStates.STALE: 0,
+    SessionStates.EXPIRED: 0,
+    SessionStates.ABORTED: 0
+}
+
+FOLLOW_UP_STATES: Dict[SessionStates, Union[SessionStates, None]] = {
+    SessionStates.CREATED: SessionStates.PAYMENT_SELECTED,
+    SessionStates.PAYMENT_SELECTED: SessionStates.VERIFICATION,
+    SessionStates.VERIFICATION: SessionStates.STASHING,
+    SessionStates.STASHING: SessionStates.ACTIVE,
+    SessionStates.ACTIVE: SessionStates.PAYMENT,
+    SessionStates.HOLD: SessionStates.PAYMENT,
+    SessionStates.PAYMENT: SessionStates.RETRIEVAL,
+    SessionStates.RETRIEVAL: SessionStates.COMPLETED,
+    SessionStates.COMPLETED: None,
+    SessionStates.CANCELLED: None,
+    SessionStates.STALE: None,
+    SessionStates.EXPIRED: None,
+    SessionStates.ABORTED: None
+}
 
 
 class PaymentTypes(str, Enum):
@@ -113,8 +142,6 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     ### State management ###
     session_state: SessionStates = Field(
         default=SessionStates.CREATED, description="The current, internal set session state.")
-    is_active: bool = Field(
-        default=True, description="Maps the session state activeness into the database.")
 
     # Statistics
     total_duration: Optional[timedelta] = Field(
@@ -145,7 +172,7 @@ class SessionView(View):
     assigned_station: ObjId = Field(
         description="Station at which the session takes place")
 
-    assigned_account: UUID = Field(
+    user: UUID = Field(
         None, description="The assigned user to this session.")
 
     locker_index: Optional[int] = Field(
@@ -169,7 +196,7 @@ class SessionView(View):
         source = SessionModel
         projection = {
             "id": "$_id",
-            "assigned_account": "$assigned_account",
+            "user": "$user",
             "session_state": "$session_state.name",
             "session_type": "$session_type",
             "assigned_station": "$assigned_station._id",

@@ -8,17 +8,17 @@ import os
 from datetime import datetime, timedelta
 from typing import List, Optional
 
-from beanie import PydanticObjectId as ObjId
-from beanie import SortDirection
+
 # Beanie
 from beanie.operators import Set
-from beanie import PydanticObjectId as ObjId, SortDirection
+from beanie import PydanticObjectId as ObjId
+from beanie import SortDirection
 
 # Entities
 from src.entities.entity_utils import Entity
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
-from src.models.session_models import SessionModel, SessionStates
+from src.models.session_models import SessionModel, SessionStates, SESSION_STATE_TIMEOUTS
 # Models
 from src.models.station_models import StationModel, TerminalStates
 from src.models.task_models import TaskItemModel, TaskStates, TaskTypes
@@ -140,7 +140,8 @@ class Task(Entity):
         """Get the timeout window in seconds from the config file."""
         timeout_window = 0
         if self.document.task_type == TaskTypes.USER:
-            timeout_window = self.document.assigned_session.session_state.value['timeout_secs']
+            timeout_window = SESSION_STATE_TIMEOUTS.get(
+                self.document.queued_state, 0)
 
         elif self.document.task_type in [TaskTypes.TERMINAL, TaskTypes.LOCKER]:
             timeout_window = int(os.getenv("STATION_EXPIRATION"))
