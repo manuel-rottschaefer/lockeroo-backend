@@ -40,7 +40,7 @@ async def handle_review_submission(session_id: ObjId,
     # 2: Check if the session has already been completed
     if session.session_state != SessionStates.COMPLETED:
         logger.info(ServiceExceptions.WRONG_SESSION_STATE,
-                    account=user.id, session=session_id)
+                    user=user.id, session=session_id)
         raise HTTPException(
             status_code=404, detail=ServiceExceptions.WRONG_SESSION_STATE.value)
 

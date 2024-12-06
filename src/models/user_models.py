@@ -43,11 +43,11 @@ class UserModel(BeanieBaseUser, Document):  # pylint: disable=too-many-ancestors
     has_active_session: bool = False
 
     # User statistics
-    signedUpTS: datetime = Field(
+    signup_ts: datetime = Field(
         datetime.now(), description="Timestamp of user signup.")
-    lastLoginTS: Optional[datetime] = None
-    totalSessions: int = Field(0, description="Amount of total sessions")
-    totalSessionDuration: int = Field(
+    last_login_ts: Optional[datetime] = None
+    total_sessions: int = Field(0, description="Amount of total sessions")
+    total_session_duration: float = Field(
         0, description="Total amount of all sessions in seconds.")
 
     @dataclasses.dataclass
