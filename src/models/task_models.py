@@ -96,3 +96,4 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     @dataclass
     class Settings:  # pylint: disable=missing-class-docstring
         name = "tasks"
+        use_state_management = True

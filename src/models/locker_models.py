@@ -81,6 +81,7 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
     @dataclasses.dataclass
     class Settings:  # pylint: disable=missing-class-docstring
         name = "lockers"
+        use_state_management = True
 
 
 class LockerView(View):

@@ -94,8 +94,8 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     assigned_locker: Link[LockerModel] = Field(
         description="The assigned locker to this session.")
 
-    assigned_account: Union[Link[AccountModel], UUID] = Field(  # TODO: Remove union here
-        None, description="The assigned account to this session.")
+    user: Link[UserModel] = Field(  # TODO: Remove union here
+        None, description="The assigned user to this session.")
 
     created_ts: datetime = Field(
         datetime.now(), description="Datetime of session creation.")
@@ -129,6 +129,7 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     @dataclasses.dataclass
     class Settings:  # pylint: disable=missing-class-docstring
         name = "sessions"
+        use_state_management = True
         use_cache = False
         # Set the expiration time to one second so the session state is not cached over requests
         # cache_expiration_time = timedelta(seconds=1)
