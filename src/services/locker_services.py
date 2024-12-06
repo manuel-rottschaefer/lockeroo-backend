@@ -15,7 +15,7 @@ from src.entities.task_entity import Task, restart_expiration_manager
 # Models
 from src.models.locker_models import LockerStates, LockerType
 from src.models.session_models import SessionStates
-from src.models.task_models import TaskStates, TaskTypes
+from src.models.task_models import TaskItemModel, TaskStates, TaskTypes
 from src.services.action_services import create_action
 from src.services.exception_services import ServiceExceptions
 # Services
@@ -83,7 +83,7 @@ async def handle_lock_report(call_sign: str, locker_index: int) -> None:
         logger.info(f"Cannot find task of {
                     TaskTypes.USER} at station '{call_sign}'.")
         return
-    await task.fetch_links()
+    await task.fetch_all_links()
 
     # 2: Find the affected locker
     locker: Locker = Locker(task.assigned_session.assigned_locker)
@@ -116,8 +116,6 @@ async def handle_lock_report(call_sign: str, locker_index: int) -> None:
     # 6: If those checks pass, update the locker and create an action
     await locker.register_state(LockerStates.LOCKED)
     await create_action(session.id, session.session_state)
-
-    # 6: Complete the previous task item
     await task.set_state(TaskStates.COMPLETED)
     await restart_expiration_manager()
 
@@ -142,6 +140,7 @@ async def handle_lock_report(call_sign: str, locker_index: int) -> None:
 
     # Save changes
     await session.save_changes(notify=True)
+    await locker.save_changes(notify=True)
 
 
 async def handle_unlock_confirmation(

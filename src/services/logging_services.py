@@ -45,12 +45,7 @@ class LoggingService:
         """Pass message to default logger with level ERROR"""
         self.logging.error(message)
 
-    def info(self, exception: ServiceExceptions,  # pylint: disable=too-many-arguments,too-many-positional-arguments
-             session: Union[str, ObjId] = '',
-             station: Union[str, ObjId] = '',
-             locker: Union[str, ObjId] = '',
-             account: Union[str, ObjId] = '',
-             detail: str = ''):
+    def info(self, exception: ServiceExceptions):
         """As the info level is for strictly defined service exceptions,
         it does not accept regular strings as messages.
         The method also only accepts basic information about an incident

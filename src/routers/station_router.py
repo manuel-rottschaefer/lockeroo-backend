@@ -143,7 +143,7 @@ async def handle_verification_report(
             f"Invalid station verification report from station {card_id}")
         return
 
-    logger.debug(
+    logger.info(
         f"Station '{call_sign}' reported {SessionStates.VERIFICATION} with card '#{card_id}'.")
 
     await station_services.handle_action_report(
@@ -160,7 +160,8 @@ async def handle_station_payment_report(
     """Handle a payment report from a station"""
     call_sign = topic.split('/')[1]
 
-    logger.info(f"Station '{call_sign}' reported {SessionStates.PAYMENT}.")
+    logger.info(f"Station '{call_sign}' reported {
+                SessionStates.PAYMENT} with card '#123456'.")
 
     await station_services.handle_action_report(
         call_sign=call_sign,

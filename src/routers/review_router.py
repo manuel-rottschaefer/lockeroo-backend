@@ -14,7 +14,7 @@ from src.models.review_models import ReviewModel
 from src.models.user_models import UserModel
 
 # Services
-from src.services.exceptions import handle_exceptions
+from src.services.exception_services import handle_exceptions
 from src.services.logging_services import logger
 from src.services.auth_services import require_auth
 from src.services import review_services

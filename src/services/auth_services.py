@@ -22,10 +22,8 @@ from typing import Annotated
 async def require_auth(user: Annotated[str | None, Header()] = None):
     """Add authorization middleware to an endpoint."""
     if user:
-        print('user:', user)
         user_model = await UserModel.find(UserModel.fief_id == UUID(user)).first_or_none()
         if not user_model:
-            print('created new user')
             user_model = await UserModel.insert(UserModel(fief_id=user))
 
     return user_model
