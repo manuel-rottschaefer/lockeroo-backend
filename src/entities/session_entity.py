@@ -8,7 +8,7 @@ from uuid import UUID
 from typing import List, Optional
 
 # Beanie
-from beanie import After, SortDirection
+from beanie import SortDirection, WriteRules
 from beanie.operators import Set
 
 # Models
@@ -30,17 +30,11 @@ from src.services.logging_services import logger
 
 class Session(Entity):
     """Add behaviour to a session instance."""
-
-    def __init__(self, document: SessionModel = None):
-        super().__init__()
-        self.document = document
-
     @classmethod
     async def find(
         cls,
         session_id: Optional[str] = None,
-        # Change to accountModel.id
-        account_id: Optional[UUID] = None,
+        user: Optional[UserModel] = None,
         session_state: Optional[SessionStates] = None,
         session_active: Optional[bool] = None,
         assigned_station: Optional[StationModel] = None,
@@ -51,7 +45,7 @@ class Session(Entity):
 
         query = {
             SessionModel.id: session_id,
-            SessionModel.assigned_account: account_id,
+            SessionModel.user: user,
             SessionModel.session_state: session_state,
             SessionModel.is_active: session_active,
             SessionModel.assigned_station: assigned_station,
@@ -71,33 +65,34 @@ class Session(Entity):
 
     @classmethod
     async def create(
-        cls, account_id: UUID,  # TODO: Change to accountModel.id
+        cls,
+        user: UserModel,
         station: StationModel,
         locker: LockerModel
     ):
         """Create a new session item and insert it into the database."""
         instance = cls()
         instance.document = SessionModel(
-            assigned_account=account_id,
+            user=user,
             assigned_station=station,
             assigned_locker=locker,
             session_state=SessionStates.CREATED,
             created_ts=datetime.now(),
         )
-        await instance.document.insert()
+        await instance.document.insert(link_rule=WriteRules.WRITE)
         return instance
 
     @property
     async def view(self) -> SessionView:
-        document = self.document  # Assuming self.document is an instance of SessionModel
+        await self.document.fetch_all_links()
         return SessionView(
-            id=document.id,
-            assigned_station=document.assigned_station.id,
-            assigned_account=document.assigned_account,
-            locker_index=document.assigned_locker.station_index if document.assigned_locker else None,
-            session_type=document.session_type,
-            session_state=document.session_state.name,
-            created_ts=document.created_ts
+            id=self.id,
+            assigned_station=self.assigned_station.id,
+            user=self.user.fief_id,
+            locker_index=self.assigned_locker.station_index if self.assigned_locker else None,
+            session_type=self.session_type,
+            session_state=self.session_state.name,
+            created_ts=self.created_ts
         )
 
         ### Calculated Properties ###
@@ -152,22 +147,17 @@ class Session(Entity):
         """Return the next logical state of the session."""
         return getattr(SessionStates, self.session_state['next'])
 
-    async def set_state(self, state: SessionStates, notify: bool = True) -> None:
+    async def set_state(self, state: SessionStates) -> None:
         """Update the current state of a session."""
         try:
-            if notify:
-                await self.document.update(Set({SessionModel.session_state: state}))
-            else:
-                await self.document.update(
-                    Set({SessionModel.session_state: state}), skip_actions=[After])
-                if state['is_active'] and not self.is_active:
-                    await self.document.update(Set({SessionModel.is_active: True}))
-                elif not state['is_active'] and self.is_active:
-                    await self.document.update(Set({SessionModel.is_active: False}))
-
-                logger.debug(
-                    f"Session '{self.id}' updated to {self.session_state}."
-                )
+            self.document.session_state = state
+            if state['is_active'] and not self.is_active:
+                self.document.is_active = True
+            elif not state['is_active'] and self.is_active:
+                self.document.is_active = False
+            logger.debug(
+                f"Session '{self.id}' updated to {self.session_state}."
+            )
 
         except (ValueError, TypeError) as e:
             logger.error(f"Failed to update state of session '{
@@ -177,7 +167,6 @@ class Session(Entity):
         """Assign a payment method to a session."""
         try:
             self.document.payment_method = method
-            await self.replace(skip_actions=[After])
             logger.info(
                 f"Payment method '{
                     self.payment_method}' assigned to session '{self.id}'."
@@ -197,10 +186,10 @@ class Session(Entity):
         # Update station statistics
         await self.assigned_station.inc(
             {StationModel.total_sessions: 1,
-                StationModel.total_session_duration: total_duration})
-        # Update account statistics
-        # TODO: Make this AccountModel only
-        if type(self.document.account == UUID):
+             StationModel.total_session_duration: total_duration})
+        # Update user statistics
+        # TODO: Make this UserModel only
+        if type(self.document.user.id) == UUID:
             return
             await self.document.account.inc(
                 {AccountModel.total_sessions: 1,

@@ -25,11 +25,6 @@ from src.services.payment_services import PRICING_MODELS
 
 class Payment(Entity):
     """Add behaviour to a payment Entity."""
-
-    def __init__(self, document: PaymentModel = None):
-        super().__init__()
-        self.document = document
-
     @classmethod
     async def fetch(cls,
                     session: SessionModel):

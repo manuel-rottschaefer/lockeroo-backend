@@ -1,13 +1,21 @@
 """Utils for all entity classes."""
 
-from typing import Type
+# Typing
+from typing import List
+
+# Beanie
+from beanie import After
 
 
 class Entity():
     """Defines an entity object."""
 
+    def __init__(self, document=None):
+        # Initialize the document attribute
+        self.document = document
+
     def __getattr__(self, name):
-        """Delegate attribute access to the internal document."""
+        """Delegate attribute and method access to the internal document."""
         return getattr(self.document, name)
 
     def __setattr__(self, name, value):
@@ -19,6 +27,7 @@ class Entity():
             # Delegate setting other attributes to the document
             setattr(self.document, name, value)
 
-    async def fetch_links(self):
-        """Fetch all links of the document."""
-        await self.document.fetch_all_links()
+    async def save_changes(self, notify: bool = False):
+        """Save local changes to the database with the option to broadcast changes."""
+        skip_actions: List = [] if notify else [After]
+        await self.document.save_changes(skip_actions=skip_actions)

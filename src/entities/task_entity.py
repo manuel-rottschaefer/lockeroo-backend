@@ -27,12 +27,6 @@ from src.services.exceptions import ServiceExceptions
 
 class Task(Entity):
     """Add behaviour to a task Model."""
-
-    def __init__(self, document=None):
-        """By default, an entity takes a Beanie document as its model on initialization"""
-        super().__init__()
-        self.document = document
-
     @classmethod
     async def create(cls,
                      task_type: TaskTypes,
@@ -96,18 +90,17 @@ class Task(Entity):
 
         # Filter out None values
         query = {k: v for k, v in query.items() if v is not None}
-
         task_item: TaskItemModel = await TaskItemModel.find(
             query, fetch_links=True
         ).sort((TaskItemModel.created_ts, SortDirection.DESCENDING)).first_or_none()
 
         if task_item:
             instance.document = task_item
-            return instance
+        return instance
 
     @property
     def exists(self) -> bool:
-        return self.document != None
+        return self.document is not None
 
     @property
     async def is_next_in_queue(self) -> bool:
@@ -143,16 +136,16 @@ class Task(Entity):
 
     def get_timeout_window(self):
         """Get the timeout window in seconds from the config file."""
+        timeout_window = 0
         if self.document.task_type == TaskTypes.USER:
-            timeout_window = self.assigned_session.session_state.value['timeout_secs']
-        elif self.document.task_type == TaskTypes.TERMINAL:
-            timeout_window = int(os.getenv("STATION_EXPIRATION"))
-        elif self.document.task_type == TaskTypes.LOCKER:
+            timeout_window = self.document.assigned_session.session_state.value['timeout_secs']
+
+        elif self.document.task_type in [TaskTypes.TERMINAL, TaskTypes.LOCKER]:
             timeout_window = int(os.getenv("STATION_EXPIRATION"))
 
         logger.debug(f"Task '{self.document.id}' will time out to {self.document.timeout_states[0]} in {
             timeout_window} seconds."
-        )  # pylint: disable=possibly_used_before_assignment
+        )
         return timeout_window
 
     async def activate(self) -> None:
@@ -166,6 +159,7 @@ class Task(Entity):
             session: Session = Session(self.document.assigned_session)
             if self.document.queued_state:
                 await session.set_state(self.document.queued_state)
+                await session.save_changes(notify=True)
 
         if self.document.task_type == TaskTypes.TERMINAL:
             station: Station = Station(self.document.assigned_station)
@@ -189,14 +183,13 @@ class Task(Entity):
         completed, the session has to be expired and the user needs to request a new one
         """
         # 1: Set Session and queue state to expired
-        await self.fetch_links()
         session: Session = Session(self.document.assigned_session)
 
         # 3: Set the queue state of this item to expired
         await self.set_state(TaskStates.EXPIRED)
 
         # 4: Update the session state and create a new queue item
-        await session.set_state(self.timeout_states[0], True)
+        await session.set_state(self.timeout_states[0])
 
         # 5: End the queue flow here if the session has expired or is stale.
         if session.session_state in [SessionStates.EXPIRED, SessionStates.STALE]:
@@ -219,6 +212,10 @@ class Task(Entity):
             queued_state=self.queued_state,
             timeout_states=self.document.timeout_states[1:],
             has_queue=self.document.queue_enabled)
+
+        # 8: Save changes
+        await session.save_changes(notify=True)
+        await self.save_changes()
 
 
 async def expiration_manager_loop():

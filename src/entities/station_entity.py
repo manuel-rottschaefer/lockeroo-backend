@@ -26,11 +26,6 @@ from src.services.logging_services import logger
 
 class Station(Entity):
     """Adds behaviour for a station instance."""
-
-    def __init__(self, document: StationModel = None):
-        super().__init__()
-        self.document = document
-
     @classmethod
     async def find(
         cls,
@@ -60,6 +55,11 @@ class Station(Entity):
         return instance
 
     ### Attributes ###
+    @property
+    def exists(self) -> bool:
+        """Check whether the station entity has a document."""
+        return self.document is not None
+
     @property
     async def is_available(self) -> bool:
         """Check whether the station is available for new sessions at the moment.

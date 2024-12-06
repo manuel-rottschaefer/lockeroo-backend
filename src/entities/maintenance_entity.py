@@ -22,11 +22,6 @@ from src.services.exceptions import ServiceExceptions
 
 class Maintenance(Entity):
     """Add behaviour to a maintenance instance."""
-
-    def __init__(self, document: MaintenanceModel = None):
-        super().__init__()
-        self.document = document
-
     @classmethod
     async def fetch(
         cls,
