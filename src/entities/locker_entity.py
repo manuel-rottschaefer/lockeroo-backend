@@ -1,7 +1,7 @@
 """This module provides utilities for  database for lockers."""
 
 # Types
-from beanie import PydanticObjectId as ObjId
+from beanie import PydanticObjectId as ObjId, SortDirection
 from beanie.operators import In, NotIn
 
 # Entities
@@ -57,13 +57,13 @@ class Locker(Entity):
         """Find an available locker at this station."""
         instance = cls()
 
-        # 1. Find a stale sessions at this station
-        stale_session = await SessionModel.find(
+        # 1. Find a stale session at this station
+        stale_session = await SessionModel.find_one(
             SessionModel.assigned_station.id == station.id,  # pylint: disable=no-member
             SessionModel.assigned_locker.locker_type == locker_type.name,  # pylint: disable=no-member
             SessionModel.session_state == SessionStates.STALE,
             fetch_links=True
-        ).first_or_none()
+        ).sort(SessionModel.created_ts, SortDirection.ASCENDING)
 
         if stale_session:
             instance.document = await LockerModel.get(stale_session.assigned_locker.id)
@@ -77,13 +77,14 @@ class Locker(Entity):
         ).to_list()
         active_lockers = [
             session.assigned_locker.id for session in active_sessions]
+        
         # 3: Find a locker at this station that matches the type and does not belong to such a session
-        available_locker: LockerModel = await LockerModel.find(
+        available_locker: LockerModel = await LockerModel.find_one(
             # LockerModel.station.id == station.id,  # pylint: disable=no-member
             LockerModel.locker_type == locker_type.name,
             NotIn(LockerModel.id,  active_lockers),
             fetch_links=True
-        ).first_or_none()
+        ).sort(LockerModel.total_session_count, SortDirection.ASCENDING)
         if available_locker:
             instance.document = available_locker
 

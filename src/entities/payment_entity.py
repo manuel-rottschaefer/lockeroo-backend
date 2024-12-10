@@ -31,17 +31,17 @@ class Payment(Entity):
         instance = cls()
 
         # 2: Check whether there exists an active payment
-        active_payment: PaymentModel = await PaymentModel.find(
+        active_payment: PaymentModel = await PaymentModel.find_one(
             PaymentModel.assigned_session.id == session.id,  # pylint: disable=no-member
             In(PaymentModel.state, [
                PaymentStates.SCHEDULED, PaymentStates.PENDING]),
             fetch_links=True
-        ).sort((PaymentModel.last_updated, SortDirection.DESCENDING)).first_or_none()
+        ).sort((PaymentModel.last_updated, SortDirection.DESCENDING))
 
-        last_payment: PaymentModel = await PaymentModel.find(
+        last_payment: PaymentModel = await PaymentModel.find_one(
             PaymentModel.assigned_session.id == session.id,  # pylint: disable=no-member
             fetch_links=True
-        ).sort((PaymentModel.last_updated, SortDirection.DESCENDING)).first_or_none()
+        ).sort((PaymentModel.last_updated, SortDirection.DESCENDING))
 
         if active_payment:
             instance.document = active_payment
