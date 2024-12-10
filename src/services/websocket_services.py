@@ -15,6 +15,12 @@ def register_connection(socket_id: str, socket: WebSocket) -> None:
         active_connections[socket_id] = socket
 
 
+def unregister_connection(socket_id: str) -> None:
+    """Remove the websocket connection."""
+    if socket_id in active_connections:
+        del active_connections[socket_id]
+
+
 def get_connection(socket_id: str) -> Optional[WebSocket]:
     """Return a websocket connection."""
     if socket_id in active_connections:

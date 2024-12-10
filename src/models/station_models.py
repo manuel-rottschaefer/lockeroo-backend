@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 # Services
 from src.services.mqtt_services import fast_mqtt
+from src.services.logging_services import logger
 
 
 class StationStates(str, Enum):
@@ -100,6 +101,8 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     @after_event(Update)
     def instruct_terminal_state(self):
         """Send an update message regarding the session state to the mqtt broker."""
+        logger.debug(f"Broadcasting terminal state {self.terminal_state} to station '{
+                     self.call_sign}'.")
         fast_mqtt.publish(
             f"stations/{self.call_sign}/terminal", self.terminal_state)
 

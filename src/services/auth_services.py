@@ -2,7 +2,6 @@
 
 # Basics
 import os
-from functools import wraps
 
 # FastAPI
 from fastapi import Header
@@ -22,7 +21,7 @@ from typing import Annotated
 async def require_auth(user: Annotated[str | None, Header()] = None):
     """Add authorization middleware to an endpoint."""
     if user:
-        user_model = await UserModel.find(UserModel.fief_id == UUID(user)).first_or_none()
+        user_model = await UserModel.find_one(UserModel.fief_id == UUID(user))
         if not user_model:
             user_model = await UserModel.insert(UserModel(fief_id=user))
 

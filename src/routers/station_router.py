@@ -179,7 +179,6 @@ async def handle_locker_report(
     # Import station and locker information
     call_sign: str = topic.split('/')[1]
     locker_index: int = int(topic.split('/')[3])
-
     if not locker_index:
         logger.warning(f"Invalid locker report from station {call_sign}.")
         return

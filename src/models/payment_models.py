@@ -6,8 +6,6 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-import yaml
-
 # Types
 from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId

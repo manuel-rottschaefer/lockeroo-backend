@@ -7,6 +7,7 @@ from typing import Union, List, Optional
 
 # Beanie
 from beanie import SortDirection, WriteRules
+from beanie import PydanticObjectId as ObjId
 from beanie.operators import Set
 
 # Entities
@@ -41,7 +42,7 @@ class Session(Entity):
         instance = cls()
 
         query = {
-            SessionModel.id: session_id,
+            SessionModel.id: ObjId(session_id),
             SessionModel.user: user,
             SessionModel.assigned_station: assigned_station,
             SessionModel.assigned_locker.station_index: locker_index,  # pylint: disable=no-member
@@ -56,10 +57,9 @@ class Session(Entity):
 
         # Filter out None values
         query = {k: v for k, v in query.items() if v is not None}
-
-        session_item: SessionModel = await SessionModel.find(
+        session_item: SessionModel = await SessionModel.find_one(
             query, fetch_links=True
-        ).sort((SessionModel.created_ts, SortDirection.DESCENDING)).first_or_none()
+        ).sort((SessionModel.created_ts, SortDirection.DESCENDING))
 
         if session_item:
             instance.document = session_item
@@ -112,13 +112,13 @@ class Session(Entity):
             return timedelta(datetime.now() - self.document.created_ts)
 
         # Otherwise, return the seconds between creation and completion
-        completed: ActionModel = await ActionModel.find(
+        completed_action: ActionModel = await ActionModel.find_one(
             ActionModel.assigned_session.id == self.id,  # pylint: disable=no-member
             ActionModel.action_type == SessionStates.COMPLETED.name,
             fetch_links=True
-        ).first_or_none()
+        )
 
-        return completed.timestamp - self.document.created_ts
+        return completed_action.timestamp - self.document.created_ts
 
     @ property
     async def active_duration(self) -> timedelta:

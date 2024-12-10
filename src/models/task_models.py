@@ -22,7 +22,7 @@ from src.models.locker_models import LockerStates
 from src.services.logging_services import logger
 
 
-load_dotenv('src/environments/.env')
+load_dotenv('environments/.env')
 
 
 class TaskStates(str, Enum):

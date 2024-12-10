@@ -87,7 +87,7 @@ async def handle_creation_request(
     at the given station matching the requested locker type."""
     # 1: Check if the station exists
     station: Station = await Station.find(call_sign=callsign)
-    if not station:
+    if not station.exists:
         logger.info(ServiceExceptions.STATION_NOT_FOUND, station=callsign)
         raise HTTPException(
             status_code=404, detail=ServiceExceptions.STATION_NOT_FOUND.value
@@ -133,7 +133,7 @@ async def handle_creation_request(
         )
 
     # 7: Create a new session
-    user: UserModel = await UserModel.find(UserModel.id == user.id).first_or_none()
+    user: UserModel = await UserModel.find_one(UserModel.id == user.id)
     session: Session = await Session.create(
         user=user,
         locker=locker.document,
@@ -391,27 +391,42 @@ async def handle_update_subscription_request(session_id: ObjId, socket: WebSocke
     # 1: Check whether the session exists
     session: Session = await Session().find(session_id=session_id)
     if not session.exists:
-        return
+        # Close the WebSocket connection with a normal closure code
+        await socket.close(code=1000)
+        raise SessionNotFoundException(session_id=session_id)
 
     # 2: Check whether the websocket connection already exists
     if websocket_services.get_connection(session.id):
         logger.debug(
             f"Session '{session.id}' cannot have more than one update subscription.")
+        # Close the WebSocket connection with a normal closure code
+        await socket.close(code=1000)
         return
 
     # 3: Check if the session is not in an inactive state
     if session.session_state not in ACTIVE_SESSION_STATES:
         logger.debug(
             f"Session '{session.id}' is not offering updates anymore.")
+        # Close the WebSocket connection with a normal closure code
+        await socket.close(code=1000)
         return
 
-    # 3: Register the connection
+    # 4: Register the connection
     await socket.accept()
     websocket_services.register_connection(session.id, socket)
     logger.debug(f"Session '{session.id}' is now sending updates.")
+    await socket.send_text(session.session_state)
     try:
-        await socket.receive_bytes()
+        while True:
+            await socket.receive_bytes()
 
-    # 4: Register a disconnect event
+    # 5: Register a disconnect event
     except WebSocketDisconnect:
         logger.debug(f"Session '{session.id}' is no longer sending updates.")
+        websocket_services.unregister_connection(session.id)
+    except Exception as e:
+        logger.error(f"Error in ws for session '{
+                     session.id}': {e}")
+        # Close the WebSocket connection with an internal error code
+        await socket.close(code=1011)
+        websocket_services.unregister_connection(session.id)

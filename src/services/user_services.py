@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 # Beanie
-from beanie import PydanticObjectId as ObjId
+from beanie import PydanticObjectId as ObjId, SortDirection
 from beanie.operators import In
 
 # Models
@@ -17,12 +17,12 @@ from src.services.logging_services import logger
 async def has_active_session(user_id: UUID) -> bool:
     """Check if the given user has an active session"""
 
-    active_session = await SessionModel.find(
+    active_session = await SessionModel.find_one(
         SessionModel.user.fief_id == user_id,  # pylint: disable=no-member
         In(SessionModel.session_state,
            ACTIVE_SESSION_STATES),  # pylint: disable=no-member
         fetch_links=True
-    ).first_or_none()
+    ).sort(SessionModel.created_ts, SortDirection.DESCENDING)
 
     if active_session:
         logger.info(f"User {user_id} already has an active session.")
