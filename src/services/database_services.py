@@ -10,6 +10,9 @@ from dotenv import load_dotenv
 # Database utilities
 from motor.motor_asyncio import AsyncIOMotorClient
 
+# Services
+from src.services.logging_services import logger, new_log_section
+
 # Models
 from src.models.action_models import ActionModel
 from src.models.locker_models import LockerModel
@@ -23,6 +26,10 @@ from src.models.user_models import UserModel
 
 async def setup():
     """Initialize the database"""
+    if os.getenv('STARTUP_RESET') == 'True':
+        await restore_mongodb_data(os.getenv('MONGO_DUMP'))
+        new_log_section()
+
     await init_beanie(
         database=client["Lockeroo"],
         document_models=[
@@ -50,8 +57,9 @@ def convert_oid(document):
     return document
 
 
-async def restore_mock_data(directory):
+async def restore_json_mock_data(directory):
     """Load JSON files into the database"""
+    logger.info("Restoring mock data")
     for filename in os.listdir(directory):
         if not filename.endswith(".json"):
             continue
@@ -75,6 +83,12 @@ async def restore_mock_data(directory):
             elif data:
                 data = convert_oid(data)
                 await collection.insert_one(data)
+
+
+async def restore_mongodb_data(directory):
+    """Restore MongoDB data with mongorestore."""
+    logger.info("Resetting MongoDB database with mongorestore.")
+    os.system(f"mongorestore --drop {directory} > /dev/null 2>&1")
 
 
 load_dotenv(dotenv_path='environments/.env')

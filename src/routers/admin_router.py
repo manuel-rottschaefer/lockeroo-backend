@@ -7,7 +7,7 @@ import os
 # FastAPI
 from fastapi import APIRouter
 
-from src.services.database_services import restore_mock_data
+from src.services.database_services import restore_mongodb_data
 # Services
 from src.services.exception_services import handle_exceptions
 from src.services.logging_services import logger
@@ -21,4 +21,5 @@ admin_router = APIRouter()
 @handle_exceptions(logger)
 async def reset_db():
     """Reset the db"""
-    return await restore_mock_data(os.getenv('MOCK_LOCATION'))
+    logger.info('Resetting the database.')
+    #await restore_mongodb_data(os.getenv('MONGO_DUMP'))

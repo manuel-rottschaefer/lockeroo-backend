@@ -12,6 +12,7 @@ from src.entities.payment_entity import Payment
 # Entities
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
+from src.entities.user_entity import User
 from src.entities.task_entity import Task, TaskStates, TaskTypes
 # Models
 from src.models.action_models import ActionModel
@@ -133,7 +134,6 @@ async def handle_creation_request(
         )
 
     # 7: Create a new session
-    user: UserModel = await UserModel.find_one(UserModel.id == user.id)
     session: Session = await Session.create(
         user=user,
         locker=locker.document,

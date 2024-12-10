@@ -53,6 +53,13 @@ class LoggingService:
         self.logging.info(exception)
 
 
+def new_log_section():
+    """Create a new log section"""
+    with open(LOGFILE, 'a', encoding='utf-8') as log:
+        logging.info(
+            '---------------------------------------------------------------')
+
+
 loggers = [name for name, logger in logging.Logger.manager.loggerDict.items()
            if isinstance(logger, logging.Logger)]
 for logger in loggers:
@@ -65,7 +72,6 @@ for logger in loggers:
 with open(LOGFILE, 'r', encoding='utf-8') as log:
     lines = log.readlines()
     if not lines or '---' not in lines[-1].strip():
-        logging.info(
-            '---------------------------------------------------------------')
+        new_log_section()
 
 logger = LoggingService()

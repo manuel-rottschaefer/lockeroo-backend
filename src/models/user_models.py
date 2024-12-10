@@ -10,7 +10,7 @@ from typing import Optional
 from beanie import Document
 from beanie import PydanticObjectId as ObjId
 from beanie import View
-from fastapi_users_db_beanie import BeanieBaseUser
+#from fastapi_users_db_beanie import BeanieBaseUser
 # Types
 from pydantic import Field
 from uuid import UUID
@@ -24,7 +24,7 @@ class AuthMethod(str, Enum):
     APPLE = "apple"
 
 
-class UserModel(BeanieBaseUser, Document):  # pylint: disable=too-many-ancestors
+class UserModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a user in the database"""
 
     # Identification
@@ -62,24 +62,3 @@ class UserSummary(View):
     first_name: str
     total_sessions: int = 0
     total_session_duration: int = 0
-
-
-class UserCreate(BeanieBaseUser):
-    """View after creation of a user."""
-
-    firstName: str
-    lastName: str
-    email: Optional[str]
-    password: str
-    activeAuthMethod: AuthMethod = AuthMethod.EMAIL
-
-
-class UserUpdate(BeanieBaseUser):
-    """View after update of a user."""
-
-    firstName: Optional[str] = None
-    lastName: Optional[str] = None
-
-
-# async def get_user_db():
-#    yield BeanieUserDatabase(UserModel)
