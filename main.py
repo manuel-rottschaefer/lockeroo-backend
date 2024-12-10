@@ -34,6 +34,7 @@ from src.routers.dashboard_router import dashboard_router
 @asynccontextmanager
 async def _lifespan(_fastapi_app: FastAPI):
     """Context manager for the application lifespan"""
+    load_dotenv('environments/.env')
     await database.setup()
     await fast_mqtt.mqtt_startup()
     await start_expiration_manager()
@@ -67,9 +68,6 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
-# Load dotenv config
-load_dotenv('environments/.env.local')
-
 # Include routers
 app.include_router(station_router, prefix="/stations", tags=["Stations"])
 app.include_router(session_router, prefix="/sessions", tags=["Sessions"])
@@ -80,6 +78,6 @@ app.include_router(admin_router, prefix='/admin', tags=['Admin'])
 app.include_router(dashboard_router, prefix='/dashboard', tags=['Dashboard'])
 
 if __name__ == "__main__":
-    os.system('clear')
+    #os.system('clear')
     # Run the server
     uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)
