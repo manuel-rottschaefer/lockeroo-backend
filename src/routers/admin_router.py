@@ -21,5 +21,4 @@ admin_router = APIRouter()
 @handle_exceptions(logger)
 async def reset_db():
     """Reset the db"""
-    logger.info('Resetting the database.')
-    #await restore_mongodb_data(os.getenv('MONGO_DUMP'))
+    await restore_mongodb_data(os.getenv('MONGO_DUMP'))

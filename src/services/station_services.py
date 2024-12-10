@@ -186,7 +186,7 @@ async def reset_queue(call_sign: str, response: Response) -> StationView:
     tasks: List[TaskItemModel] = await TaskItemModel.find(
         TaskItemModel.assigned_station == station.id,
         TaskItemModel.task_state == TaskStates.PENDING
-    ).sort(TaskItemModel.created_ts)
+    ).sort((TaskItemModel.created_ts)).first_or_none()
 
     # 3: Set all to state QUEUED
     await tasks.update(Set({TaskItemModel.task_state: TaskStates.QUEUED}))
@@ -227,9 +227,10 @@ async def handle_action_report(
     # 3: Check whether the station is currently told to await an action
     station: Station = Station(session.assigned_station)
     if station.terminal_state != expected_terminal_state:
-        logger.info(ServiceExceptions.INVALID_TERMINAL_STATE,
-                    station=call_sign, detail=station.terminal_state)
-        return
+        raise InvalidTerminalStateException(
+            station_callsign=call_sign,
+            expected_state=expected_terminal_state,
+            actual_state=station.terminal_state)
 
     # 4: Find the locker that belongs to this session
     locker: Locker = Locker(session.assigned_locker)
@@ -267,6 +268,9 @@ async def handle_terminal_confirmation(call_sign: str, terminal_state: TerminalS
         call_sign=call_sign,
         task_type=TaskTypes.TERMINAL,
         task_state=TaskStates.PENDING)
+    if not task.exists:
+        raise InvalidStationReportException(
+            call_sign, terminal_state.value)
     await task.fetch_link(TaskItemModel.assigned_session)
 
     # 3: Find assigned session and set to queued state

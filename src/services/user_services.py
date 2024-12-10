@@ -17,12 +17,12 @@ from src.services.logging_services import logger
 async def has_active_session(user_id: UUID) -> bool:
     """Check if the given user has an active session"""
 
-    active_session = await SessionModel.find_one(
+    active_session = await SessionModel.find(
         SessionModel.user.fief_id == user_id,  # pylint: disable=no-member
         In(SessionModel.session_state,
            ACTIVE_SESSION_STATES),  # pylint: disable=no-member
         fetch_links=True
-    ).sort(SessionModel.created_ts, SortDirection.DESCENDING)
+    ).sort((SessionModel.created_ts, SortDirection.DESCENDING)).first_or_none()
 
     if active_session:
         logger.info(f"User {user_id} already has an active session.")

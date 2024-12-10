@@ -34,9 +34,9 @@ class User(Entity):
         # Filter out None values
         query = {k: v for k, v in query.items() if v is not None}
 
-        user_item: UserModel = await UserModel.find_one(
+        user_item: UserModel = await UserModel.find(
             query).sort((UserModel.created_ts,
-        SortDirection.DESCENDING))
+        SortDirection.DESCENDING)).first_or_none()
 
         instance.document = user_item
         return instance

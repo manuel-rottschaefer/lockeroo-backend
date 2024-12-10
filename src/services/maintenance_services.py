@@ -6,6 +6,7 @@ from typing import Optional
 
 # ObjectID handling
 from beanie import PydanticObjectId as ObjId
+from beanie import SortDirection
 
 # Models
 from src.models.maintenance_models import MaintenanceModel, MaintenanceStates
@@ -13,10 +14,10 @@ from src.models.maintenance_models import MaintenanceModel, MaintenanceStates
 
 async def get_next(station_id: ObjId) -> Optional[MaintenanceModel]:
     """Creates a new maintenance event."""
-    return await MaintenanceModel.find_one(
+    return await MaintenanceModel.find(
         MaintenanceModel.assigned_station == station_id,
         MaintenanceModel.state == MaintenanceStates.SCHEDULED
-    ).sort(MaintenanceModel.scheduled_for)
+    ).sort((MaintenanceModel.scheduled_for, SortDirection.DESCENDING)).first_or_none()
 
 
 async def has_scheduled(station_id: ObjId) -> bool:

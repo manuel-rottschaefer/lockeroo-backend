@@ -7,6 +7,7 @@ from asyncio import sleep, create_task
 import os
 from datetime import datetime, timedelta
 from typing import List, Optional
+import traceback
 
 
 # Beanie
@@ -64,7 +65,10 @@ class Task(Entity):
         if not has_queue:
             await instance.activate()
         elif await instance.is_next_in_queue:
-            await instance.activate()
+            try:
+                await instance.activate()
+            except Exception as e:
+                logger.info(traceback.format_exc())
 
         return instance
 
@@ -92,9 +96,9 @@ class Task(Entity):
 
         # Filter out None values
         query = {k: v for k, v in query.items() if v is not None}
-        task_item: TaskItemModel = await TaskItemModel.find_one(
+        task_item: TaskItemModel = await TaskItemModel.find(
             query, fetch_links=True
-        ).sort((TaskItemModel.created_ts, SortDirection.DESCENDING))
+        ).sort((TaskItemModel.created_ts, SortDirection.DESCENDING)).first_or_none()
 
         if task_item:
             instance.document = task_item
@@ -108,11 +112,11 @@ class Task(Entity):
     async def is_next_in_queue(self) -> bool:
         """Check whether this task is next in queue"""
         # 1: Find the next queued session item
-        next_item: Optional[TaskItemModel] = await TaskItemModel.find_one(
+        next_item: Optional[TaskItemModel] = await TaskItemModel.find(
             TaskItemModel.assigned_station.id == self.assigned_station.id,  # pylint: disable=no-member
             TaskItemModel.task_state == TaskStates.QUEUED,
             fetch_links=True
-        ).sort((TaskItemModel.created_ts, SortDirection.DESCENDING))
+        ).sort((TaskItemModel.created_ts, SortDirection.DESCENDING)).first_or_none()
 
         if not next_item:
             logger.info("No queued session at station '%s'.",
@@ -144,7 +148,7 @@ class Task(Entity):
                 self.document.queued_state, 0)
 
         elif self.document.task_type in [TaskTypes.TERMINAL, TaskTypes.LOCKER]:
-            timeout_window = int(os.getenv("STATION_EXPIRATION"))
+            timeout_window = int(os.getenv("STATION_EXPIRATION", 10))
 
         logger.debug(f"Task '{self.document.id}' will time out to {self.document.timeout_states[0]} in {
             timeout_window} seconds."
@@ -166,9 +170,9 @@ class Task(Entity):
 
         if self.document.task_type == TaskTypes.TERMINAL:
             station: Station = Station(self.document.assigned_station)
-            #await station.document.update(Set({
-            #    StationModel.terminal_state: TerminalStates.VERIFICATION}),
-            #    skip_actions=['notify_station_state'])
+            await station.document.update(Set({
+                StationModel.terminal_state: TerminalStates.VERIFICATION}),
+                skip_actions=['notify_station_state'])
 
         # 3: Update task item
         await self.document.update(Set({
@@ -224,9 +228,9 @@ class Task(Entity):
 async def expiration_manager_loop():
     """Handle expirations."""
     # 1: Get time to next expiration
-    next_expiring_task = await TaskItemModel.find_one(
+    next_expiring_task = await TaskItemModel.find(
         TaskItemModel.task_state == TaskStates.PENDING
-    ).sort((TaskItemModel.expires_at, SortDirection.ASCENDING)).limit(1)
+    ).sort((TaskItemModel.expires_at, SortDirection.ASCENDING)).first_or_none()
     if not next_expiring_task:
         return
 

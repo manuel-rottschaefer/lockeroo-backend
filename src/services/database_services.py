@@ -88,6 +88,7 @@ async def restore_json_mock_data(directory):
 async def restore_mongodb_data(directory):
     """Restore MongoDB data with mongorestore."""
     logger.info("Resetting MongoDB database with mongorestore.")
+    os.system(f"mongosh --eval 'use Lockeroo' --eval 'db.dropDatabase()' > /dev/null 2>&1")
     os.system(f"mongorestore --drop {directory} > /dev/null 2>&1")
 
 

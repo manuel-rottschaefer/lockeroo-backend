@@ -19,6 +19,7 @@ __pycache__/
 # Ignore tool and external app data
 dep/*
 tools/*
+testing/*
 Obsidian/*
 kanpilot.toml
 docs/*

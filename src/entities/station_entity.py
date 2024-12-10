@@ -45,9 +45,9 @@ class Station(Entity):
         # Filter out None values
         query = {k: v for k, v in query.items() if v is not None}
 
-        station_item: StationModel = await StationModel.find_one(
+        station_item: StationModel = await StationModel.find(
             query).sort((SessionModel.created_ts,
-        SortDirection.DESCENDING))
+        SortDirection.DESCENDING)).first_or_none()
 
         instance.document = station_item if station_item else None
         return instance
@@ -108,17 +108,17 @@ class Station(Entity):
     ) -> StationStates:
         """Update the state of a station.
         No checks are performed here, as the request is assumed to be valid."""
-        #await self.document.update(Set({StationModel.station_state: new_station_state}), skip_actions=['notify_station_state'])
-        #logger.debug(f"Station '{self.call_sign}' state set to {
-        #             self.station_state}.")
+        await self.document.update(Set({StationModel.station_state: new_station_state}), skip_actions=['notify_station_state'])
+        logger.debug(f"Station '{self.call_sign}' state set to {
+                     self.station_state}.")
         return new_station_state
 
     async def register_terminal_state(
         self: StationModel, new_terminal_state: TerminalStates = None
     ) -> None:
         """Update the terminal state of a station. This function either accepts a TerminalState or a SessionState. """
-        #await self.document.update(Set({StationModel.terminal_state: new_terminal_state}),
-        #                           skip_actions=['notify_station_state'])
+        await self.document.update(Set({StationModel.terminal_state: new_terminal_state}),
+                                   skip_actions=['notify_station_state'])
         logger.debug(
             f"Terminal at station '{self.id}' set to {
                 self.terminal_state}."
@@ -126,11 +126,11 @@ class Station(Entity):
 
     async def activate_payment(self):
         """Activate a payment process at the station."""
-        #await self.document.update(
-        #    Set({StationModel.terminal_state: TerminalStates.PAYMENT}),
-        #    skip_actions=['notify_station_state'])
+        await self.document.update(
+            Set({StationModel.terminal_state: TerminalStates.PAYMENT}),
+            skip_actions=['notify_station_state'])
 
     async def increase_completed_sessions_count(self: StationModel):
         """Increase the count of completed sessions at the station.
         No checks are performed here, as the request is assumed to be valid."""
-        #await self.document.update(Set({StationModel.total_sessions: self.total_sessions + 1}))
+        await self.document.update(Set({StationModel.total_sessions: self.total_sessions + 1}))

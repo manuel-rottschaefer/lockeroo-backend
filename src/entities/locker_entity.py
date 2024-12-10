@@ -58,12 +58,12 @@ class Locker(Entity):
         instance = cls()
 
         # 1. Find a stale session at this station
-        stale_session = await SessionModel.find_one(
+        stale_session = await SessionModel.find(
             SessionModel.assigned_station.id == station.id,  # pylint: disable=no-member
             SessionModel.assigned_locker.locker_type == locker_type.name,  # pylint: disable=no-member
             SessionModel.session_state == SessionStates.STALE,
             fetch_links=True
-        ).sort(SessionModel.created_ts, SortDirection.ASCENDING)
+        ).sort((SessionModel.created_ts, SortDirection.ASCENDING)).first_or_none()
 
         if stale_session:
             instance.document = await LockerModel.get(stale_session.assigned_locker.id)
@@ -74,17 +74,19 @@ class Locker(Entity):
             SessionModel.assigned_station.id == station.id,  # pylint: disable=no-member
             In(SessionModel.session_state, ACTIVE_SESSION_STATES),
             fetch_links=True
-        ).to_list()
+        ).sort((SessionModel.created_ts, SortDirection.ASCENDING)).to_list()
         active_lockers = [
             session.assigned_locker.id for session in active_sessions]
+        # TODO: Create a station locker count key, it is useful for such tasks
+        assert len(active_lockers) < 30, "Found more active lockers than exist at station."
         
         # 3: Find a locker at this station that matches the type and does not belong to such a session
-        available_locker: LockerModel = await LockerModel.find_one(
+        available_locker: LockerModel = await LockerModel.find(
             # LockerModel.station.id == station.id,  # pylint: disable=no-member
             LockerModel.locker_type == locker_type.name,
             NotIn(LockerModel.id,  active_lockers),
             fetch_links=True
-        ).sort(LockerModel.total_session_count, SortDirection.ASCENDING)
+        ).sort((LockerModel.total_session_count, SortDirection.ASCENDING)).first_or_none()
         if available_locker:
             instance.document = available_locker
 

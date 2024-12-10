@@ -57,9 +57,9 @@ class Session(Entity):
 
         # Filter out None values
         query = {k: v for k, v in query.items() if v is not None}
-        session_item: SessionModel = await SessionModel.find_one(
+        session_item: SessionModel = await SessionModel.find(
             query, fetch_links=True
-        ).sort((SessionModel.created_ts, SortDirection.DESCENDING))
+        ).sort((SessionModel.created_ts, SortDirection.DESCENDING)).first_or_none()
 
         if session_item:
             instance.document = session_item
