@@ -1,19 +1,19 @@
 """User Models."""
 # Types
 import dataclasses
+
 # Basics
 from datetime import datetime
 from enum import Enum
 from typing import Optional
+from uuid import UUID
+from pydantic import Field
 
 # Beanie
 from beanie import Document
 from beanie import PydanticObjectId as ObjId
 from beanie import View
-#from fastapi_users_db_beanie import BeanieBaseUser
-# Types
-from pydantic import Field
-from uuid import UUID
+# from fastapi_users_db_beanie import BeanieBaseUser
 
 
 class AuthMethod(str, Enum):
@@ -28,7 +28,7 @@ class UserModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a user in the database"""
 
     # Identification
-    id: Optional[ObjId] = Field(None, alias="_id")
+    id: ObjId = Field(None, alias="_id")
     fief_id: UUID
     first_name: Optional[str] = Field(None, description="First name of user.")
     last_name: Optional[str] = Field(None, description="Last name of user.")

@@ -24,11 +24,13 @@ from src.services.maintenance_services import has_scheduled
 
 class Station(Entity):
     """Adds behaviour for a station instance."""
+    document: StationModel
+
     @classmethod
     async def find(
         cls,
         station_id: Optional[ObjId] = None,
-        call_sign: Optional[str] = None,
+        callsign: Optional[str] = None,
         station_state: Optional[StationStates] = None,
         terminal_state: Optional[TerminalStates] = None,
     ):
@@ -37,7 +39,7 @@ class Station(Entity):
 
         query = {
             StationModel.id: station_id,
-            StationModel.call_sign: call_sign,
+            StationModel.callsign: callsign,
             StationModel.station_state: station_state,
             StationModel.terminal_state: terminal_state,
         }
@@ -47,7 +49,7 @@ class Station(Entity):
 
         station_item: StationModel = await StationModel.find(
             query).sort((SessionModel.created_ts,
-        SortDirection.DESCENDING)).first_or_none()
+                         SortDirection.DESCENDING)).first_or_none()
 
         instance.document = station_item if station_item else None
         return instance
@@ -109,7 +111,7 @@ class Station(Entity):
         """Update the state of a station.
         No checks are performed here, as the request is assumed to be valid."""
         await self.document.update(Set({StationModel.station_state: new_station_state}), skip_actions=['notify_station_state'])
-        logger.debug(f"Station '{self.call_sign}' state set to {
+        logger.debug(f"Station '{self.callsign}' state set to {
                      self.station_state}.")
         return new_station_state
 
@@ -117,8 +119,9 @@ class Station(Entity):
         self: StationModel, new_terminal_state: TerminalStates = None
     ) -> None:
         """Update the terminal state of a station. This function either accepts a TerminalState or a SessionState. """
-        await self.document.update(Set({StationModel.terminal_state: new_terminal_state}),
-                                   skip_actions=['notify_station_state'])
+        await self.document.update(
+            Set({StationModel.terminal_state: new_terminal_state}),
+            skip_actions=['notify_station_state', 'instruct_terminal_state'])
         logger.debug(
             f"Terminal at station '{self.id}' set to {
                 self.terminal_state}."

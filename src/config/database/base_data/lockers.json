@@ -5,6 +5,7 @@
       "$id": "66e6b53a71580df1e30b1f7a",
       "$db": "lockeroo"
     },
+    "callsign": "MUCODE#001",
     "locker_type": "small",
     "pricing_model": "economy-base",
     "station_index": 1,
@@ -20,6 +21,7 @@
       "$id": "66e6b53a71580df1e30b1f7a",
       "$db": "lockeroo"
     },
+    "callsign": "MUCODE#002",
     "locker_type": "small",
     "pricing_model": "economy-base",
     "station_index": 2,
@@ -35,6 +37,7 @@
       "$id": "66e6b53a71580df1e30b1f7a",
       "$db": "lockeroo"
     },
+    "callsign": "MUCODE#003",
     "locker_type": "small",
     "pricing_model": "economy-base",
     "station_index": 3,
@@ -50,6 +53,7 @@
       "$id": "66e6b53a71580df1e30b1f7a",
       "$db": "lockeroo"
     },
+    "callsign": "MUCODE#004",
     "locker_type": "small",
     "pricing_model": "economy-base",
     "station_index": 4,
@@ -65,21 +69,7 @@
       "$id": "66e6b53a71580df1e30b1f7a",
       "$db": "lockeroo"
     },
-    "locker_type": "small",
-    "pricing_model": "economy-base",
-    "station_index": 4,
-    "reported_state": "locked",
-
-    "last_service_ts": "2024-08-01T00:00:00Z",
-    "total_session_count": 0,
-    "total_session_duration": 0
-  },
-  {
-    "station": {
-      "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
-      "$db": "lockeroo"
-    },
+    "callsign": "MUCODE#005",
     "locker_type": "small",
     "pricing_model": "economy-base",
     "station_index": 5,
@@ -95,6 +85,7 @@
       "$id": "66e6b53a71580df1e30b1f7a",
       "$db": "lockeroo"
     },
+    "callsign": "MUCODE#006",
     "locker_type": "small",
     "pricing_model": "economy-base",
     "station_index": 6,
@@ -110,6 +101,7 @@
       "$id": "66e6b53a71580df1e30b1f7a",
       "$db": "lockeroo"
     },
+    "callsign": "MUCODE#007",
     "locker_type": "small",
     "pricing_model": "economy-base",
     "station_index": 7,
@@ -125,6 +117,7 @@
       "$id": "66e6b53a71580df1e30b1f7a",
       "$db": "lockeroo"
     },
+    "callsign": "MUCODE#008",
     "locker_type": "small",
     "pricing_model": "economy-base",
     "station_index": 8,
@@ -140,8 +133,9 @@
       "$id": "66e6b53a71580df1e30b1f7a",
       "$db": "lockeroo"
     },
-    "locker_type": "medium",
-    "pricing_model": "storage-medium",
+    "callsign": "MUCODE#009",
+    "locker_type": "small",
+    "pricing_model": "economy-base",
     "station_index": 9,
     "reported_state": "locked",
 
@@ -155,6 +149,7 @@
       "$id": "66e6b53a71580df1e30b1f7a",
       "$db": "lockeroo"
     },
+    "callsign": "MUCODE#010",
     "locker_type": "medium",
     "pricing_model": "storage-medium",
     "station_index": 10,
@@ -170,6 +165,7 @@
       "$id": "66e6b53a71580df1e30b1f7a",
       "$db": "lockeroo"
     },
+    "callsign": "MUCODE#011",
     "locker_type": "medium",
     "pricing_model": "storage-medium",
     "station_index": 11,
@@ -185,6 +181,7 @@
       "$id": "66e6b53a71580df1e30b1f7a",
       "$db": "lockeroo"
     },
+    "callsign": "MUCODE#012",
     "locker_type": "medium",
     "pricing_model": "storage-medium",
     "station_index": 12,
@@ -200,6 +197,7 @@
       "$id": "66e6b53a71580df1e30b1f7a",
       "$db": "lockeroo"
     },
+    "callsign": "MUCODE#013",
     "locker_type": "medium",
     "pricing_model": "storage-medium",
     "station_index": 13,
@@ -215,6 +213,7 @@
       "$id": "66e6b53a71580df1e30b1f7a",
       "$db": "lockeroo"
     },
+    "callsign": "MUCODE#014",
     "locker_type": "medium",
     "pricing_model": "storage-medium",
     "station_index": 14,
@@ -230,8 +229,9 @@
       "$id": "66e6b53a71580df1e30b1f7a",
       "$db": "lockeroo"
     },
-    "locker_type": "large",
-    "pricing_model": "storage-large",
+    "callsign": "MUCODE#015",
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
     "station_index": 15,
     "reported_state": "locked",
 
@@ -245,6 +245,7 @@
       "$id": "66e6b53a71580df1e30b1f7a",
       "$db": "lockeroo"
     },
+    "callsign": "MUCODE#016",
     "locker_type": "large",
     "pricing_model": "storage-large",
     "station_index": 16,
@@ -260,6 +261,7 @@
       "$id": "66e6b53a71580df1e30b1f7a",
       "$db": "lockeroo"
     },
+    "callsign": "MUCODE#017",
     "locker_type": "large",
     "pricing_model": "storage-large",
     "station_index": 17,
@@ -275,9 +277,26 @@
       "$id": "66e6b53a71580df1e30b1f7a",
       "$db": "lockeroo"
     },
+    "callsign": "MUCODE#018",
     "locker_type": "large",
     "pricing_model": "storage-large",
     "station_index": 18,
+    "reported_state": "locked",
+
+    "last_service_ts": "2024-08-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$id": "66e6b53a71580df1e30b1f7a",
+      "$db": "lockeroo"
+    },
+    "callsign": "MUCODE#019",
+    "locker_type": "large",
+    "pricing_model": "storage-large",
+    "station_index": 19,
     "reported_state": "locked",
 
     "last_service_ts": "2024-08-01T00:00:00Z",

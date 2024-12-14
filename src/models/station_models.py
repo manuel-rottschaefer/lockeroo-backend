@@ -8,7 +8,7 @@ from typing import Dict, Optional
 # Beanie
 from beanie import Document
 from beanie import PydanticObjectId as ObjId
-from beanie import Update, View, after_event
+from beanie import Update, SaveChanges, View, after_event
 from pydantic import BaseModel, Field
 
 # Services
@@ -37,17 +37,17 @@ class TerminalStates(str, Enum):
 
 class StationType(BaseModel):
     """Config representation of station types."""
-    name: str = Field(description="Name of the station type."),
+    name: str = Field(description="Name of the station type.")
     code: str = Field(description="Short identifier for the type.")
     description: str = Field(
-        description="You would've guessed it- a description :)"),
+        description="You would've guessed it- a description :)")
     locker_amount: int = Field(
-        description="The amount of individual lockers."),
+        description="The amount of individual lockers.")
     render: str = Field(description="Path to a static render of the model.")
     has_gsm: bool = Field(
-        description="Whether the station has a mobile antenna."),
+        description="Whether the station has a mobile antenna.")
     has_wifi: bool = Field(
-        description="Whether the station has a WiFi antenna."),
+        description="Whether the station has a WiFi antenna.")
     has_solar: bool = Field(
         description="Whether the station can house a solar panel.")
     is_embedded: bool = Field(
@@ -59,7 +59,7 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     # Identification
     id: ObjId = Field(alias="_id")
     full_name: str
-    call_sign: str
+    callsign: str
 
     # Internal Properties
     station_type: str
@@ -91,20 +91,22 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     location: Dict
     nearby_public_transit: Optional[str]
 
-    @after_event(Update)
+    @after_event(Update, SaveChanges)
     def notify_station_state(self):
         """Send an update message regarding the session state to the mqtt broker."""
         fast_mqtt.publish(
-            f"stations/{self.call_sign}/state", self.station_state)
+            f"stations/{self.callsign}/state", self.station_state)
 
     ### State broadcasting ###
-    @after_event(Update)
-    def instruct_terminal_state(self):
+    @after_event(Update, SaveChanges)
+    def instruct_terminal_state(self, instruct_state: TerminalStates = None):
         """Send an update message regarding the session state to the mqtt broker."""
-        logger.debug(f"Broadcasting terminal state {self.terminal_state} to station '{
-                     self.call_sign}'.")
+        state_to_broadcast = instruct_state if instruct_state is not None else self.terminal_state
+        logger.debug(f"Broadcasting terminal state {state_to_broadcast} to station '{
+                     self.callsign}'.")
         fast_mqtt.publish(
-            f"stations/{self.call_sign}/terminal", self.terminal_state)
+            f"stations/{self.callsign}/terminal/instruct",
+            str(state_to_broadcast.value).upper())  # pylint: disable=no-member
 
     @dataclasses.dataclass
     class Settings:  # pylint: disable=missing-class-docstring
@@ -122,7 +124,7 @@ class StationView(View):
     # Identification
     id: ObjId = Field(alias="_id")
     full_name: str
-    call_sign: str
+    callsign: str
 
     # Internal Properties
     station_type: str

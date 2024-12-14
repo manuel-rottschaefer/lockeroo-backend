@@ -13,12 +13,12 @@ from src.entities.entity_utils import Entity
 # Models
 from src.models.user_models import UserModel
 from src.models.session_models import SessionModel, SessionStates, ACTIVE_SESSION_STATES
-# Logging
-from src.services.logging_services import logger
 
 
 class User(Entity):
     """Adds behaviour for a station instance."""
+    document: UserModel
+
     @classmethod
     async def find(
         cls,
@@ -36,7 +36,7 @@ class User(Entity):
 
         user_item: UserModel = await UserModel.find(
             query).sort((UserModel.created_ts,
-        SortDirection.DESCENDING)).first_or_none()
+                         SortDirection.DESCENDING)).first_or_none()
 
         instance.document = user_item
         return instance

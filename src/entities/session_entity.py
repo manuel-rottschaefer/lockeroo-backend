@@ -24,10 +24,13 @@ from src.models.session_models import (SessionModel,
 
 # Services
 from src.services.logging_services import logger
+from src.services.action_services import create_action
 
 
 class Session(Entity):
     """Add behaviour to a session instance."""
+    document: SessionModel
+
     @classmethod
     async def find(
         cls,
@@ -109,7 +112,7 @@ class Session(Entity):
         """Returns the amount of seconds between session creation and completion or now."""
         # Return the seconds since the session was created if it is still running
         if self.document.session_state != SessionStates.COMPLETED:
-            return timedelta(datetime.now() - self.document.created_ts)
+            return datetime.now() - self.document.created_ts
 
         # Otherwise, return the seconds between creation and completion
         completed_action: ActionModel = await ActionModel.find_one(
@@ -149,14 +152,10 @@ class Session(Entity):
         """Return the next logical state of the session."""
         return FOLLOW_UP_STATES[self.session_state]
 
-    async def set_state(self, state: SessionStates) -> None:
+    def set_state(self, state: SessionStates) -> None:
         """Update the current state of a session."""
         try:
             self.document.session_state = state
-            logger.debug(
-                f"Session '{self.id}' updated to {self.session_state}."
-            )
-
         except (ValueError, TypeError) as e:
             logger.error(f"Failed to update state of session '{
                 self.id}': {e}.")
@@ -165,7 +164,7 @@ class Session(Entity):
         """Assign a payment method to a session."""
         try:
             self.document.payment_method = method
-            logger.info(
+            logger.debug(
                 f"Payment method '{
                     self.payment_method}' assigned to session '{self.id}'."
             )
@@ -175,10 +174,13 @@ class Session(Entity):
                     method} to session {self.id}: {e}"
             )
 
-    async def handle_conclude(self):
+    async def handle_conclude(self) -> None:
         """Calculate and store statistical data when session completes/expires/aborts."""
+        await create_action(session_id=self.id,
+                            action_type=SessionStates.COMPLETED)
         total_duration: timedelta = await self.total_duration
         await self.document.update(Set({
+            SessionModel.session_state: SessionStates.COMPLETED,  # TODO: No notification here
             SessionModel.total_duration: total_duration
         }))
         # Update station statistics
@@ -189,3 +191,5 @@ class Session(Entity):
         await self.document.user.inc({
             UserModel.total_sessions: 1,
             UserModel.total_session_duration: total_duration})
+        # Save changes
+        # await self.save_model_changes(notify=True)

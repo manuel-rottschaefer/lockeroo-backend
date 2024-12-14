@@ -24,32 +24,32 @@ from src.services.logging_services import logger
 maintenance_router = APIRouter()
 
 
-@maintenance_router.post('/{call_sign}/maintenance/schedule',
+@maintenance_router.post('/{callsign}/maintenance/schedule',
                          response_model=MaintenanceModel)
 @handle_exceptions(logger)
 @require_auth
 async def create_scheduled_maintenance(
-        call_sign:  Annotated[str, Path(pattern='^[A-Z]{6}$')],
+        callsign:  Annotated[str, Path(pattern='^[A-Z]{6}$')],
         staff_id: str,
         _access_info: FiefAccessTokenInfo = None,) -> MaintenanceModel:
     """Get the availability of lockers at the station"""
-    station: Station = await Station().find(call_sign=call_sign)
+    station: Station = await Station().find(callsign=callsign)
 
     maintenance_item = await Maintenance().create(station_id=station.id,
                                                   staff_id=staff_id)
     return maintenance_item.document
 
 
-@maintenance_router.get('/{call_sign}/maintenance/next',
+@maintenance_router.get('/{callsign}/maintenance/next',
                         response_model=MaintenanceModel)
 @handle_exceptions(logger)
 @require_auth
 async def get_next_scheduled_maintenance(
-    call_sign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
+    callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
     _access_info: FiefAccessTokenInfo = None
 ) -> MaintenanceModel:
     """Get the availability of lockers at the station"""
-    station: Station = await Station().find(call_sign=call_sign)
+    station: Station = await Station().find(callsign=callsign)
     return await maintenance_services.get_next(
         station_id=station.id
     )

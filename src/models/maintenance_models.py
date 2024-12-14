@@ -44,8 +44,8 @@ class MaintenanceModel(Document):  # pylint: disable=too-many-ancestors
         description="Current state of the maintenance item"
     )
 
-    assigned_staff: Optional[ObjId] = Field(None,
-                                            description="The person assigned with this task")
+    assigned_staff: ObjId = Field(None,
+                                  description="The person assigned with this task")
 
     class Settings:  # pylint: disable=missing-class-docstring, too-few-public-methods
         name = "maintenance"

@@ -4,9 +4,6 @@
 import logging
 # Types
 from datetime import datetime
-from typing import Union
-
-from beanie import PydanticObjectId as ObjId
 
 # Service exceptions
 from src.services.exception_services import ServiceExceptions
@@ -55,23 +52,24 @@ class LoggingService:
 
 def new_log_section():
     """Create a new log section"""
-    with open(LOGFILE, 'a', encoding='utf-8') as log:
-        logging.info(
-            '---------------------------------------------------------------')
+    with open(LOGFILE, 'r', encoding='utf-8') as log:
+        lines = log.readlines()
+        if not lines or '---' not in lines[-1].strip():
+            logging.info(
+                '--------------------------------------------------------------')
 
 
-loggers = [name for name, logger in logging.Logger.manager.loggerDict.items()
-           if isinstance(logger, logging.Logger)]
-for logger in loggers:
-    # logging.debug(f'Setting logger {logger} to level state warning.')
-    logging.getLogger(logger).setLevel(logging.WARNING)
-# logging.getLogger('dotenv').setLevel(logging.WARNING)
+def init_loggers():
+    """Set all loggers to warning level"""
+
+    loggers = [name for name, logger in logging.Logger.manager.loggerDict.items()
+               if isinstance(logger, logging.Logger)]
+    loggers.append('pymongo')
+    for mod_logger in loggers:
+        # logging.debug(f'Setting logger {mod_logger} to level state warning.')
+        logging.getLogger(mod_logger).setLevel(logging.WARNING)
+    new_log_section()
+    return LoggingService()
 
 
-# Seperate entries
-with open(LOGFILE, 'r', encoding='utf-8') as log:
-    lines = log.readlines()
-    if not lines or '---' not in lines[-1].strip():
-        new_log_section()
-
-logger = LoggingService()
+logger = init_loggers()

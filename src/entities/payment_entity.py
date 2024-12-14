@@ -23,6 +23,8 @@ from src.services.payment_services import PRICING_MODELS
 
 class Payment(Entity):
     """Add behaviour to a payment Entity."""
+    document: PaymentModel
+
     @classmethod
     async def fetch(cls,
                     session: SessionModel):

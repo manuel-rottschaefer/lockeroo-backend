@@ -18,8 +18,6 @@ from src.services import session_services
 from src.services.auth_services import require_auth
 from src.services.exception_services import handle_exceptions
 from src.services.logging_services import logger
-from src.services.exception_services import handle_exceptions
-from src.services.logging_services import logger
 
 # Create the router
 session_router = APIRouter()
@@ -37,13 +35,16 @@ session_router = APIRouter()
 @handle_exceptions(logger)
 async def get_session_details(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
-    access_info: FiefAccessTokenInfo = None
+    user: str = Header(default=None),
+    access_info: UserModel = Depends(require_auth),
 ):
     """Return the details of a session. This is supposed to be used
     for refreshingthe app-state in case of disconnect or re-open."""
+    logger.info(f"User '{access_info.id}' is requesting details for session '{
+                session_id}'.")
     return await session_services.get_details(
         session_id=ObjId(session_id),
-        user=access_info
+        _user=access_info
     )
 
 
@@ -96,7 +97,6 @@ async def request_session_cancel(
 async def choose_session_payment_method(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
     payment_method: PaymentTypes,
-
     user: str = Header(default=None),
     access_info: UserModel = Depends(require_auth),
 ):

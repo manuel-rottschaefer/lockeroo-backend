@@ -5,20 +5,19 @@ from datetime import datetime
 
 # Types
 from beanie import PydanticObjectId as ObjId
-# FastAPI
-from fastapi import HTTPException
 
 # Entities
 from src.entities.entity_utils import Entity
 # Models
 from src.models.maintenance_models import MaintenanceModel, MaintenanceStates
-from src.services.exception_services import ServiceExceptions
-# Services
-from src.services.logging_services import logger
+# Exceptions
+from src.exceptions.maintenance_exceptions import MaintenanceNotFoundException
 
 
 class Maintenance(Entity):
     """Add behaviour to a maintenance instance."""
+    document: MaintenanceModel
+
     @classmethod
     async def fetch(
         cls,
@@ -38,11 +37,7 @@ class Maintenance(Entity):
             )
 
         if not instance.exists:
-            logger.info(ServiceExceptions.STATION_NOT_FOUND,
-                        session=station_id)
-            raise HTTPException(
-                status_code=404, detail=ServiceExceptions.STATION_NOT_FOUND.value
-            )
+            raise MaintenanceNotFoundException(maintenance_id=maintenance_id)
         return instance
 
     @classmethod

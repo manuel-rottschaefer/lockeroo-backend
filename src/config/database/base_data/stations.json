@@ -2,7 +2,7 @@
   {
     "_id": "66e6b53a71580df1e30b1f7a",
     "full_name": "München Odeonsplatz",
-    "call_sign": "MUCODE",
+    "callsign": "MUCODE",
     "station_type": "V1M",
     "hw_version": "V1",
     "sw_version": "1.0.0",

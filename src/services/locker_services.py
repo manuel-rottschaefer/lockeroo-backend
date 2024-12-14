@@ -13,13 +13,16 @@ from src.entities.session_entity import Session
 from src.entities.locker_entity import Locker
 from src.entities.task_entity import Task, restart_expiration_manager
 # Models
-from src.models.locker_models import LockerStates, LockerType
+from src.models.locker_models import LockerModel, LockerStates, LockerType
 from src.models.session_models import SessionStates
 from src.models.task_models import TaskItemModel, TaskStates, TaskTypes
 from src.services.action_services import create_action
 from src.services.exception_services import ServiceExceptions
 # Services
 from src.services.logging_services import logger
+from src.exceptions.station_exceptions import StationNotFoundException
+from src.exceptions.session_exceptions import SessionNotFoundException
+from src.exceptions.task_exceptions import TaskNotFoundException
 
 # Singleton for pricing models
 LOCKER_TYPES: Dict[str, LockerType] = None
@@ -46,7 +49,7 @@ if LOCKER_TYPES is None:
 class LockerNotFoundException(Exception):
     """Exception raised when a locker cannot be found by a given query."""
 
-    def __init__(self, locker_id: ObjId = None):
+    def __init__(self, locker_id: ObjId = None, ):
         super().__init__()
         self.locker = locker_id
         logger.warning(
@@ -65,31 +68,41 @@ class InvalidLockerStateException(Exception):
         self.expected_state = expected_state
         self.actual_state = actual_state
         logger.warning(
-            f"Locker '{locker_id}' should be in {expected_state}, but is currently registered as {actual_state}")
+            f"Locker '{locker_id}' should be in {
+                expected_state}, but is currently registered as {actual_state}")
 
     def __str__(self):
         return f"Invalid state of locker '{self.locker_id}'.)"
 
 
-async def handle_lock_report(call_sign: str, locker_index: int) -> None:
+async def handle_lock_report(callsign: str, locker_index: int) -> None:
     """Process and verify a station report that a locker has been closed"""
-    # 1: Find the affected task
+    # 1: Find the affected locker
+    locker: Locker = await Locker().find(
+        station_callsign=callsign,
+        index=locker_index)
+    if not locker.exists:
+        raise LockerNotFoundException(locker_id=None)
+
+    # 2: Find the affected task
     task: Task = await Task().find(
-        call_sign=call_sign,
-        task_type=TaskTypes.USER,
+        task_type=TaskTypes.LOCKER,
         task_state=TaskStates.PENDING,
-        locker_index=locker_index)
+        assigned_locker=locker.document.id)
     if not task.exists:
-        logger.info(f"Cannot find task of {
-                    TaskTypes.USER} at station '{call_sign}'.")
+        logger.warning(f"Cannot find task of {
+            TaskTypes.LOCKER} at station '{callsign}'.")
         return
     await task.fetch_all_links()
 
     # 2: Find the affected locker
-    locker: Locker = Locker(task.assigned_session.assigned_locker)
+    assigned_locker: LockerModel = task.assigned_session.assigned_locker
+    locker: Locker = Locker(assigned_locker)
     if not locker.exists:
-        logger.info(ServiceExceptions.LOCKER_NOT_FOUND,
-                    station=call_sign, detail=locker_index)
+        raise LockerNotFoundException(locker_id=assigned_locker.id)
+
+    logger.info(f"Station {callsign} reports locker '{
+                locker.callsign}' as {LockerStates.LOCKED}.")
 
     # 3: Check that the locker matches
     if locker.station_index != locker_index:
@@ -104,73 +117,77 @@ async def handle_lock_report(call_sign: str, locker_index: int) -> None:
     # 4: Find the station to get its ID
     station: Station = Station(locker.station)
     if not station:
-        logger.info(ServiceExceptions.STATION_NOT_FOUND,
-                    station=call_sign)
+        raise StationNotFoundException(callsign=callsign)
 
     # 5: Find the assigned session
     session: Session = Session(task.assigned_session)
     if not session:
-        logger.info(ServiceExceptions.SESSION_NOT_FOUND, locker=locker.id)
-        return
+        raise SessionNotFoundException(session_id=task.assigned_session.id)
 
     # 6: If those checks pass, update the locker and create an action
     await locker.register_state(LockerStates.LOCKED)
     await create_action(session.id, session.session_state)
-    await task.set_state(TaskStates.COMPLETED)
+    await task.complete()
     await restart_expiration_manager()
 
-    # 7: Catch a completed session here
+    # 7: Save changes
+    await session.save_model_changes(notify=True)
+    await locker.save_model_changes(notify=False)
+
+    # 8: Catch a completed session here
     next_state: SessionStates = await session.next_state
     if next_state == SessionStates.COMPLETED:
-        await session.set_state(SessionStates.COMPLETED)
-        await create_action(session_id=session.id,
-                            action_type=SessionStates.COMPLETED)
-        await session.handle_conclude()
-        return
+        return await session.handle_conclude()
 
-    # 8: Await user to return to the locker to pick up his stuff.
+    # 9: Await user to return to the locker to pick up his stuff.
     await Task().create(
-        task_type=TaskTypes.USER,
-        station=station.document,
+        task_type=TaskTypes.LOCKER,
         session=session.document,
+        station=station.document,
+        locker=locker.document,
         queued_state=await session.next_state,
         timeout_states=[SessionStates.STALE],
         has_queue=False
     )
 
-    # Save changes
-    await session.save_changes(notify=True)
-    await locker.save_changes(notify=True)
-
 
 async def handle_unlock_confirmation(
-        call_sign: str, locker_index: int) -> None:
+        callsign: str, locker_index: int) -> None:
     """Process and verify a station report that a locker has been unlocked"""
-    # 1: Look for a task that is pending
+    # 1: Find the affected locker
+    locker: Locker = await Locker().find(
+        station_callsign=callsign, index=locker_index)
+    if not locker.exists:
+        # TODO: Improve this exception
+        raise LockerNotFoundException(locker_id=None)
+
+    # 2: Look for a task that is pending at this locker
     task: Task = await Task().find(
-        call_sign=call_sign,
-        task_type=TaskTypes.LOCKER,
-        task_state=TaskStates.PENDING)
+        task_type=TaskTypes.CONFIRMATION,
+        task_state=TaskStates.PENDING,
+        assigned_locker=locker.document.id)
     if not task.exists:
         # TODO: Create a custom exception for this.
-        logger.warning('Invalid station report.')
+        raise TaskNotFoundException(
+            task_type=TaskTypes.CONFIRMATION, assigned_station=callsign)
 
     await task.fetch_link(TaskItemModel.assigned_session)
     locker: Locker = Locker(task.assigned_session.assigned_locker)
     if not locker.exists:
-        logger.info(ServiceExceptions.LOCKER_NOT_FOUND,
-                    station=call_sign, detail=locker_index)
+        raise LockerNotFoundException(
+            locker_id=task.assigned_session.assigned_locker.id)
+    logger.info(f"Station {callsign} reports locker '{
+                locker.callsign}' as {LockerStates.UNLOCKED}.")
 
     # 2: Check whether the internal locker state matches the reported situation
     if locker.reported_state != LockerStates.LOCKED.value:
-        logger.error(f"Locker '{locker.id}' should be locked, but is {
+        logger.error(f"Locker '{locker.callsign}' should be locked, but is {
                      locker.reported_state}.")
         return
 
-    station: Station = Station(task.assigned_station)
+    station: Station = await Station().find(callsign=callsign)
     if not station:
-        logger.info(ServiceExceptions.STATION_NOT_FOUND,
-                    station=call_sign)
+        raise StationNotFoundException(callsign=callsign)
 
     # 4: Find the assigned session
     accepted_session_states = [SessionStates.VERIFICATION,
@@ -179,7 +196,7 @@ async def handle_unlock_confirmation(
     session: Session = Session(task.assigned_session)
     if not session.exists:
         logger.info(ServiceExceptions.SESSION_NOT_FOUND,
-                    station=call_sign)
+                    station=callsign)
         return
 
     if session.session_state not in accepted_session_states:
@@ -189,14 +206,15 @@ async def handle_unlock_confirmation(
 
     # 5: Update locker and session states
     await locker.register_state(LockerStates.UNLOCKED)
-    await task.set_state(TaskStates.COMPLETED)
+    await task.complete()
     await restart_expiration_manager()
 
     # 7: Create a queue item for the user
     await Task().create(
-        task_type=TaskTypes.USER,
-        station=station.document,
+        task_type=TaskTypes.LOCKER,
         session=session.document,
+        station=station.document,
+        locker=locker.document,
         queued_state=await session.next_state,
         timeout_states=[SessionStates.STALE],
         has_queue=False
@@ -206,4 +224,4 @@ async def handle_unlock_confirmation(
     await create_action(session.id, session.session_state)
 
     # 9: Save changes
-    await locker.save_changes()
+    await locker.save_model_changes(notify=False)

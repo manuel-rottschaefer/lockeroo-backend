@@ -10,16 +10,16 @@ from uuid import UUID
 # Beanie
 from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
-from beanie import Update, View, after_event
+from beanie import Update, SaveChanges,  View, after_event
 from pydantic import Field
 
-from src.models.locker_models import LockerModel
 # Models
 from src.models.station_models import StationModel
 from src.models.locker_models import LockerModel
 from src.models.user_models import UserModel
 # Services
 from src.services import websocket_services
+from src.services.logging_services import logger
 
 
 class SessionTypes(str, Enum):
@@ -65,11 +65,11 @@ class SessionStates(str, Enum):
 
 
 ACTIVE_SESSION_STATES: List[SessionStates] = [
+    SessionStates.CREATED,
     SessionStates.ACTIVE,
     SessionStates.PAYMENT_SELECTED,
     SessionStates.VERIFICATION,
     SessionStates.STASHING,
-    SessionStates.ACTIVE,
     SessionStates.HOLD,
     SessionStates.PAYMENT,
     SessionStates.RETRIEVAL
@@ -118,7 +118,7 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a session in the database.
          All relevant timestamps are stored in actions."""
     ### Identification ###
-    id: Optional[ObjId] = Field(None, alias="_id")
+    id: ObjId = Field(None, alias="_id")
     assigned_station: Link[StationModel] = Field(
         description="The assigned station to this session.")
 
@@ -150,10 +150,17 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
                      "This value is only being calculated on demand and can be None."))
 
     ### Status Broadcasting ###
-    @after_event(Update)
+    @after_event(Update, SaveChanges)
     async def notify_state(self):
         """Send an update message regarding the session state to the mqtt broker."""
-        await websocket_services.send_text(socket_id=self.id, text=self.session_state)
+        await websocket_services.send_text(session_id=self.id, text=self.session_state)
+
+    @after_event(Update, SaveChanges)
+    async def log_state_change(self):
+        """Log the state change."""
+        logger.debug(
+            f"Session '{self.id}' changed state to {self.session_state}."
+        )
 
     @dataclasses.dataclass
     class Settings:  # pylint: disable=missing-class-docstring

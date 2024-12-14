@@ -6,30 +6,33 @@ from typing import Dict, Optional
 # FastAPI
 from fastapi import WebSocket
 
-active_connections: Dict[str, WebSocket] = {}
+# Beanie
+from beanie import PydanticObjectId as ObjId
+
+active_connections: Dict[ObjId, WebSocket] = {}
 
 
-def register_connection(socket_id: str, socket: WebSocket) -> None:
+def register_connection(session_id: ObjId, socket: WebSocket) -> None:
     """Save the websocket connection."""
-    if socket_id not in active_connections:
-        active_connections[socket_id] = socket
+    if session_id not in active_connections:
+        active_connections[session_id] = socket
 
 
-def unregister_connection(socket_id: str) -> None:
+def unregister_connection(session_id: ObjId) -> None:
     """Remove the websocket connection."""
-    if socket_id in active_connections:
-        del active_connections[socket_id]
+    if session_id in active_connections:
+        del active_connections[session_id]
 
 
-def get_connection(socket_id: str) -> Optional[WebSocket]:
+def get_connection(session_id: ObjId) -> Optional[WebSocket]:
     """Return a websocket connection."""
-    if socket_id in active_connections:
-        return active_connections[socket_id]
+    if session_id in active_connections:
+        return active_connections[session_id]
     return None
 
 
-async def send_text(socket_id: str, text: str) -> None:
+async def send_text(session_id: ObjId, text: str) -> None:
     """Send text through a websocket connection."""
-    socket: WebSocket = get_connection(socket_id=str(socket_id))
+    socket: WebSocket = get_connection(session_id=session_id)
     if socket:
         await socket.send_text(text)

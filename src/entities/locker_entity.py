@@ -1,6 +1,9 @@
 """This module provides utilities for  database for lockers."""
 
 # Types
+from typing import Optional
+
+# Beanie
 from beanie import PydanticObjectId as ObjId, SortDirection
 from beanie.operators import In, NotIn
 
@@ -17,39 +20,33 @@ from src.services.mqtt_services import fast_mqtt
 
 class Locker(Entity):
     """Add behaviour to a locker instance."""
+    document: LockerModel
+
     @classmethod
-    async def fetch(
+    async def find(
         cls,
-        locker_id: ObjId = None,
-        station: StationModel = None,
-        call_sign: str = '',
-        index: int = None,
-        with_linked: bool = False
+        locker_id: Optional[ObjId] = None,
+        station: Optional[ObjId] = None,
+        station_callsign: Optional[str] = None,
+        index: Optional[int] = None,
     ):
-        """Create a Locker instance and fetch the object asynchronously."""
+        """Find a locker in the database"""
         instance = cls()
 
-        if locker_id is not None:
-            instance.document = await LockerModel.get(locker_id)
-        elif None not in [station, index]:
-            instance.document = await LockerModel.find_one(
-                LockerModel.station.id == station.id,  # pylint: disable=no-member
-                LockerModel.station_index == index,
-                fetch_links=True
-            )
-        elif None not in [call_sign, index]:
-            instance.document = await LockerModel.find_one(
-                LockerModel.station.call_sign == call_sign,  # pylint: disable=no-member
-                LockerModel.station_index == index,
-                fetch_links=True
-            )
-        if not instance.document:
-            logger.info("Locker '#%s' not found at station '%s'.",
-                        index, station)
+        query = {
+            LockerModel.id: locker_id,
+            LockerModel.station.id: station,  # pylint: disable=no-member
+            LockerModel.station.callsign: station_callsign,  # pylint: disable=no-member
+            LockerModel.station_index: index,  # pylint: disable=no-member
+        }
+        # Filter out None values
+        query = {k: v for k, v in query.items() if v is not None}
+        locker_item: LockerModel = await LockerModel.find(
+            query, fetch_links=True
+        ).sort((LockerModel.total_session_count, SortDirection.DESCENDING)).first_or_none()
 
-        if with_linked:
-            await instance.document.fetch_all_links()
-
+        if locker_item:
+            instance.document = locker_item
         return instance
 
     @classmethod
@@ -78,8 +75,9 @@ class Locker(Entity):
         active_lockers = [
             session.assigned_locker.id for session in active_sessions]
         # TODO: Create a station locker count key, it is useful for such tasks
-        assert len(active_lockers) < 30, "Found more active lockers than exist at station."
-        
+        assert len(
+            active_lockers) < 30, "Found more active lockers than exist at station."
+
         # 3: Find a locker at this station that matches the type and does not belong to such a session
         available_locker: LockerModel = await LockerModel.find(
             # LockerModel.station.id == station.id,  # pylint: disable=no-member
@@ -99,10 +97,14 @@ class Locker(Entity):
 
     async def register_state(self, state: LockerStates):
         """Update the reported (actual) locker state"""
+        logger.debug(f"Locker '{self.document.id}' registered as: {state}.")
         self.document.reported_state = state
+        await self.document.save_changes()
 
-    async def set_state(self, state: LockerStates):
+    async def instruct_state(self, state: LockerStates):
         """Send a message to the station to unlock the locker."""
         await self.document.fetch_link(LockerModel.station)
+        logger.debug(f"Broadcasting locker state {
+                     state} to '{self.document.id}'.")
         fast_mqtt.publish(
-            f'stations/{self.station.call_sign}/locker/{self.station_index}/instruct', state.value)
+            f'stations/{self.station.callsign}/locker/{self.station_index}/instruct', state.value)

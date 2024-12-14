@@ -27,7 +27,10 @@ class Entity():
             # Delegate setting other attributes to the document
             setattr(self.document, name, value)
 
-    async def save_changes(self, notify: bool = False):
+    async def save_model_changes(self, notify: bool = False):
         """Save local changes to the database with the option to broadcast changes."""
-        skip_actions: List = [] if notify else [After]
-        await self.document.save_changes(skip_actions=skip_actions)
+        # TODO: Make the skip-actions list dynamic
+        if notify:
+            await self.document.save_changes()
+        else:
+            await self.document.save_changes(skip_actions=[After])

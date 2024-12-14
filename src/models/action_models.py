@@ -21,7 +21,7 @@ from src.models.session_models import SessionModel, SessionStates
 class ActionModel(Document):  # pylint: disable=too-many-ancestors
     """Database representation of a action"""
     # Identification
-    id: ObjId = Field(alias="_id", default=None)
+    id: ObjId = Field(None, alias="_id")
 
     assigned_session: Link[SessionModel] = Field(
         None, description="The session to which this action belongs."
@@ -44,7 +44,7 @@ class ActionView(View):  # pylint: disable=too-many-ancestors
     """Database representation of a action"""
 
     # Identification
-    id: ObjId = Field(alias="_id", default=None)
+    id: ObjId = Field(None, alias="_id",)
     assigned_session: ObjId = Field(
         None, description="The assigned session to this action."
     )

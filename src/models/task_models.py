@@ -12,11 +12,10 @@ from beanie import Update, after_event
 from dotenv import load_dotenv
 from pydantic import Field
 
-from src.models.locker_models import LockerStates
 # Models
 from src.models.session_models import SessionModel, SessionStates
 from src.models.station_models import StationModel
-from src.models.locker_models import LockerStates
+from src.models.locker_models import LockerModel, LockerStates
 
 # Services
 from src.services.logging_services import logger
@@ -35,9 +34,14 @@ class TaskStates(str, Enum):
 
 class TaskTypes(str, Enum):
     """Types of queued actions."""
-    USER = "user"                   # Awaiting action of user (verification/payment)
-    TERMINAL = "terminal"           # Awaiting station to confirm terminal state
-    LOCKER = "locker"               # Awaiting station to confirm locker state
+    # Awaiting user actions (no station involved)
+    USER = "user"
+    # Awaiting action report at terminal (verification/payment)
+    TERMINAL = "terminal"
+    # Awaiting action report at locker (locking)
+    LOCKER = "locker"
+    # Awaiting confirmation of locker or terminal state
+    CONFIRMATION = "confirmation"
 
 
 class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
@@ -46,13 +50,16 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     id: ObjId = Field(None, alias="_id")
 
     task_type: TaskTypes = Field(
-        TaskTypes.USER, description="The type of action being queued/awaited.")
+        description="The type of action being queued/awaited.")
 
     assigned_session: Link[SessionModel] = Field(
         None, description="The session which this task handles.")
 
-    assigned_station: Link[StationModel] = Field(
-        None, description="The station assigned to the related session.")
+    assigned_station: Optional[Link[StationModel]] = Field(
+        None, description="The station which this task may be assigned to.")
+
+    assigned_locker: Optional[Link[LockerModel]] = Field(
+        None, description="The station which this task may be assigned to.")
 
     task_state: TaskStates = Field(
         TaskStates.QUEUED,
@@ -62,7 +69,7 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
         False, description="The task can be put into a queue at its\
         assigned station or be immediately activated.")
 
-    queued_state: Optional[Union[LockerStates, SessionStates]] = Field(
+    queued_session_state: Optional[Union[LockerStates, SessionStates]] = Field(
         None,
         description="The next state of the assigned session or terminal after activation.\
         State Type depends on task type.")
@@ -85,7 +92,7 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     activated_at: Optional[datetime] = Field(
         None, description="The datetime when the task item was activated.")
 
-    completed: Optional[datetime] = Field(
+    completed_at: Optional[datetime] = Field(
         None, description="The datetime when the task item was completed or expired.")
 
     @after_event(Update)

@@ -48,7 +48,7 @@ class PricingModel(BaseModel):
 class PaymentModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a payment object in the database"""
     ### Identification ###
-    id: Optional[ObjId] = Field(
+    id: ObjId = Field(
         None, alias="_id", description='ObjectID in the database')
 
     assigned_station: Link[StationModel] = Field(
@@ -78,7 +78,7 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
             await session.document.fetch_all_links()
             station: Station = await Station(session.assigned_station)
             fast_mqtt.publish(
-                f'/stations/{station.call_sign}/payment/{self.price}')
+                f'/stations/{station.callsign}/payment/{self.price}')
 
     @dataclasses.dataclass
     class Settings:  # pylint: disable=missing-class-docstring

@@ -1,7 +1,6 @@
 """Main backend file"""
 
 # Standard imports
-import os
 from contextlib import asynccontextmanager
 
 # API services
@@ -42,7 +41,6 @@ async def _lifespan(_fastapi_app: FastAPI):
     yield
     await fast_mqtt.mqtt_shutdown()
 
-
 # Create app
 app = FastAPI(
     title="Lockeroo",
@@ -60,6 +58,7 @@ app = FastAPI(
     # },
     lifespan=_lifespan)
 
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
@@ -67,6 +66,7 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
+
 
 # Include routers
 app.include_router(station_router, prefix="/stations", tags=["Stations"])
@@ -78,6 +78,6 @@ app.include_router(admin_router, prefix='/admin', tags=['Admin'])
 app.include_router(dashboard_router, prefix='/dashboard', tags=['Dashboard'])
 
 if __name__ == "__main__":
-    #os.system('clear')
+    # os.system('clear')
     # Run the server
     uvicorn.run("main:app", host="0.0.0.0", port=8080, reload=True)

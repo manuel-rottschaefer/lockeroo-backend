@@ -12,7 +12,7 @@ from functools import wraps
 from fastapi import HTTPException
 
 
-def handle_exceptions(logger):
+def handle_exceptions(logging_service):
     """Handle FastAPI Endpoint Exceptions."""
     def decorator(func):
         @wraps(func)
@@ -20,10 +20,10 @@ def handle_exceptions(logger):
             try:
                 return await func(*args, **kwargs)
             except HTTPException as e:
-                logger.error(f"HTTPException: {e.detail}")
+                logging_service.error(f"HTTPException: {e.detail}")
                 raise e
             except Exception as e:
-                logger.error(f"Unhandled exception: {str(e)}")
+                logging_service.error(f"Unhandled exception: {str(e)}")
                 raise HTTPException(
                     status_code=500, detail="Internal Server Error") from e
         return wrapper

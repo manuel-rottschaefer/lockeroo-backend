@@ -2,7 +2,7 @@
   code: ML_B_W_1
   version: 1.0
   description: First type to be deployed, rented from MobileLocker.eu
-  locker-amount: 18
+  locker_amount: 18
   render: static/renders/stations/ML_B_W_1.png
   has_gsm: True
   has_wifi: False

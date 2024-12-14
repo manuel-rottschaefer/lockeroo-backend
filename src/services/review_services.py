@@ -21,6 +21,9 @@ from src.models.user_models import UserModel
 from src.services.exception_services import ServiceExceptions
 from src.services.logging_services import logger
 
+# Exceptions
+from src.exceptions.session_exceptions import InvalidSessionStateException
+
 
 async def handle_review_submission(session_id: ObjId,
                                    user: UserModel,
@@ -39,10 +42,10 @@ async def handle_review_submission(session_id: ObjId,
 
     # 2: Check if the session has already been completed
     if session.session_state != SessionStates.COMPLETED:
-        logger.info(ServiceExceptions.WRONG_SESSION_STATE,
-                    user=user.id, session=session_id)
-        raise HTTPException(
-            status_code=404, detail=ServiceExceptions.WRONG_SESSION_STATE.value)
+        raise InvalidSessionStateException(
+            session_id=session_id,
+            expected_state=SessionStates.COMPLETED,
+            actual_state=session.session_state)
 
     # 3: Then insert the review into the database
     await ReviewModel(

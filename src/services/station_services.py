@@ -5,17 +5,17 @@ from typing import Dict, List, Optional
 
 import yaml
 # Beanie
-from beanie import PydanticObjectId as ObjId
 from beanie.operators import In, Near, Set
 # API services
 from fastapi import Response, status
 
-from src.entities.locker_entity import Locker
-from src.entities.session_entity import Session
 # Entities
 from src.entities.station_entity import Station
+from src.entities.locker_entity import Locker
+from src.entities.session_entity import Session
 from src.entities.task_entity import Task, restart_expiration_manager
 # Models
+from src.exceptions.station_exceptions import InvalidStationReportException, InvalidTerminalStateException, StationNotFoundException
 from src.models.locker_models import LockerModel, LockerStates
 from src.models.session_models import SessionModel, SessionStates, ACTIVE_SESSION_STATES
 from src.models.station_models import (StationLockerAvailabilities,
@@ -24,9 +24,10 @@ from src.models.station_models import (StationLockerAvailabilities,
                                        TerminalStates)
 from src.models.task_models import TaskItemModel, TaskTypes, TaskStates
 # Services
-from src.services.exception_services import ServiceExceptions
 from src.services.logging_services import logger
-from src.services.session_services import InvalidSessionStateException
+from src.exceptions.task_exceptions import TaskNotFoundException
+from src.exceptions.session_exceptions import (
+    InvalidSessionStateException)
 
 # Singleton for pricing models
 STATION_TYPES: Dict[str, StationType] = None
@@ -59,67 +60,22 @@ async def discover(lat: float, lon: float, radius: int,
     return stations
 
 
-class StationNotFoundException(Exception):
-    """Exception raised when a station cannot be found by a given query."""
-    # TODO: We may not need this as this is a user error
-
-    def __init__(self, callsign: str = None, station_id: ObjId = None):
-        super().__init__()
-        self.station = callsign if callsign else station_id
-        logger.warning(
-            f"Could not find station '{self.station}' in database.")
-
-    def __str__(self):
-        return f"Station '{self.station}' not found.)"
-
-
-class InvalidStationReportException(Exception):
-    """Exception raised when a station reports an action that is not expected by the backend."""
-
-    def __init__(self, station_callsign: str, reported_state: str):
-        super().__init__()
-        self.station_callsign = station_callsign
-        logger.warning(
-            f"Received non-expected report of {reported_state} at '{station_callsign}'.")
-
-    def __str__(self):
-        return f"Invalid station report at station '{self.station_callsign}'.)"
-
-
-class InvalidTerminalStateException(Exception):
-    """Exception raised when a station reports a terminal mode that is not expected by the backend."""
-
-    def __init__(self,
-                 station_callsign: str,
-                 expected_state: TerminalStates,
-                 actual_state: TerminalStates):
-        super().__init__()
-        self.station_callsign = station_callsign
-        self.expected_state = expected_state
-        self.actual_state = actual_state
-        logger.warning(
-            f"Locker at station '{station_callsign}' should be in {expected_state}, but has been reported as {actual_state}.")
-
-    def __str__(self):
-        return f"Invalid station report at station '{self.station_callsign}'.)"
-
-
-async def get_details(call_sign: str, response: Response) -> Optional[StationView]:
+async def get_details(callsign: str, response: Response) -> Optional[StationView]:
     """Get detailed information about a station."""
     # Get station data from the database
-    station: Station = await Station().find(call_sign=call_sign)
+    station: Station = await Station().find(callsign=callsign)
     if not station.exists:
         response.status_code = status.HTTP_404_NOT_FOUND
-        raise StationNotFoundException(callsign=call_sign)
+        raise StationNotFoundException(callsign=callsign)
     return station.document
 
 
-async def get_active_session_count(call_sign: str, response: Response) -> Optional[int]:
+async def get_active_session_count(callsign: str, response: Response) -> Optional[int]:
     """Get the amount of currently active sessions at this station."""
-    station: Station = await Station().find(call_sign=call_sign)
+    station: Station = await Station().find(callsign=callsign)
     if not station.exists:
         response.status_code = status.HTTP_404_NOT_FOUND
-        raise StationNotFoundException(callsign=call_sign)
+        raise StationNotFoundException(callsign=callsign)
 
     return await SessionModel.find(
         SessionModel.assigned_station == station.id,
@@ -130,25 +86,33 @@ async def get_active_session_count(call_sign: str, response: Response) -> Option
 
 
 async def get_locker_by_index(
-        call_sign: str, locker_index: int, response: Response,) -> Optional[LockerModel]:
+        callsign: str, locker_index: int, response: Response,) -> Optional[LockerModel]:
     """Get the locker at a station by its index."""
-    # 1: Get the assigned locker
-    locker: Locker = await Locker().fetch(call_sign=call_sign, index=locker_index)
+    # 1: Get the station
+    station: Station = await Station().find(callsign=callsign)
+    if not station.exists:
+        response.status_code = status.HTTP_404_NOT_FOUND
+        raise StationNotFoundException(callsign=callsign)
+
+    # 2: Get the assigned locker
+    locker: Locker = await Locker().find(
+        station=station.document.id, index=locker_index)
     if not locker.exists:
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         # TODO: Raise logger error here
     return locker.document
 
 
-async def get_locker_overview(call_sign: str, response: Response, ) -> Optional[StationLockerAvailabilities]:
+async def get_locker_overview(
+        callsign: str, response: Response, ) -> Optional[StationLockerAvailabilities]:
     """Determine for each locker type if it is available at the given station."""
 
     # 1: Check whether the station exists
-    station: Station = await Station().find(call_sign=call_sign)
+    station: Station = await Station().find(callsign=callsign)
 
     if not station.exists:
         response.status_code = status.HTTP_404_NOT_FOUND
-        raise StationNotFoundException(callsign=call_sign)
+        raise StationNotFoundException(callsign=callsign)
 
     # 2: Create a list of locker availabilities
     # TODO: Rework this part with dynamic locker types
@@ -156,7 +120,7 @@ async def get_locker_overview(call_sign: str, response: Response, ) -> Optional[
     locker_types = ['small', 'medium', 'large']
     for locker_type in locker_types:
         locker_data = await LockerModel.find(
-            LockerModel.station == call_sign.call_sign,
+            LockerModel.station == callsign.callsign,
             LockerModel.lockerType.name == locker_type,
             # LockerModel.state == LockerStates.operational,
         ).to_list()
@@ -166,25 +130,25 @@ async def get_locker_overview(call_sign: str, response: Response, ) -> Optional[
     return availability
 
 
-async def set_station_state(call_sign: str, station_state: StationStates) -> StationView:
+async def set_station_state(callsign: str, station_state: StationStates) -> StationView:
     """Set the state of a station."""
-    station: Station = Station().find(call_sign=call_sign)
+    station: Station = Station().find(callsign=callsign)
     await station.register_station_state(station_state)
     return station.document
 
 
-async def reset_queue(call_sign: str, response: Response) -> StationView:
+async def reset_queue(callsign: str, response: Response) -> StationView:
     """Reset the queue of the station by putting all queue
     items in state QUEUED and re-evaluating the queue."""
     # 1: Find the assigned station
-    station: Station = await Station().find(call_sign=call_sign)
+    station: Station = await Station().find(callsign=callsign)
     if not station.exists():
         response.status_code = status.HTTP_404_NOT_FOUND
-        raise StationNotFoundException(callsign=call_sign)
+        raise StationNotFoundException(callsign=callsign)
 
     # 2: Get all stale queue items at the station
     tasks: List[TaskItemModel] = await TaskItemModel.find(
-        TaskItemModel.assigned_station == station.id,
+        TaskItemModel.assigned_station.id == station.document.id,
         TaskItemModel.task_state == TaskStates.PENDING
     ).sort((TaskItemModel.created_ts)).first_or_none()
 
@@ -196,8 +160,8 @@ async def reset_queue(call_sign: str, response: Response) -> StationView:
     await first_task.activate()
 
 
-async def handle_action_report(
-        call_sign: str,
+async def handle_terminal_report(
+        callsign: str,
         expected_session_state: SessionStates,
         expected_terminal_state: TerminalStates
 ) -> None:
@@ -205,14 +169,22 @@ async def handle_action_report(
         It verifies the authenticity of the report and then updates the state
         values for the station and the assigned session as well as notifies
         the client so that the user can proceed. """
-    # 1: Find the assigned task
+
+    # 1: Find the assigned station
+    station: Station = await Station().find(callsign=callsign)
+    if not station.exists:
+        raise StationNotFoundException(callsign=callsign)
+
+    # 2: Find the assigned task
     task: Task = await Task().find(
-        call_sign=call_sign,
-        task_type=TaskTypes.USER,
-        task_state=TaskStates.PENDING)
+        task_type=TaskTypes.TERMINAL,
+        task_state=TaskStates.PENDING,
+        queued_state=expected_session_state,
+        assigned_station=station.document.id,
+    )
     if not task.exists:
-        raise InvalidStationReportException(
-            call_sign, expected_terminal_state.value,)
+        raise TaskNotFoundException(
+            assigned_station=callsign, task_type=TaskTypes.USER)
     await task.fetch_link(TaskItemModel.assigned_session)
 
     # 2: Get the assigned session
@@ -228,7 +200,7 @@ async def handle_action_report(
     station: Station = Station(session.assigned_station)
     if station.terminal_state != expected_terminal_state:
         raise InvalidTerminalStateException(
-            station_callsign=call_sign,
+            station_callsign=callsign,
             expected_state=expected_terminal_state,
             actual_state=station.terminal_state)
 
@@ -237,16 +209,15 @@ async def handle_action_report(
 
     # 5: Update terminal, locker and task states
     await station.register_terminal_state(TerminalStates.IDLE)
-    await locker.set_state(LockerStates.UNLOCKED)
-    await task.set_state(TaskStates.COMPLETED)
+    await task.complete()
 
     # 6: Restart the task manager
     await restart_expiration_manager()
 
     # 7: Await station to confirm locker state
     await Task().create(
-        task_type=TaskTypes.LOCKER,
-        station=station.document,
+        task_type=TaskTypes.CONFIRMATION,
+        locker=locker.document,
         session=session.document,
         queued_state=await session.next_state,
         timeout_states=[SessionStates.ABORTED],
@@ -254,35 +225,45 @@ async def handle_action_report(
     )
 
     # 8: Save changes
-    await task.save_changes()
+    await task.save_model_changes()
 
 
-async def handle_terminal_confirmation(call_sign: str, terminal_state: TerminalStates):
+async def handle_terminal_confirmation(
+        callsign: str, terminal_state: TerminalStates):
     """Process a station report about its terminal state."""
+    logger.info(f'Station {callsign} confirmed terminal in {terminal_state}.')
     # 1: Find the assigned station
-    station: Station = await Station().find(call_sign=call_sign)
-    await station.register_terminal_state(terminal_state)
+    station: Station = await Station().find(callsign=callsign)
+    if not station.exists:
+        raise StationNotFoundException(callsign=callsign)
 
-    # 2: Find assigned task
+    # 2: If the terminal state matches the current state, ignore the report
+    if station.terminal_state == terminal_state:
+        return
+
+    # 3: Find assigned task
     task: Task = await Task().find(
-        call_sign=call_sign,
-        task_type=TaskTypes.TERMINAL,
-        task_state=TaskStates.PENDING)
+        task_type=TaskTypes.CONFIRMATION,
+        task_state=TaskStates.PENDING,
+        assigned_station=station.document.id)
     if not task.exists:
         raise InvalidStationReportException(
-            call_sign, terminal_state.value)
+            callsign, terminal_state.value)
     await task.fetch_link(TaskItemModel.assigned_session)
 
-    # 3: Find assigned session and set to queued state
+    # 4: Find assigned session and set to queued state
     session: Session = Session(task.assigned_session)
 
-    # 2: Complete previous task
-    await task.set_state(TaskStates.COMPLETED)
+    # 5: Update the terminal state
+    await station.register_terminal_state(terminal_state)
+
+    # 6: Complete previous task
+    await task.complete()
     await restart_expiration_manager()
 
-    # 3: Launch the new user task
+    # 7: Launch the new user task
     await Task().create(
-        task_type=TaskTypes.USER,
+        task_type=TaskTypes.TERMINAL,
         station=station.document,
         session=session.document,
         queued_state=await session.next_state,
@@ -291,5 +272,5 @@ async def handle_terminal_confirmation(call_sign: str, terminal_state: TerminalS
         has_queue=False
     )
 
-    # 4: Update values
-    await task.save_changes()
+    # 8: Update values
+    await task.save_model_changes(notify=False)
