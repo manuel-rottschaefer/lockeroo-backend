@@ -16,8 +16,7 @@ from src.models.station_models import (StationStates, StationView,
                                        TerminalStates)
 # Services
 from src.services import locker_services, station_services
-from src.services.exception_services import (ServiceExceptions,
-                                             handle_exceptions)
+from src.services.exception_services import handle_exceptions
 import src.services.exception_services
 from src.services.logging_services import logger
 from src.services.mqtt_services import fast_mqtt, validate_mqtt_topic

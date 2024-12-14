@@ -13,19 +13,19 @@ from src.entities.session_entity import Session
 from src.entities.locker_entity import Locker
 from src.entities.task_entity import Task, restart_expiration_manager
 # Models
-from src.models.locker_models import LockerModel, LockerStates, LockerType
+from src.models.locker_models import LockerModel, LockerStates, LockerTypes
 from src.models.session_models import SessionStates
 from src.models.task_models import TaskItemModel, TaskStates, TaskTypes
 from src.services.action_services import create_action
-from src.services.exception_services import ServiceExceptions
 # Services
 from src.services.logging_services import logger
 from src.exceptions.station_exceptions import StationNotFoundException
-from src.exceptions.session_exceptions import SessionNotFoundException
+from src.exceptions.session_exceptions import (
+    SessionNotFoundException, InvalidSessionStateException)
 from src.exceptions.task_exceptions import TaskNotFoundException
 
 # Singleton for pricing models
-LOCKER_TYPES: Dict[str, LockerType] = None
+LOCKER_TYPES: Dict[str, LockerTypes] = None
 
 CONFIG_PATH = 'src/config/locker_types.yml'
 
@@ -33,7 +33,7 @@ if LOCKER_TYPES is None:
     try:
         with open(CONFIG_PATH, 'r', encoding='utf-8') as cfg:
             type_dicts = yaml.safe_load(cfg)
-            LOCKER_TYPES = {name: LockerType(name=name, **details)
+            LOCKER_TYPES = {name: LockerTypes(name=name, **details)
                             for name, details in type_dicts.items()}
     except FileNotFoundError:
         logger.warning(f"Configuration file not found: {CONFIG_PATH}.")
@@ -116,12 +116,12 @@ async def handle_lock_report(callsign: str, locker_index: int) -> None:
 
     # 5: Find the station to get its ID
     station: Station = Station(locker.station)
-    if not station:
+    if not station.exists:
         raise StationNotFoundException(callsign=callsign)
 
     # 6: Find the assigned session
     session: Session = Session(task.assigned_session)
-    if not session:
+    if not session.exists:
         raise SessionNotFoundException(session_id=task.assigned_session.id)
 
     # 7: If those checks pass, update the locker and create an action
@@ -185,7 +185,7 @@ async def handle_unlock_confirmation(
         return
 
     station: Station = await Station().find(callsign=callsign)
-    if not station:
+    if not station.exists:
         raise StationNotFoundException(callsign=callsign)
 
     # 4: Find the assigned session
@@ -194,14 +194,14 @@ async def handle_unlock_confirmation(
                                SessionStates.HOLD]
     session: Session = Session(task.assigned_session)
     if not session.exists:
-        # logger.info(ServiceExceptions.SESSION_NOT_FOUND,
-        #            station=callsign)
-        return
+        raise SessionNotFoundException(session_id=task.assigned_session.id)
 
     if session.session_state not in accepted_session_states:
-        # logger.info(ServiceExceptions.WRONG_SESSION_STATE,
-        #            session=session.id, detail=session.session_state)
-        return
+        raise InvalidSessionStateException(
+            session_id=session.id,
+            expected_states=accepted_session_states,
+            actual_state=session.session_state
+        )
 
     # 5: Update locker and session states
     locker.document.reported_state = LockerStates.UNLOCKED

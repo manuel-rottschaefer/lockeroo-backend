@@ -27,7 +27,7 @@ class LockerStates(str, Enum):
     UNLOCKED = 'unlocked'
 
 
-class LockerType(BaseModel):
+class LockerTypes(BaseModel):
     """Config representation of deployable locker types."""
     name: str = Field(description="Name of the locker type family.")
     description: str = Field("Well... a description.")

@@ -16,11 +16,14 @@ from src.models.session_models import SessionModel, SessionStates
 from src.models.user_models import UserModel
 
 # Services
-from src.services.exception_services import ServiceExceptions
 from src.services.logging_services import logger
 
 # Exceptions
-from src.exceptions.session_exceptions import InvalidSessionStateException
+from src.exceptions.session_exceptions import (
+    SessionNotFoundException,
+    InvalidSessionStateException)
+from src.exceptions.review_exceptions import ReviewNotFoundException
+from src.exceptions.user_exceptions import UserNotAuthorizedException
 
 
 async def handle_review_submission(session_id: ObjId,
@@ -34,15 +37,14 @@ async def handle_review_submission(session_id: ObjId,
         SessionModel.id == session_id,
         SessionModel.user == user
     )
-    if not session:
-        raise HTTPException(status_code=404,
-                            detail=ServiceExceptions.SESSION_NOT_FOUND.value)
+    if not session.exists:
+        raise SessionNotFoundException(session_id=session_id)
 
     # 2: Check if the session has already been completed
     if session.session_state != SessionStates.COMPLETED:
         raise InvalidSessionStateException(
             session_id=session_id,
-            expected_state=SessionStates.COMPLETED,
+            expected_states=[SessionStates.COMPLETED],
             actual_state=session.session_state)
 
     # 3: Then insert the review into the database
@@ -64,18 +66,16 @@ async def get_session_review(
         ReviewModel.assigned_session == session_id
     )
     if not review:
-        logger.info(ServiceExceptions.REVIEW_NOT_FOUND, session=session_id)
-        return None
+        raise ReviewNotFoundException(review_id=session_id)
 
     # 2: Find the assigned session
     session: Session = await Session().find(session_id=review.assigned_session.id)
-    if not session:
+    if not session.exists:
         logger.warning(
             f'Session {review.assigned_session.id} does not exist, but should.')
         return None
     await session.fetch_link(SessionModel.user)
     if session.user.id != user.id:
-        raise HTTPException(
-            status_code=401, detail=ServiceExceptions.NOT_AUTHORIZED.value)
+        raise UserNotAuthorizedException(user_id=user.id)
 
     return review

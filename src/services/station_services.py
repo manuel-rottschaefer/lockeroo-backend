@@ -151,7 +151,7 @@ async def reset_queue(callsign: str, response: Response) -> StationView:
 
     # 2: Get all stale queue items at the station
     tasks: List[TaskItemModel] = await TaskItemModel.find(
-        TaskItemModel.assigned_station.id == station.document.id,
+        TaskItemModel.assigned_station.id == station.document.id,  # pylint: disable=no-member
         TaskItemModel.task_state == TaskStates.PENDING
     ).sort((TaskItemModel.created_ts)).first_or_none()
 
@@ -197,7 +197,9 @@ async def handle_terminal_report(
 
     if session.session_state != expected_session_state:
         raise InvalidSessionStateException(
-            session.id, expected_session_state, session.session_state)
+            session_id=session.id,
+            expected_states=[expected_session_state],
+            actual_state=session.session_state)
 
     # 3: Check whether the station is currently told to await an action
     station: Station = Station(session.assigned_station)

@@ -10,8 +10,12 @@ from beanie.operators import In
 
 # Models
 from src.models.session_models import SessionModel, SessionStates, ACTIVE_SESSION_STATES
+
 # Services
 from src.services.logging_services import logger
+
+# Exceptions
+from src.exceptions.user_exceptions import UserHasActiveSessionException
 
 
 async def has_active_session(user_id: UUID) -> bool:
@@ -25,7 +29,7 @@ async def has_active_session(user_id: UUID) -> bool:
     ).sort((SessionModel.created_ts, SortDirection.DESCENDING)).first_or_none()
 
     if active_session:
-        logger.info(f"User {user_id} already has an active session.")
+        raise UserHasActiveSessionException(user_id=user_id)
 
     return active_session is not None
 

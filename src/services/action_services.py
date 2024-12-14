@@ -23,6 +23,3 @@ async def create_action(session_id: ObjId,
 
     if new_action:
         return new_action
-
-    logger.info('Tried to add action of type %s for session %s, but failed.',
-                action_type.value, session_id)

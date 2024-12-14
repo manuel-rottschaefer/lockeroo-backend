@@ -9,7 +9,7 @@ from beanie.operators import In, NotIn
 
 # Entities
 from src.entities.entity_utils import Entity
-from src.models.locker_models import LockerModel, LockerStates, LockerType
+from src.models.locker_models import LockerModel, LockerStates, LockerTypes
 from src.models.session_models import SessionModel, SessionStates, ACTIVE_SESSION_STATES
 # Models
 from src.models.station_models import StationModel
@@ -50,7 +50,7 @@ class Locker(Entity):
         return instance
 
     @classmethod
-    async def find_available(cls, station: StationModel, locker_type: LockerType):
+    async def find_available(cls, station: StationModel, locker_type: LockerTypes):
         """Find an available locker at this station."""
         instance = cls()
 

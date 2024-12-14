@@ -3,20 +3,40 @@
 from beanie import PydanticObjectId as ObjId
 
 # Models
-from src.models.maintenance_models import maintenanceStates
+from src.models.maintenance_models import MaintenanceStates
 
 # Services
 from src.services.logging_services import logger
+
+# Log levels
+from logging import INFO, WARNING
 
 
 class MaintenanceNotFoundException(Exception):
     """Exception raised no maintenance entry could be found with the given query."""
 
     def __init__(self, maintenance_id: ObjId):
-        super().__init__()
+        super().__init__(status_code=404, detail=self.__str__())
         self.maintenance_id = maintenance_id
-        logger.warning(
-            f"Maintenance '{maintenance_id}' not found")
+        self.log_level = INFO
 
     def __str__(self):
-        return f"Invalid state of maintenance '{self.session_id}'.)"
+        return f"Cannot find maintenance '#{self.maintenance_id}' in database.)"
+
+
+class InvalidMaintenanceStateException(Exception):
+    """Exception raised when an invalid maintenance state is provided."""
+
+    def __init__(self, maintenance_id: ObjId,
+                 expected_state: MaintenanceStates,
+                 actual_state: MaintenanceStates):
+        self.maintenance_id = maintenance_id
+        self.expected_state = expected_state
+        self.actual_state = actual_state
+        self.log_level = WARNING
+        super().__init__(status_code=400, detail=self.__str__())
+
+    def __str__(self):
+        return (
+            f"Invalid provided for maintenance '#{self.maintenance_id}'. "
+            f"Expected: {self.expected_state}, Actual: {self.actual_state}")
