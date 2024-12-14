@@ -9,7 +9,7 @@ from typing import Optional
 # Types
 from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
-from beanie import Update, after_event
+from beanie import SaveChanges, after_event
 from beanie.operators import Set
 from pydantic import BaseModel, Field
 
@@ -66,19 +66,22 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
     last_updated: datetime = Field(datetime.now(),
                                    description='The timestamp of the last update to this payment.')
 
-    @after_event(Update)
+    @after_event(SaveChanges)
     async def check_pending(self):
         """Check if this payment is now pending."""
         # 1: Update the timestamp
-        await self.update(Set({PaymentModel.last_updated: datetime.now()}))
+        self.document.last_updated = datetime.now()
 
+        # 2: Check if the payment is now pending
+        # TODO: Properly implement this
         if self.state == PaymentStates.PENDING:
-            # Get the session
             session: Session = Session(self.assigned_session)
             await session.document.fetch_all_links()
             station: Station = await Station(session.assigned_station)
             fast_mqtt.publish(
                 f'/stations/{station.callsign}/payment/{self.price}')
+
+        await self.document.save_changes()
 
     @dataclasses.dataclass
     class Settings:  # pylint: disable=missing-class-docstring

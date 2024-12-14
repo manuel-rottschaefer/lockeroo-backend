@@ -110,30 +110,32 @@ class Station(Entity):
     ) -> StationStates:
         """Update the state of a station.
         No checks are performed here, as the request is assumed to be valid."""
-        await self.document.update(Set({StationModel.station_state: new_station_state}), skip_actions=['notify_station_state'])
-        logger.debug(f"Station '{self.callsign}' state set to {
-                     self.station_state}.")
+        self.document.station_state = new_station_state
+        await self.document.save_changes(
+            skip_actions=['notify_station_state', 'instruct_terminal_state'])
         return new_station_state
 
     async def register_terminal_state(
         self: StationModel, new_terminal_state: TerminalStates = None
     ) -> None:
         """Update the terminal state of a station. This function either accepts a TerminalState or a SessionState. """
-        await self.document.update(
-            Set({StationModel.terminal_state: new_terminal_state}),
+        self.document.terminal_state = new_terminal_state
+        await self.document.save_changes(
             skip_actions=['notify_station_state', 'instruct_terminal_state'])
         logger.debug(
-            f"Terminal at station '{self.id}' set to {
+            f"Terminal at station '#{self.id}' set to {
                 self.terminal_state}."
         )
 
     async def activate_payment(self):
         """Activate a payment process at the station."""
-        await self.document.update(
-            Set({StationModel.terminal_state: TerminalStates.PAYMENT}),
-            skip_actions=['notify_station_state'])
+        self.document.terminal_state = TerminalStates.PAYMENT
+        await self.document.save_changes(
+            skip_actions=['notify_station_state', 'instruct_terminal_state'])
 
     async def increase_completed_sessions_count(self: StationModel):
         """Increase the count of completed sessions at the station.
         No checks are performed here, as the request is assumed to be valid."""
-        await self.document.update(Set({StationModel.total_sessions: self.total_sessions + 1}))
+        self.document.total_sessions += 1
+        await self.document.save_changes(
+            skip_actions=['notify_station_state', 'instruct_terminal_state'])

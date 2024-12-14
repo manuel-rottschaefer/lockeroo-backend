@@ -8,9 +8,6 @@ from functools import wraps
 # FastAPI
 from fastapi_mqtt import FastMQTT, MQTTConfig
 
-# Services
-from src.services.logging_services import logger
-
 
 def validate_mqtt_topic(pattern: str, param_types: list):
     """Validate an mqtt topic string and its contained data types."""
@@ -21,7 +18,7 @@ def validate_mqtt_topic(pattern: str, param_types: list):
             regex_pattern = pattern.replace('+', '([^/]+)').replace('#', '.*')
             match = re.fullmatch(regex_pattern, topic)
             if not match:
-                logger.warning(f"Invalid MQTT topic: {topic}")
+                # logger.warning(f"Invalid MQTT topic: {topic}")
                 return
 
             # Extract parameters from the topic
@@ -32,8 +29,8 @@ def validate_mqtt_topic(pattern: str, param_types: list):
                 converted_params = [param_type(
                     param) for param, param_type in zip(params, param_types)]
             except ValueError as e:
-                logger.warning(
-                    f"Parameter conversion error for topic {topic}: {e}")
+                # logger.warning(
+                #    f"Parameter conversion error for topic {topic}: {e}")
                 return
 
             return await func(*converted_params, *args, **kwargs)

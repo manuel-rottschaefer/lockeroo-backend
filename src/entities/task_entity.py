@@ -33,7 +33,7 @@ class Task(Entity):
     async def create(cls,
                      task_type: TaskTypes,
                      session: SessionModel,
-                     queued_state: SessionStates,
+                     queued_state: Optional[SessionStates],
                      timeout_states: List[SessionStates],
                      has_queue: bool = False,
                      station: Optional[StationModel] = None,
@@ -55,11 +55,10 @@ class Task(Entity):
             queued_session_state=queued_state,
             timeout_states=timeout_states,
             created_ts=datetime.now(),
-            queue_enabled=has_queue
 
         )
         await instance.document.insert()
-        logger.debug(f"Created task '{instance.document.id}' of {
+        logger.debug(f"Created task '#{instance.document.id}' of {
                      task_type} for session '{session.id}'.")
 
         # If queueing is disabled, instantly activate the task
@@ -138,7 +137,7 @@ class Task(Entity):
 
         if is_next:
             logger.debug(
-                f"Task '{next_task.id}' identified as next in queue at station '{
+                f"Task '#{next_task.id}' identified as next in queue at station '{
                     self.id}'."
             )
         return is_next
@@ -152,20 +151,14 @@ class Task(Entity):
         }  # TODO: FIXME this does not work
         return STATE_MAP.get(session_state, TerminalStates.IDLE)
 
-    ### State management ###
-
-    async def set_state(self, new_state: TaskStates):
-        """Set the state of this task item."""
-        await self.document.update(Set({TaskItemModel.task_state: new_state}))
-
     ### Session runner ###
 
-    def get_timeout_window(self):
+    def get_timeout_window(self, session_state):
         """Get the timeout window in seconds from the config file."""
         timeout_window = 0
         if self.document.task_type in [TaskTypes.TERMINAL, TaskTypes.LOCKER]:
             timeout_window = SESSION_STATE_TIMEOUTS.get(
-                self.document.queued_session_state, 0)
+                session_state)
 
         elif self.document.task_type == TaskTypes.USER:
             timeout_window = int(os.getenv("USER_EXPIRATION", '300'))
@@ -173,36 +166,36 @@ class Task(Entity):
         elif self.document.task_type == TaskTypes.CONFIRMATION:
             timeout_window = int(os.getenv("STATION_EXPIRATION", '10'))
 
-        logger.debug(f"Task '{self.document.id}' awaiting {
-            self.document.queued_session_state} will time out to {
-                self.document.timeout_states[0]} in {timeout_window} seconds."
-        )
         return timeout_window
 
     async def activate(self) -> None:
         """Call the correct activation handler based on task type."""
-        # logger.warning(f"Activating task '{self.document.id}'.")
-        # 1: Get the timeout window for terminal confirmation
-        timeout_window = self.get_timeout_window()
+        # 1: Get the assigned session
+        session: Session = Session(self.document.assigned_session)
+
+        # 2: Get the timeout window for terminal confirmation
+        window_state: SessionStates = self.document.queued_session_state or session.session_state
+        timeout_window = self.get_timeout_window(window_state)
         timeout_date: datetime = self.document.created_ts + \
             timedelta(seconds=timeout_window)
 
-        # 2: Update task item
-        await self.document.update(Set({
-            TaskItemModel.task_state: TaskStates.PENDING,
-            TaskItemModel.activated_at: datetime.now(),
-            TaskItemModel.expires_at: timeout_date,
-            TaskItemModel.expiration_window: timeout_window
-        }))
+        # 3: Update task item
+        self.document.task_state = TaskStates.PENDING
+        self.document.activated_at = datetime.now()
+        self.document.expires_at = timeout_date
+        self.document.expiration_window = timeout_window
+        await self.document.save_changes()
+        logger.debug(f"Task '#{self.document.id}' will time out to {
+            self.document.timeout_states[0]} in {timeout_window} seconds."
+        )
 
-        # 3: Call activation handlers
+        # 4: Call activation handlers
         if self.document.task_type in [
                 TaskTypes.TERMINAL, TaskTypes.LOCKER]:
             # Advance session to next state
-            session: Session = Session(self.document.assigned_session)
             if self.document.queued_session_state:
-                session.set_state(self.document.queued_session_state)
-                await session.save_model_changes(notify=False)
+                session.document.session_state = self.document.queued_session_state
+                await session.document.save_changes()
 
         if self.document.task_type == TaskTypes.CONFIRMATION:
             # Check if the task is awaiting confirmation from terminal or locker
@@ -210,21 +203,21 @@ class Task(Entity):
                 # Instruct the station to enable the terminal
                 station: Station = Station(self.document.assigned_station)
                 station.document.instruct_terminal_state(
-                    self.map_session_to_terminal_state(self.document.queued_session_state))
+                    self.map_session_to_terminal_state(await session.next_state))
             elif self.document.assigned_locker:
                 # Instruct the locker to enable the terminal
                 locker: Locker = Locker(self.document.assigned_locker)
                 await locker.instruct_state(LockerStates.UNLOCKED)
 
+        # 5: Restart the expiration manager
         await restart_expiration_manager()
 
     async def complete(self) -> None:
         """Complete a task item."""
         # 1: Set the task state to completed
-        await self.update(
-            Set({TaskItemModel.task_state: TaskStates.COMPLETED,
-                 TaskItemModel.completed_at: datetime.now()})
-        )
+        self.document.task_state = TaskStates.COMPLETED
+        self.document.completed_at = datetime.now()
+        await self.document.save_changes()
 
         # 2: If this was a terminal task, enable the next task in queue
         if self.document.task_type == TaskTypes.TERMINAL:
@@ -245,14 +238,14 @@ class Task(Entity):
         session: Session = Session(self.document.assigned_session)
 
         # 3: Set the queue state of this item to expired
-        await self.set_state(TaskStates.EXPIRED)
+        self.document.task_state = TaskStates.EXPIRED
 
         # 4: Update the session state and create a new queue item
-        session.set_state(self.timeout_states[0])
+        session.document.session_state = self.timeout_states[0]
 
         # 5: Save changes
-        await session.save_model_changes(notify=False)
-        await self.save_model_changes()
+        await session.document.save_changes()
+        await self.document.save_changes()
 
         # 6: End the queue flow here if the session has expired or is stale.
         if session.session_state in [SessionStates.EXPIRED, SessionStates.STALE]:
@@ -268,8 +261,7 @@ class Task(Entity):
             station=session.assigned_station,
             session=session.document,
             queued_state=self.document.queued_session_state,
-            timeout_states=self.document.timeout_states[1:],
-            has_queue=self.document.queue_enabled)
+            timeout_states=self.document.timeout_states[1:])
 
 
 async def expiration_manager_loop():

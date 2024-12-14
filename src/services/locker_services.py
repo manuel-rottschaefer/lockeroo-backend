@@ -95,16 +95,16 @@ async def handle_lock_report(callsign: str, locker_index: int) -> None:
         return
     await task.fetch_all_links()
 
-    # 2: Find the affected locker
+    # 3: Find the affected locker
     assigned_locker: LockerModel = task.assigned_session.assigned_locker
     locker: Locker = Locker(assigned_locker)
     if not locker.exists:
         raise LockerNotFoundException(locker_id=assigned_locker.id)
 
-    logger.info(f"Station {callsign} reports locker '{
+    logger.info(f"Station '{callsign}' reports locker '{
                 locker.callsign}' as {LockerStates.LOCKED}.")
 
-    # 3: Check that the locker matches
+    # 4: Check that the locker matches
     if locker.station_index != locker_index:
         logger.debug("Invalid message")
         return
@@ -114,38 +114,37 @@ async def handle_lock_report(callsign: str, locker_index: int) -> None:
                      locker.reported_state}.")
         return
 
-    # 4: Find the station to get its ID
+    # 5: Find the station to get its ID
     station: Station = Station(locker.station)
     if not station:
         raise StationNotFoundException(callsign=callsign)
 
-    # 5: Find the assigned session
+    # 6: Find the assigned session
     session: Session = Session(task.assigned_session)
     if not session:
         raise SessionNotFoundException(session_id=task.assigned_session.id)
 
-    # 6: If those checks pass, update the locker and create an action
+    # 7: If those checks pass, update the locker and create an action
     await locker.register_state(LockerStates.LOCKED)
+    await session.document.save_changes()
     await create_action(session.id, session.session_state)
+
+    # 8: Complete the task and restart the expiration manager
     await task.complete()
     await restart_expiration_manager()
 
-    # 7: Save changes
-    await session.save_model_changes(notify=True)
-    await locker.save_model_changes(notify=False)
-
-    # 8: Catch a completed session here
+    # 9: Catch a completed session here
     next_state: SessionStates = await session.next_state
     if next_state == SessionStates.COMPLETED:
         return await session.handle_conclude()
 
-    # 9: Await user to return to the locker to pick up his stuff.
+    # 10: Await user to return to the locker to pick up his stuff.
     await Task().create(
         task_type=TaskTypes.LOCKER,
         session=session.document,
         station=station.document,
         locker=locker.document,
-        queued_state=await session.next_state,
+        queued_state=next_state,
         timeout_states=[SessionStates.STALE],
         has_queue=False
     )
@@ -176,7 +175,7 @@ async def handle_unlock_confirmation(
     if not locker.exists:
         raise LockerNotFoundException(
             locker_id=task.assigned_session.assigned_locker.id)
-    logger.info(f"Station {callsign} reports locker '{
+    logger.info(f"Station '{callsign}' reports locker '{
                 locker.callsign}' as {LockerStates.UNLOCKED}.")
 
     # 2: Check whether the internal locker state matches the reported situation
@@ -195,17 +194,19 @@ async def handle_unlock_confirmation(
                                SessionStates.HOLD]
     session: Session = Session(task.assigned_session)
     if not session.exists:
-        logger.info(ServiceExceptions.SESSION_NOT_FOUND,
-                    station=callsign)
+        # logger.info(ServiceExceptions.SESSION_NOT_FOUND,
+        #            station=callsign)
         return
 
     if session.session_state not in accepted_session_states:
-        logger.info(ServiceExceptions.WRONG_SESSION_STATE,
-                    session=session.id, detail=session.session_state)
+        # logger.info(ServiceExceptions.WRONG_SESSION_STATE,
+        #            session=session.id, detail=session.session_state)
         return
 
     # 5: Update locker and session states
-    await locker.register_state(LockerStates.UNLOCKED)
+    locker.document.reported_state = LockerStates.UNLOCKED
+    await locker.document.save_changes()
+
     await task.complete()
     await restart_expiration_manager()
 
@@ -222,6 +223,3 @@ async def handle_unlock_confirmation(
 
     # 8: Create action entry
     await create_action(session.id, session.session_state)
-
-    # 9: Save changes
-    await locker.save_model_changes(notify=False)

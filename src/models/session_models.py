@@ -10,7 +10,7 @@ from uuid import UUID
 # Beanie
 from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
-from beanie import Update, SaveChanges,  View, after_event
+from beanie import SaveChanges,  View, after_event
 from pydantic import Field
 
 # Models
@@ -150,16 +150,16 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
                      "This value is only being calculated on demand and can be None."))
 
     ### Status Broadcasting ###
-    @after_event(Update, SaveChanges)
+    @after_event(SaveChanges)
     async def notify_state(self):
         """Send an update message regarding the session state to the mqtt broker."""
         await websocket_services.send_text(session_id=self.id, text=self.session_state)
 
-    @after_event(Update, SaveChanges)
+    @after_event(SaveChanges)
     async def log_state_change(self):
         """Log the state change."""
         logger.debug(
-            f"Session '{self.id}' changed state to {self.session_state}."
+            f"Session '#{self.id}' moved to {self.session_state}."
         )
 
     @dataclasses.dataclass

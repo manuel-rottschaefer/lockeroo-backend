@@ -12,7 +12,7 @@ from typing import List, Optional
 # Types
 from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
-from beanie import Update, SaveChanges, View, after_event
+from beanie import SaveChanges, View, after_event
 from pydantic import BaseModel, Field
 
 # Models
@@ -74,10 +74,10 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
     last_service_ts: datetime = Field(...,
                                       description='Timestamp of the last service.')
 
-    @after_event(Update, SaveChanges)
-    def log_db_ops(self):
+    @after_event(SaveChanges)
+    def log_changes(self):
         """Log the Database operation for debugging purposes."""
-        logger.debug(f"Locker '{self.callsign}' has been reported as {
+        logger.debug(f"Locker '#{self.callsign}' has been registered as {
                      self.reported_state}.")
 
     @dataclasses.dataclass

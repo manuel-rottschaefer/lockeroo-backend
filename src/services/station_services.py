@@ -15,8 +15,11 @@ from src.entities.locker_entity import Locker
 from src.entities.session_entity import Session
 from src.entities.task_entity import Task, restart_expiration_manager
 # Models
-from src.exceptions.station_exceptions import InvalidStationReportException, InvalidTerminalStateException, StationNotFoundException
-from src.models.locker_models import LockerModel, LockerStates
+from src.exceptions.station_exceptions import (
+    InvalidStationReportException,
+    InvalidTerminalStateException,
+    StationNotFoundException)
+from src.models.locker_models import LockerModel
 from src.models.session_models import SessionModel, SessionStates, ACTIVE_SESSION_STATES
 from src.models.station_models import (StationLockerAvailabilities,
                                        StationModel, StationStates,
@@ -219,13 +222,10 @@ async def handle_terminal_report(
         task_type=TaskTypes.CONFIRMATION,
         locker=locker.document,
         session=session.document,
-        queued_state=await session.next_state,
+        queued_state=None,
         timeout_states=[SessionStates.ABORTED],
         has_queue=False
     )
-
-    # 8: Save changes
-    await task.save_model_changes()
 
 
 async def handle_terminal_confirmation(
@@ -262,6 +262,7 @@ async def handle_terminal_confirmation(
     await restart_expiration_manager()
 
     # 7: Launch the new user task
+    await session.document.sync()
     await Task().create(
         task_type=TaskTypes.TERMINAL,
         station=station.document,
@@ -271,6 +272,3 @@ async def handle_terminal_confirmation(
                         SessionStates.EXPIRED],
         has_queue=False
     )
-
-    # 8: Update values
-    await task.save_model_changes(notify=False)

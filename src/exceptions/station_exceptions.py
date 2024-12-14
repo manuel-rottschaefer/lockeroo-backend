@@ -5,9 +5,6 @@ from beanie import PydanticObjectId as ObjId
 # Models
 from src.models.station_models import TerminalStates
 
-# Services
-from src.services.logging_services import logger
-
 
 class StationNotFoundException(Exception):
     """Exception raised when a station cannot be found by a given query."""
@@ -15,8 +12,6 @@ class StationNotFoundException(Exception):
     def __init__(self, callsign: str = None, station_id: ObjId = None):
         super().__init__()
         self.station = callsign if callsign else station_id
-        logger.warning(
-            f"Could not find station '{self.station}' in database.")
 
     def __str__(self):
         return f"Station '{self.station}' not found.)"
@@ -28,8 +23,6 @@ class StationNotAvailableException(Exception):
     def __init__(self, callsign: str):
         super().__init__()
         self.station = callsign
-        logger.warning(
-            f"Station '{self.station}' is not available for the requested action.")
 
     def __str__(self):
         return f"Station '{self.station}' is not available.)"
@@ -60,9 +53,6 @@ class InvalidTerminalStateException(Exception):
         self.station_callsign = station_callsign
         self.expected_state = expected_state
         self.actual_state = actual_state
-        logger.warning(
-            f"Terminal at station '{station_callsign}' should be in {
-                expected_state}, but has been reported as {actual_state}.")
 
     def __str__(self):
         return f"Invalid station report at station '{self.station_callsign}'.)"

@@ -8,7 +8,7 @@ from typing import Dict, Optional
 # Beanie
 from beanie import Document
 from beanie import PydanticObjectId as ObjId
-from beanie import Update, SaveChanges, View, after_event
+from beanie import SaveChanges, View, after_event
 from pydantic import BaseModel, Field
 
 # Services
@@ -91,18 +91,18 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     location: Dict
     nearby_public_transit: Optional[str]
 
-    @after_event(Update, SaveChanges)
+    @after_event(SaveChanges)
     def notify_station_state(self):
         """Send an update message regarding the session state to the mqtt broker."""
         fast_mqtt.publish(
             f"stations/{self.callsign}/state", self.station_state)
 
     ### State broadcasting ###
-    @after_event(Update, SaveChanges)
+    @after_event(SaveChanges)
     def instruct_terminal_state(self, instruct_state: TerminalStates = None):
         """Send an update message regarding the session state to the mqtt broker."""
         state_to_broadcast = instruct_state if instruct_state is not None else self.terminal_state
-        logger.debug(f"Broadcasting terminal state {state_to_broadcast} to station '{
+        logger.debug(f"Sending instruction for {state_to_broadcast} to station '#{
                      self.callsign}'.")
         fast_mqtt.publish(
             f"stations/{self.callsign}/terminal/instruct",
@@ -112,6 +112,7 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     class Settings:  # pylint: disable=missing-class-docstring
         name = "stations"
         use_cache = True
+        use_state_management = True
         cache_expiration_time = timedelta(seconds=10)
         cache_capacity = 5
 

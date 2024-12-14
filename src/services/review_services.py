@@ -3,8 +3,6 @@
 # Basics
 from datetime import datetime
 from typing import Optional
-# Types
-from uuid import UUID
 
 from beanie import PydanticObjectId as ObjId
 # FastAPI

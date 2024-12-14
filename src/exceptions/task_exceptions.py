@@ -25,8 +25,7 @@ class TaskNotFoundException(Exception):
         self.queued_state = queued_state
         self.station = assigned_station
         self.type = task_type
-        logger.warning(
-            f"Could not find task of type '{self.type}', awaiting {self.queued_state} at station {self.station}.")
 
     def __str__(self):
-        return f"Task '{self.task_id}' not found.)"
+        return f"Could not find task of type '{
+            self.type}', awaiting {self.queued_state} at station {self.station}."

@@ -114,7 +114,7 @@ async def handle_creation_request(
         locker=locker.document,
         station=station.document)
     logger.debug(
-        f"Created session '{session.id}' at locker '{locker.callsign}'."
+        f"Created session '#{session.id}' at locker '#{locker.callsign}'."
     )
 
     # 8: Await user to select payment method
@@ -170,10 +170,10 @@ async def handle_payment_selection(
 
     # 5: Assign the payment method to the session
     await session.assign_payment_method(payment_method)
-    session.set_state(SessionStates.PAYMENT_SELECTED)
+    session.document.session_state = SessionStates.PAYMENT_SELECTED
 
     # 6: Save changes
-    await session.save_model_changes(notify=False)
+    await session.document.save_changes()
 
     return await session.view
 
@@ -212,7 +212,7 @@ async def handle_verification_request(
         task_type=TaskTypes.CONFIRMATION,
         session=session.document,
         station=session.assigned_station,
-        queued_state=SessionStates.VERIFICATION,
+        queued_state=None,
         timeout_states=[SessionStates.ABORTED],
         has_queue=True
     )
@@ -298,7 +298,7 @@ async def handle_payment_request(session_id: ObjId, user: UserModel) -> Optional
         task_type=TaskTypes.CONFIRMATION,
         session=session.document,
         station=session.assigned_station,
-        queued_state=SessionStates.PAYMENT,
+        queued_state=None,
         timeout_states=[session.session_state,
                         SessionStates.EXPIRED],
         has_queue=True
@@ -342,11 +342,11 @@ async def handle_cancel_request(session_id: ObjId, user: UserModel) -> Optional[
         )
 
     # 6. If all checks passed, set session to canceled
-    session.set_state(SessionStates.CANCELLED)
+    session.document.session_state = SessionStates.CANCELLED
     await create_action(session.id, SessionStates.CANCELLED)
 
     # 7. Save changes
-    await session.save_model_changes(notify=False)
+    await session.document.save_changes()
 
     return session
 
@@ -363,7 +363,7 @@ async def handle_update_subscription_request(session_id: ObjId, socket: WebSocke
     # 2: Check whether the websocket connection already exists
     if websocket_services.get_connection(session.id):
         logger.debug(
-            f"Session '{session.id}' cannot have more than one update subscription.")
+            f"Session '#{session.id}' cannot have more than one update subscription.")
         # Close the WebSocket connection with a normal closure code
         await socket.close(code=1000)
         return
@@ -371,7 +371,7 @@ async def handle_update_subscription_request(session_id: ObjId, socket: WebSocke
     # 3: Check if the session is not in an inactive state
     if session.session_state not in ACTIVE_SESSION_STATES:
         logger.debug(
-            f"Session '{session.id}' is not offering updates anymore.")
+            f"Session '#{session.id}' is not offering updates anymore.")
         # Close the WebSocket connection with a normal closure code
         await socket.close(code=1000)
         return
@@ -379,7 +379,7 @@ async def handle_update_subscription_request(session_id: ObjId, socket: WebSocke
     # 4: Register the connection
     await socket.accept()
     websocket_services.register_connection(session.id, socket)
-    logger.debug(f"Session '{session.id}' is now sending updates.")
+    logger.debug(f"Session '#{session.id}' is now sending updates.")
     await socket.send_text(session.session_state)
     try:
         while True:
@@ -387,7 +387,7 @@ async def handle_update_subscription_request(session_id: ObjId, socket: WebSocke
 
     # 5: Register a disconnect event
     except WebSocketDisconnect:
-        logger.debug(f"Session '{session.id}' is no longer sending updates.")
+        logger.debug(f"Session '#{session.id}' is no longer sending updates.")
         websocket_services.unregister_connection(session.id)
     except Exception as e:  # pylint: disable=broad-exception-caught
         logger.error(f"Error in ws for session '{

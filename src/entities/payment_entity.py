@@ -67,10 +67,6 @@ class Payment(Entity):
         await instance.document.insert()
         return instance
 
-    async def set_state(self, state: PaymentStates):
-        """Set the state of the current session."""
-        await self.document.update(Set({PaymentModel.state: state}))
-
     @property
     async def current_price(self) -> Optional[int]:
         """Calculate the total cost of a session in cents."""

@@ -97,9 +97,10 @@ class Locker(Entity):
 
     async def register_state(self, state: LockerStates):
         """Update the reported (actual) locker state"""
-        logger.debug(f"Locker '{self.document.id}' registered as: {state}.")
+        logger.debug(f"Locker '#{self.document.callsign.replace('#', '')}' ('{
+                     self.document.id}') registered as: {state}.")
         self.document.reported_state = state
-        await self.document.save_changes()
+        await self.document.save_changes(skip_actions=['log_changes'])
 
     async def instruct_state(self, state: LockerStates):
         """Send a message to the station to unlock the locker."""

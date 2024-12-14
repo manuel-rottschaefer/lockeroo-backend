@@ -163,7 +163,7 @@ async def handle_station_payment_report(
     """Handle a payment report from a station"""
     callsign = topic.split('/')[1]
 
-    logger.info(f"Station '{callsign}' reported {
+    logger.info(f"Station '#{callsign}' reported {
                 SessionStates.PAYMENT} with card '#123456'.")
 
     await station_services.handle_terminal_report(

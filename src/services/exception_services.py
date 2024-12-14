@@ -10,6 +10,7 @@ from functools import wraps
 
 # Exceptions
 from fastapi import HTTPException
+from src.exceptions.station_exceptions import InvalidTerminalStateException
 
 
 def handle_exceptions(logging_service):
@@ -22,6 +23,8 @@ def handle_exceptions(logging_service):
             except HTTPException as e:
                 logging_service.error(f"HTTPException: {e.detail}")
                 raise e
+            except InvalidTerminalStateException as e:
+                logging_service.error(str(e))
             except Exception as e:
                 logging_service.error(f"Unhandled exception: {str(e)}")
                 raise HTTPException(

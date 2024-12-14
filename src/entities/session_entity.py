@@ -152,21 +152,13 @@ class Session(Entity):
         """Return the next logical state of the session."""
         return FOLLOW_UP_STATES[self.session_state]
 
-    def set_state(self, state: SessionStates) -> None:
-        """Update the current state of a session."""
-        try:
-            self.document.session_state = state
-        except (ValueError, TypeError) as e:
-            logger.error(f"Failed to update state of session '{
-                self.id}': {e}.")
-
     async def assign_payment_method(self, method) -> None:
         """Assign a payment method to a session."""
         try:
             self.document.payment_method = method
             logger.debug(
                 f"Payment method '{
-                    self.payment_method}' assigned to session '{self.id}'."
+                    self.payment_method}' assigned to session '#{self.id}'."
             )
         except (ValueError, TypeError) as e:
             logger.error(
@@ -179,10 +171,12 @@ class Session(Entity):
         await create_action(session_id=self.id,
                             action_type=SessionStates.COMPLETED)
         total_duration: timedelta = await self.total_duration
-        await self.document.update(Set({
-            SessionModel.session_state: SessionStates.COMPLETED,  # TODO: No notification here
-            SessionModel.total_duration: total_duration
-        }))
+
+        # Update session state
+        self.document.session_state = SessionStates.COMPLETED
+        self.document.total_duration = total_duration
+        await self.document.save_changes()
+
         # Update station statistics
         await self.assigned_station.inc(
             {StationModel.total_sessions: 1,
@@ -191,5 +185,3 @@ class Session(Entity):
         await self.document.user.inc({
             UserModel.total_sessions: 1,
             UserModel.total_session_duration: total_duration})
-        # Save changes
-        # await self.save_model_changes(notify=True)

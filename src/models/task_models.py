@@ -8,7 +8,7 @@ from typing import List, Optional, Union
 # Beanie
 from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
-from beanie import Update, after_event
+from beanie import SaveChanges, after_event
 from dotenv import load_dotenv
 from pydantic import Field
 
@@ -65,10 +65,6 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
         TaskStates.QUEUED,
         description='State of the task item. Not related to the session state.')
 
-    queue_enabled: bool = Field(
-        False, description="The task can be put into a queue at its\
-        assigned station or be immediately activated.")
-
     queued_session_state: Optional[Union[LockerStates, SessionStates]] = Field(
         None,
         description="The next state of the assigned session or terminal after activation.\
@@ -95,11 +91,11 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     completed_at: Optional[datetime] = Field(
         None, description="The datetime when the task item was completed or expired.")
 
-    @after_event(Update)
+    @after_event(SaveChanges)
     async def log_state(self) -> None:
         """Log database operation."""
         await self.sync()
-        logger.debug(f"Task '{self.id}' of type {
+        logger.debug(f"Task '#{self.id}' of type {
                      self.task_type} set to {self.task_state}.")
 
     @dataclass
