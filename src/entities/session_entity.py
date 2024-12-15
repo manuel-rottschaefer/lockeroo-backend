@@ -152,19 +152,13 @@ class Session(Entity):
         """Return the next logical state of the session."""
         return FOLLOW_UP_STATES[self.session_state]
 
-    async def assign_payment_method(self, method) -> None:
+    async def assign_payment_method(self, payment_method: str) -> None:
         """Assign a payment method to a session."""
-        try:
-            self.document.payment_method = method
-            logger.debug(
-                f"Payment method '{
-                    self.payment_method}' assigned to session '#{self.id}'."
-            )
-        except (ValueError, TypeError) as e:
-            logger.error(
-                f"Failed to assign payment method {
-                    method} to session {self.id}: {e}"
-            )
+        self.document.payment_method = payment_method
+        logger.debug(
+            (f"Payment method '{payment_method.upper()}' "
+             f"assigned to session '#{self.id}'.")
+        )
 
     async def handle_conclude(self) -> None:
         """Calculate and store statistical data when session completes/expires/aborts."""

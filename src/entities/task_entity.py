@@ -5,6 +5,7 @@ from typing import List, Optional, Union
 from datetime import datetime, timedelta
 from asyncio import sleep, create_task
 import os
+import traceback
 
 # Beanie
 from beanie import PydanticObjectId as ObjId, SortDirection
@@ -62,7 +63,7 @@ class Task(Entity):
 
         # If queueing is disabled, instantly activate the task
         # TODO: A task is only added to the queue if it is of type terminal
-        if not has_queue or task_type != TaskTypes.TERMINAL:
+        if not has_queue or task_type not in [TaskTypes.TERMINAL, TaskTypes.CONFIRMATION]:
             await instance.activate()
         elif await instance.is_next_in_queue:
             await instance.activate()
@@ -102,23 +103,34 @@ class Task(Entity):
             instance.document = task_item
         return instance
 
-    async def pop_queue(self, station: StationModel, task_type: TaskTypes) -> Optional[TaskItemModel]:
+    async def pop_queue(
+        self,
+            station: StationModel,
+            _task_type: TaskTypes) -> Optional[TaskItemModel]:
         """Get the next task in queue at a station."""
         # Find the next task in queue or pending task
         next_task = await TaskItemModel.find(
             TaskItemModel.assigned_station.id == station.id,  # pylint: disable=no-member
+            In(TaskItemModel.task_type, [
+               TaskTypes.TERMINAL, TaskTypes.CONFIRMATION]),
             In(TaskItemModel.task_state,
                 [TaskStates.PENDING, TaskStates.QUEUED]),
-            TaskItemModel.task_type == TaskTypes.TERMINAL,
+            TaskItemModel.assigned_locker == None,  # pylint: disable=singleton-comparison
             fetch_links=True
-        ).sort((TaskItemModel.task_state == TaskStates.PENDING, SortDirection.DESCENDING),
-               (TaskItemModel.created_ts, SortDirection.ASCENDING)).first_or_none()
+            # The goal here is to prioritize tasks that are pending.
+            # This should in theory work without a seperate sort,
+            # because these tasks should be the oldest of their type and state.
+            # Spoiler: It doesn't work.
+            # I think this problem occurs when two tasks are created at the same time.
+        ).sort(
+            (TaskItemModel.created_ts, SortDirection.ASCENDING)
+        ).first_or_none()
 
         # If the next task is pending, return None
-        if next_task and next_task.task_state == TaskStates.PENDING:
-            logger.warning(
+        if next_task is not None and next_task.task_state == TaskStates.PENDING:
+            logger.info(
                 (f"Not proceeding with queue activation, "
-                 f"task {next_task.id} still pending."))
+                 f"Task '#{next_task.id}' is still pending."))
             return None
 
         # Return the next queued task
@@ -133,7 +145,7 @@ class Task(Entity):
         """Check whether this task is next in queue"""
         next_task = await self.pop_queue(
             station=self.assigned_station,
-            task_type=self.task_type)
+            _task_type=self.task_type)
         if next_task is None:
             return False
 
@@ -192,6 +204,11 @@ class Task(Entity):
         )
 
         # 4: Call activation handlers
+        # if self.document.task_type == TaskTypes.TERMINAL:
+        # Check that there is no other pending terminal task
+        # if not await self.is_next_in_queue:
+        #    return
+
         if self.document.task_type in [
                 TaskTypes.TERMINAL, TaskTypes.LOCKER]:
             # Advance session to next state
@@ -199,7 +216,7 @@ class Task(Entity):
                 session.document.session_state = self.document.queued_session_state
                 await session.document.save_changes()
 
-        if self.document.task_type == TaskTypes.CONFIRMATION:
+        elif self.document.task_type == TaskTypes.CONFIRMATION:
             # Check if the task is awaiting confirmation from terminal or locker
             if self.document.assigned_station:
                 # Instruct the station to enable the terminal
@@ -211,7 +228,7 @@ class Task(Entity):
             elif self.document.assigned_locker:
                 # Instruct the locker to unlock
                 locker: Locker = Locker(self.document.assigned_locker)
-                assert (locker.document.locker_state == LockerStates.LOCKED
+                assert (locker.document.reported_state == LockerStates.LOCKED
                         ), f"Locker {locker.document.id} is not locked."
                 await locker.instruct_state(LockerStates.UNLOCKED)
 
@@ -227,12 +244,12 @@ class Task(Entity):
 
         # 2: If this was a terminal task, enable the next task in queue
         if self.document.task_type == TaskTypes.TERMINAL:
-            next_task = await self.pop_queue(
+            next_task = Task(await self.pop_queue(
                 station=self.document.assigned_station,
-                task_type=TaskTypes.TERMINAL)
-            if next_task:
-                logger.warning(
-                    f"Task completed, now next task in queue: {next_task.id}")
+                _task_type=TaskTypes.TERMINAL))
+            if next_task.exists:
+                logger.debug(
+                    f"Task completed, Task '#{next_task.id}' is next at station.")
                 await next_task.activate()
 
     async def handle_expiration(self) -> None:
@@ -241,6 +258,8 @@ class Task(Entity):
         session: Session = Session(self.document.assigned_session)
 
         # 2: Set the queue state of this item to expired
+        assert (self.document.task_state == TaskStates.PENDING
+                ), f"Task '#{self.id}' is not pending."
         self.document.task_state = TaskStates.EXPIRED
 
         # 3: Update the session state and create a new queue item
@@ -269,7 +288,7 @@ class Task(Entity):
 async def expiration_manager_loop():
     """Handle expirations."""
     # 1: Get time to next expiration
-    next_expiring_task = await TaskItemModel.find(
+    next_expiring_task: TaskItemModel = await TaskItemModel.find(
         TaskItemModel.task_state == TaskStates.PENDING
     ).sort(
         (TaskItemModel.expires_at, SortDirection.ASCENDING)
