@@ -14,7 +14,7 @@ class LockerNotFoundException(Exception):
         self.locker_id = locker_id
 
         if raise_http:
-            raise HTTPException(status_code=404, detail=self.__str__())
+            raise HTTPException(status_code=500, detail=self.__str__())
 
     def __str__(self):
         return f"Locker '#{self.locker_id}' not found in database."

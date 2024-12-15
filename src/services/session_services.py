@@ -5,7 +5,7 @@ from typing import List, Optional
 # ObjectID handling
 from beanie import PydanticObjectId as ObjId
 # FastAPI utilities
-from fastapi import HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import WebSocket, WebSocketDisconnect
 
 from src.entities.locker_entity import Locker
 from src.entities.payment_entity import Payment
@@ -135,8 +135,9 @@ async def handle_payment_selection(
     # 1: Check if payment method is available
     payment_method: str = payment_method.lower()
     if payment_method not in PaymentTypes:
-        # TODO: This should get a different exception
-        raise InvalidPaymentMethodException(payment_method=payment_method)
+        raise InvalidPaymentMethodException(
+            session_id=session_id,
+            payment_method=payment_method)
 
     # 2: Check if the session exists
     session: Session = await Session().find(session_id=session_id)
@@ -230,7 +231,8 @@ async def handle_hold_request(session_id: ObjId, user: UserModel) -> Optional[Se
     # 3: Check whether the user has chosen the app method for payment.
     if session.payment_method == PaymentTypes.TERMINAL:
         raise InvalidPaymentMethodException(
-            session_id=session_id)
+            session_id=session_id,
+            payment_method=session.payment_method)
 
     # 4: Get the locker and assign an open request
     locker: Locker = await Locker(session.assigned_locker)

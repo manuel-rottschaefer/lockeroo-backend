@@ -31,6 +31,7 @@ from src.services.logging_services import logger
 from src.exceptions.task_exceptions import TaskNotFoundException
 from src.exceptions.session_exceptions import (
     InvalidSessionStateException)
+from src.exceptions.locker_exceptions import LockerNotFoundException
 
 # Singleton for pricing models
 STATION_TYPES: Dict[str, StationType] = None
@@ -101,6 +102,7 @@ async def get_locker_by_index(
     locker: Locker = await Locker().find(
         station=station.document.id, index=locker_index)
     if not locker.exists:
+        raise LockerNotFoundException(locker_id=None)
         response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         # TODO: Raise logger error here
     return locker.document
@@ -194,8 +196,8 @@ async def handle_terminal_report(
     await task.fetch_link(TaskItemModel.assigned_session)
 
     # 2: Get the assigned session
-    assert task.assigned_session is not None, f"Task '{
-        task.id}' exists but has no assigned session."
+    assert (task.assigned_session is not None
+            ), f"Task '{task.id}' exists but has no assigned session."
     session = Session(task.assigned_session)
 
     if session.session_state != expected_session_state:
@@ -238,7 +240,8 @@ async def handle_terminal_report(
 async def handle_terminal_confirmation(
         callsign: str, terminal_state: TerminalStates):
     """Process a station report about its terminal state."""
-    logger.info(f'Station {callsign} confirmed terminal in {terminal_state}.')
+    logger.info(f"Station '{callsign}' confirmed terminal in {
+                terminal_state}.")
     # 1: Find the assigned station
     station: Station = await Station().find(callsign=callsign)
     if not station.exists:

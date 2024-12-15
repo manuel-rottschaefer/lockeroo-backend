@@ -1,15 +1,13 @@
 """This module provides exception classes for task management."""
 # Typing
 from typing import Union
-
 # Beanie
 from beanie import PydanticObjectId as ObjId
-
+# Exceptions
+from fastapi import HTTPException
 # Models
 from src.models.task_models import TaskTypes
 from src.models.session_models import SessionStates
-# Exceptions
-from fastapi import HTTPException
 
 
 class TaskNotFoundException(Exception):
@@ -29,5 +27,5 @@ class TaskNotFoundException(Exception):
             raise HTTPException(status_code=404, detail=self.__str__())
 
     def __str__(self):
-        return (f"Could not find task of type '{self.type}'"
+        return (f"Could not find task of type {self.type}"
                 f", awaiting {self.queued_state} at station '#{self.station}'.")

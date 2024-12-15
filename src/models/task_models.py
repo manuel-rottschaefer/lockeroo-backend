@@ -94,7 +94,6 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     @after_event(SaveChanges)
     async def log_state(self) -> None:
         """Log database operation."""
-        await self.sync()
         logger.debug(f"Task '#{self.id}' of type {
                      self.task_type} set to {self.task_state}.")
 
