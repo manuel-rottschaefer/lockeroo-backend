@@ -176,7 +176,8 @@ async def handle_terminal_report(
     # 1: Find the assigned station
     station: Station = await Station().find(callsign=callsign)
     if not station.exists:
-        raise StationNotFoundException(callsign=callsign)
+        raise StationNotFoundException(
+            callsign=callsign, raise_http=False)
 
     # 2: Find the assigned task
     task: Task = await Task().find(
@@ -187,7 +188,9 @@ async def handle_terminal_report(
     )
     if not task.exists:
         raise TaskNotFoundException(
-            assigned_station=callsign, task_type=TaskTypes.USER)
+            assigned_station=callsign,
+            task_type=TaskTypes.USER,
+            raise_http=False)
     await task.fetch_link(TaskItemModel.assigned_session)
 
     # 2: Get the assigned session
@@ -199,7 +202,8 @@ async def handle_terminal_report(
         raise InvalidSessionStateException(
             session_id=session.id,
             expected_states=[expected_session_state],
-            actual_state=session.session_state)
+            actual_state=session.session_state,
+            raise_http=False)
 
     # 3: Check whether the station is currently told to await an action
     station: Station = Station(session.assigned_station)
@@ -207,7 +211,8 @@ async def handle_terminal_report(
         raise InvalidTerminalStateException(
             station_callsign=callsign,
             expected_state=expected_terminal_state,
-            actual_state=station.terminal_state)
+            actual_state=station.terminal_state,
+            raise_http=False)
 
     # 4: Find the locker that belongs to this session
     locker: Locker = Locker(session.assigned_locker)
@@ -237,7 +242,8 @@ async def handle_terminal_confirmation(
     # 1: Find the assigned station
     station: Station = await Station().find(callsign=callsign)
     if not station.exists:
-        raise StationNotFoundException(callsign=callsign)
+        raise StationNotFoundException(
+            callsign=callsign, raise_http=False)
 
     # 2: If the terminal state matches the current state, ignore the report
     if station.terminal_state == terminal_state:
@@ -250,7 +256,8 @@ async def handle_terminal_confirmation(
         assigned_station=station.document.id)
     if not task.exists:
         raise InvalidStationReportException(
-            callsign, terminal_state.value)
+            callsign, terminal_state.value,
+            raise_http=False)
     await task.fetch_link(TaskItemModel.assigned_session)
 
     # 4: Find assigned session and set to queued state

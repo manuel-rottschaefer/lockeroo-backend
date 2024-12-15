@@ -7,9 +7,8 @@ from asyncio import sleep, create_task
 import os
 
 # Beanie
-from beanie.operators import Set
-from beanie import PydanticObjectId as ObjId
-from beanie import SortDirection
+from beanie import PydanticObjectId as ObjId, SortDirection
+from beanie.operators import In
 
 # Entities
 from src.entities.entity_utils import Entity
@@ -103,16 +102,27 @@ class Task(Entity):
             instance.document = task_item
         return instance
 
-    async def get_next_in_queue(self, station: StationModel, task_type: TaskTypes):
-        """Get the next task item in the queue."""
-        # 1: Find the next queued session item
-        next_item: Optional[TaskItemModel] = await TaskItemModel.find(
+    async def pop_queue(self, station: StationModel, task_type: TaskTypes) -> Optional[TaskItemModel]:
+        """Get the next task in queue at a station."""
+        # Find the next task in queue or pending task
+        next_task = await TaskItemModel.find(
             TaskItemModel.assigned_station.id == station.id,  # pylint: disable=no-member
-            TaskItemModel.task_type == task_type,
-            TaskItemModel.task_state == TaskStates.QUEUED,
+            In(TaskItemModel.task_state,
+                [TaskStates.PENDING, TaskStates.QUEUED]),
+            TaskItemModel.task_type == TaskTypes.TERMINAL,
             fetch_links=True
-        ).sort((TaskItemModel.created_ts, SortDirection.ASCENDING)).first_or_none()
-        return next_item
+        ).sort((TaskItemModel.task_state == TaskStates.PENDING, SortDirection.DESCENDING),
+               (TaskItemModel.created_ts, SortDirection.ASCENDING)).first_or_none()
+
+        # If the next task is pending, return None
+        if next_task and next_task.task_state == TaskStates.PENDING:
+            logger.warning(
+                (f"Not proceeding with queue activation, "
+                 f"task {next_task.id} still pending."))
+            return None
+
+        # Return the next queued task
+        return next_task
 
     @property
     def exists(self) -> bool:
@@ -121,21 +131,13 @@ class Task(Entity):
     @property
     async def is_next_in_queue(self) -> bool:
         """Check whether this task is next in queue"""
-        next_task = await self.get_next_in_queue(
-            station=self.assigned_station, task_type=self.task_type)
-        if not next_task:
+        next_task = await self.pop_queue(
+            station=self.assigned_station,
+            task_type=self.task_type)
+        if next_task is None:
             return False
 
-        is_next = next_task.id == self.id
-
-        # 2: If next item is this item, check if the station terminal is actually free
-        if is_next and self.task_type == TaskTypes.TERMINAL:
-            await self.document.fetch_link(TaskItemModel.assigned_station)
-            station: Station = Station(self.assigned_station)
-            if station.terminal_state != TerminalStates.IDLE:
-                return False
-
-        if is_next:
+        if is_next := next_task.id == self.id:
             logger.debug(
                 f"Task '#{next_task.id}' identified as next in queue at station '{
                     self.id}'."
@@ -145,7 +147,7 @@ class Task(Entity):
     ### State mapper ###
     def map_session_to_terminal_state(self, session_state: SessionStates) -> TerminalStates:
         """Map session states to task states."""
-        STATE_MAP = {
+        STATE_MAP = {  # pylint: disable=invalid-name
             SessionStates.VERIFICATION: TerminalStates.VERIFICATION,
             SessionStates.PAYMENT: TerminalStates.PAYMENT
         }  # TODO: FIXME this does not work
@@ -202,11 +204,15 @@ class Task(Entity):
             if self.document.assigned_station:
                 # Instruct the station to enable the terminal
                 station: Station = Station(self.document.assigned_station)
+                assert (station.document.terminal_state == TerminalStates.IDLE
+                        ), f"Terminal of station '#{station.document.id}' is not idle."
                 station.document.instruct_terminal_state(
                     self.map_session_to_terminal_state(await session.next_state))
             elif self.document.assigned_locker:
-                # Instruct the locker to enable the terminal
+                # Instruct the locker to unlock
                 locker: Locker = Locker(self.document.assigned_locker)
+                assert (locker.document.locker_state == LockerStates.LOCKED
+                        ), f"Locker {locker.document.id} is not locked."
                 await locker.instruct_state(LockerStates.UNLOCKED)
 
         # 5: Restart the expiration manager
@@ -221,7 +227,7 @@ class Task(Entity):
 
         # 2: If this was a terminal task, enable the next task in queue
         if self.document.task_type == TaskTypes.TERMINAL:
-            next_task = await self.get_next_in_queue(
+            next_task = await self.pop_queue(
                 station=self.document.assigned_station,
                 task_type=TaskTypes.TERMINAL)
             if next_task:
@@ -230,32 +236,28 @@ class Task(Entity):
                 await next_task.activate()
 
     async def handle_expiration(self) -> None:
-        """Checks whether the session has entered a state where the user needs to conduct an
-        action within a limited time. If that time has been exceeded but the action has not been
-        completed, the session has to be expired and the user needs to request a new one
-        """
+        """Handle the expiration of a task item."""
         # 1: Set Session and queue state to expired
         session: Session = Session(self.document.assigned_session)
 
-        # 3: Set the queue state of this item to expired
+        # 2: Set the queue state of this item to expired
         self.document.task_state = TaskStates.EXPIRED
 
-        # 4: Update the session state and create a new queue item
+        # 3: Update the session state and create a new queue item
+        assert len(self.timeout_states), f"No timeout states defined for task '#{
+            self.id}'."
         session.document.session_state = self.timeout_states[0]
 
-        # 5: Save changes
+        # 4: Save changes
         await session.document.save_changes()
         await self.document.save_changes()
 
-        # 6: End the queue flow here if the session has expired or is stale.
-        if session.session_state in [SessionStates.EXPIRED, SessionStates.STALE]:
+        # 5: End the queue flow here if the session has timed out or no additional timeout states
+        TIMEOUT_STATES = [SessionStates.EXPIRED, SessionStates.STALE]
+        if session.session_state in TIMEOUT_STATES or len(self.timeout_states) == 1:
             return
 
-        # 7: If there is no additional timeout state, end the queue process here
-        if len(self.timeout_states) == 1:
-            return
-
-        # 8: Else, create a new task item for the next timeout state
+        # 7: Else, create a new task item for the next timeout state
         await Task().create(
             task_type=self.document.task_type,
             station=session.assigned_station,
@@ -269,8 +271,12 @@ async def expiration_manager_loop():
     # 1: Get time to next expiration
     next_expiring_task = await TaskItemModel.find(
         TaskItemModel.task_state == TaskStates.PENDING
-    ).sort((TaskItemModel.expires_at, SortDirection.ASCENDING)).first_or_none()
-    if not next_expiring_task:
+    ).sort(
+        (TaskItemModel.expires_at, SortDirection.ASCENDING)
+    ).first_or_none()
+    if next_expiring_task is None:
+        logger.debug(
+            "No pending tasks found, task expiration manager is now idle.")
         return
 
     next_expiration: datetime = next_expiring_task.expires_at
@@ -279,6 +285,7 @@ async def expiration_manager_loop():
     await sleep((next_expiration - datetime.now()).total_seconds())
 
     # 3: Check if the task is still pending, then fire up the expiration handler
+    await next_expiring_task.sync()  # TODO: Is this necessary?
     if next_expiring_task.task_state == TaskStates.PENDING:
         await Task(next_expiring_task).handle_expiration()
 

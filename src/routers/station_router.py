@@ -148,11 +148,14 @@ async def handle_verification_report(
     logger.info(
         f"Station '{callsign}' reported {SessionStates.VERIFICATION} with card '#{card_id}'.")
 
-    await station_services.handle_terminal_report(
-        callsign=callsign,
-        expected_session_state=SessionStates.VERIFICATION,
-        expected_terminal_state=TerminalStates.VERIFICATION,
-    )
+    try:
+        await station_services.handle_terminal_report(
+            callsign=callsign,
+            expected_session_state=SessionStates.VERIFICATION,
+            expected_terminal_state=TerminalStates.VERIFICATION,
+        )
+    except Exception as e:  # pylint disable=broad-except
+        logger.warning(e)
 
 
 @validate_mqtt_topic('stations/+/payment/report', [ObjId])
@@ -165,11 +168,14 @@ async def handle_station_payment_report(
     logger.info(f"Station '#{callsign}' reported {
                 SessionStates.PAYMENT} with card '#123456'.")
 
-    await station_services.handle_terminal_report(
-        callsign=callsign,
-        expected_session_state=SessionStates.PAYMENT,
-        expected_terminal_state=TerminalStates.PAYMENT
-    )
+    try:
+        await station_services.handle_terminal_report(
+            callsign=callsign,
+            expected_session_state=SessionStates.PAYMENT,
+            expected_terminal_state=TerminalStates.PAYMENT
+        )
+    except Exception as e:  # pylint disable=broad-except
+        logger.warning(e)
 
 
 @validate_mqtt_topic('stations/+/locker/+/report', [ObjId, int])
@@ -188,13 +194,17 @@ async def handle_locker_report(
     # Extract the report from the payload
     report: str = payload.decode('utf-8').lower()
     if not report:
+        logger.error(
+            f"Invalid locker report from station {callsign} for locker {locker_index}.")
         return
 
-    # TODO: D
-    if report == LockerStates.UNLOCKED:
-        await locker_services.handle_unlock_confirmation(callsign, locker_index)
-    elif report == LockerStates.LOCKED:
-        await locker_services.handle_lock_report(callsign, locker_index)
-    else:
-        raise InvalidStationReportException(
-            station_callsign=callsign, reported_state=report)
+    try:
+        if report == LockerStates.UNLOCKED:
+            await locker_services.handle_unlock_report(callsign, locker_index)
+        elif report == LockerStates.LOCKED:
+            await locker_services.handle_lock_report(callsign, locker_index)
+        else:
+            raise InvalidStationReportException(
+                station_callsign=callsign, reported_state=report)
+    except Exception as e:  # pylint disable=broad-except
+        logger.warning(e)
