@@ -4,6 +4,8 @@ from beanie import PydanticObjectId as ObjId
 
 # Log level
 from logging import INFO, WARNING
+# Exceptions
+from fastapi import HTTPException
 
 
 class ReviewNotFoundException(Exception):
@@ -12,7 +14,7 @@ class ReviewNotFoundException(Exception):
     def __init__(self, review_id: ObjId = None):
         self.review = review_id
         self.log_level = INFO
-        super().__init__(status_code=404, detail=self.__str__())
+        raise HTTPException(status_code=404, detail=self.__str__())
 
     def __str__(self):
         return f"Review '#{self.review}' not found in database.)"

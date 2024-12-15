@@ -5,20 +5,21 @@ from beanie import PydanticObjectId as ObjId
 # Models
 from src.models.maintenance_models import MaintenanceStates
 
-# Services
-from src.services.logging_services import logger
-
 # Log levels
 from logging import INFO, WARNING
+# Exceptions
+from fastapi import HTTPException
 
 
 class MaintenanceNotFoundException(Exception):
     """Exception raised no maintenance entry could be found with the given query."""
 
-    def __init__(self, maintenance_id: ObjId):
-        super().__init__(status_code=404, detail=self.__str__())
+    def __init__(self, maintenance_id: ObjId, raise_http: bool = True):
         self.maintenance_id = maintenance_id
         self.log_level = INFO
+
+        if raise_http:
+            raise HTTPException(status_code=404, detail=self.__str__())
 
     def __str__(self):
         return f"Cannot find maintenance '#{self.maintenance_id}' in database.)"
@@ -34,7 +35,7 @@ class InvalidMaintenanceStateException(Exception):
         self.expected_state = expected_state
         self.actual_state = actual_state
         self.log_level = WARNING
-        super().__init__(status_code=400, detail=self.__str__())
+        raise HTTPException(status_code=400, detail=self.__str__())
 
     def __str__(self):
         return (
