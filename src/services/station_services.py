@@ -6,6 +6,7 @@ from typing import Dict, List, Optional
 import yaml
 # Beanie
 from beanie.operators import In, Near, Set
+from beanie import SortDirection
 # API services
 from fastapi import Response, status
 
@@ -100,11 +101,12 @@ async def get_locker_by_index(
 
     # 2: Get the assigned locker
     locker: Locker = await Locker().find(
-        station=station.document.id, index=locker_index)
+        station=station.document.id,
+        index=locker_index)
     if not locker.exists:
-        raise LockerNotFoundException(locker_id=None)
-        response.status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        # TODO: Raise logger error here
+        raise LockerNotFoundException(
+            station=callsign,
+            locker_index=locker_index)
     return locker.document
 
 
@@ -175,40 +177,33 @@ async def handle_terminal_report(
         values for the station and the assigned session as well as notifies
         the client so that the user can proceed. """
 
-    # 1: Find the assigned station
-    station: Station = await Station().find(callsign=callsign)
-    if not station.exists:
-        raise StationNotFoundException(
-            callsign=callsign, raise_http=False)
-
     # 2: Find the assigned task
     task: Task = await Task().find(
         task_type=TaskTypes.TERMINAL,
         task_state=TaskStates.PENDING,
         queued_state=expected_session_state,
-        assigned_station=station.document.id,
-    )
+        station_callsign=callsign,
+        assigned_locker=None)
     if not task.exists:
         raise TaskNotFoundException(
             assigned_station=callsign,
             task_type=TaskTypes.USER,
             raise_http=False)
-    await task.fetch_link(TaskItemModel.assigned_session)
+    # await task.fetch_link(TaskItemModel.assigned_session)
+
+    # 1: Find the assigned station
+    station: Station = Station(task.document.assigned_station)
+    if not station.exists:
+        raise StationNotFoundException(
+            callsign=callsign, raise_http=False)
 
     # 2: Get the assigned session
     assert (task.assigned_session is not None
             ), f"Task '{task.id}' exists but has no assigned session."
     session = Session(task.assigned_session)
 
-    if session.session_state != expected_session_state:
-        raise InvalidSessionStateException(
-            session_id=session.id,
-            expected_states=[expected_session_state],
-            actual_state=session.session_state,
-            raise_http=False)
-
     # 3: Check whether the station is currently told to await an action
-    station: Station = Station(session.assigned_station)
+    await station.document.sync()
     if station.terminal_state != expected_terminal_state:
         raise InvalidTerminalStateException(
             station_callsign=callsign,
@@ -216,20 +211,28 @@ async def handle_terminal_report(
             actual_state=station.terminal_state,
             raise_http=False)
 
-    # 4: Find the locker that belongs to this session
-    locker: Locker = Locker(session.assigned_locker)
+    # 4: Check whether the session is currently in the expected state
+    if session.session_state != expected_session_state:
+        raise InvalidSessionStateException(
+            session_id=session.id,
+            expected_states=[expected_session_state],
+            actual_state=session.session_state,
+            raise_http=False)
 
-    # 5: Update terminal, locker and task states
+    # 5: Update the station terminal state
     await station.register_terminal_state(TerminalStates.IDLE)
-    await task.complete()
+    print(station.document.terminal_state)
 
-    # 6: Restart the task manager
+    # 6: Update the session state
+    await task.complete()
     await restart_expiration_manager()
 
-    # 7: Await station to confirm locker state
+    # 7: Await station to confirm locker unlocking
+    # await session.document.fetch_link(SessionModel.assigned_locker)
     await Task().create(
         task_type=TaskTypes.CONFIRMATION,
-        locker=locker.document,
+        station=station.document,
+        locker=session.assigned_locker,
         session=session.document,
         queued_state=None,
         timeout_states=[SessionStates.ABORTED],
@@ -250,21 +253,21 @@ async def handle_terminal_confirmation(
 
     # 2: If the terminal state matches the current state, ignore the report
     if station.terminal_state == terminal_state:
-        return
+        raise InvalidStationReportException(
+            station_callsign=callsign,
+            reported_state=terminal_state,
+            raise_http=False)
 
     # 3: Find assigned task
     task: Task = await Task().find(
         task_type=TaskTypes.CONFIRMATION,
         task_state=TaskStates.PENDING,
-        assigned_station=station.document.id)
+        assigned_station=station.document.id,
+        assigned_locker=None)
     if not task.exists:
         raise InvalidStationReportException(
             callsign, terminal_state.value,
             raise_http=False)
-    await task.fetch_link(TaskItemModel.assigned_session)
-
-    # 4: Find assigned session and set to queued state
-    session: Session = Session(task.assigned_session)
 
     # 5: Update the terminal state
     await station.register_terminal_state(terminal_state)
@@ -274,7 +277,9 @@ async def handle_terminal_confirmation(
     await restart_expiration_manager()
 
     # 7: Launch the new user task
-    await session.document.sync()
+    session: Session = Session(task.assigned_session)
+    await task.fetch_link(TaskItemModel.assigned_session)
+
     await Task().create(
         task_type=TaskTypes.TERMINAL,
         station=station.document,

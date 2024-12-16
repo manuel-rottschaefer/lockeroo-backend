@@ -48,7 +48,7 @@ class Station(Entity):
         query = {k: v for k, v in query.items() if v is not None}
 
         station_item: StationModel = await StationModel.find(
-            query).sort((SessionModel.created_ts,
+            query).sort((StationModel.full_name,
                          SortDirection.DESCENDING)).first_or_none()
 
         instance.document = station_item if station_item else None

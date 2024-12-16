@@ -10,27 +10,38 @@ from fastapi import HTTPException
 class LockerNotFoundException(Exception):
     """Exception raised when a locker is not found in the database."""
 
-    def __init__(self, locker_id: ObjId, raise_http: bool = True):
+    def __init__(self,
+                 locker_id: ObjId = None,
+                 station: ObjId = None,
+                 locker_index: int = None,
+                 raise_http: bool = True):
         self.locker_id = locker_id
+        self.station = station
+        self.locker_index = locker_index
 
         if raise_http:
             raise HTTPException(status_code=500, detail=self.__str__())
 
     def __str__(self):
-        return f"Locker '#{self.locker_id}' not found in database."
+        if self.locker_id:
+            return f"Locker '#{self.locker_id}' not found in database."
+        elif self.station and self.locker_index:
+            return (
+                (f"Locker at station '#{self.station}' with index '"
+                 f"{self.locker_index}' not found in database."))
 
 
 class LockerNotAvailableException(Exception):
     """Exception raised when a locker is not available for the requested action."""
 
-    def __init__(self, locker_id: ObjId, raise_http: bool = True):
-        self.locker_id = locker_id
+    def __init__(self, station_callsign: ObjId, raise_http: bool = True):
+        self.assigned_station = station_callsign
 
         if raise_http:
             raise HTTPException(status_code=400, detail=self.__str__())
 
     def __str__(self):
-        return f"Locker '#{self.locker_id}' is not available."
+        return f"Locker at station '#{self.assigned_station}' is not available."
 
 
 class InvalidLockerTypeException(Exception):
@@ -65,3 +76,16 @@ class InvalidLockerStateException(Exception):
     def __str__(self):
         return (f"Invalid state of locker '#{self.locker_id}'.)"
                 f"Expected: {self.expected_state}, Actual: {self.actual_state}")
+
+
+class InvalidLockerReportException(Exception):
+    """Exception raised when a locker report is not valid."""
+
+    def __init__(self, locker_id: ObjId, raise_http: bool = True):
+        self.locker_id = locker_id
+
+        if raise_http:
+            raise HTTPException(status_code=400, detail=self.__str__())
+
+    def __str__(self):
+        return f"Invalid locker report for locker '#{self.locker_id}'."

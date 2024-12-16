@@ -17,12 +17,11 @@ from src.models.station_models import (StationStates, StationView,
 # Services
 from src.services import locker_services, station_services
 from src.services.exception_services import handle_exceptions
-import src.services.exception_services
 from src.services.logging_services import logger
 from src.services.mqtt_services import fast_mqtt, validate_mqtt_topic
 # Exceptions
 from src.exceptions.station_exceptions import InvalidStationReportException
-from src.exceptions.locker_exceptions import InvalidLockerStateException
+import traceback
 
 # Create the router
 station_router = APIRouter()
@@ -98,7 +97,8 @@ async def set_station_state(
         station_state=state)
 
 
-@station_router.patch('/{callsign}/reset_queue', response_model=StationView)
+@station_router.patch('/{callsign}/reset_queue',
+                      response_model=StationView)
 @handle_exceptions(logger)
 async def reset_station_queue(
         callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
@@ -155,7 +155,7 @@ async def handle_verification_report(
             expected_terminal_state=TerminalStates.VERIFICATION,
         )
     except Exception as e:  # pylint disable=broad-except
-        logger.warning(e)
+        logger.warning(traceback.format_exc())
 
 
 @validate_mqtt_topic('stations/+/payment/report', [ObjId])

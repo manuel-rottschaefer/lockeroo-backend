@@ -46,7 +46,7 @@ class ActionView(View):  # pylint: disable=too-many-ancestors
     # Identification
     id: ObjId = Field(None, alias="_id",)
     assigned_session: ObjId = Field(
-        None, description="The assigned session to this action."
+        description="The assigned session to this action."
     )
 
     # Action Properties
@@ -56,7 +56,3 @@ class ActionView(View):  # pylint: disable=too-many-ancestors
     action_type: SessionStates = Field(
         None, description="The type of action that has been registered."
     )
-
-    @dataclasses.dataclass
-    class Settings:  # pylint: disable=missing-class-docstring
-        name = "actions"

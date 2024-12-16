@@ -10,7 +10,7 @@ from beanie import PydanticObjectId as ObjId
 from fastapi import APIRouter, Path, Query, Depends, Header
 
 # Models
-from src.models.review_models import ReviewModel
+from src.models.review_models import ReviewView
 from src.models.user_models import UserModel
 
 # Services
@@ -24,7 +24,7 @@ review_router = APIRouter()
 
 
 @ review_router.get('/{session_id}',
-                    response_model=ReviewModel,
+                    response_model=ReviewView,
                     description='Get the review of a session.')
 @ handle_exceptions(logger)
 async def get_review(
@@ -40,7 +40,7 @@ async def get_review(
 
 
 @ review_router.put('/{session_id}/submit',
-                    response_model=ReviewModel,
+                    response_model=ReviewView,
                     description='Submit a review for a completed session.')
 @ handle_exceptions(logger)
 async def submit_review(

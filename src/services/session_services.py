@@ -72,7 +72,7 @@ async def handle_creation_request(
     """Create a locker session for the user
     at the given station matching the requested locker type."""
     # 1: Check if the station exists
-    station: Station = await Station.find(callsign=callsign)
+    station: Station = await Station().find(callsign=callsign)
     if not station.exists:
         raise StationNotFoundException(station_id=callsign)
 
@@ -99,7 +99,7 @@ async def handle_creation_request(
     locker: Locker = await Locker().find_available(
         station=station, locker_type=locker_type)
     if not locker.exists:
-        raise LockerNotAvailableException(locker_id=None)
+        raise LockerNotAvailableException(station_callsign=callsign)
 
     # 7: Create a new session
     session: Session = await Session.create(

@@ -13,7 +13,7 @@ from fief_client import FiefAccessTokenInfo
 from src.entities.maintenance_entity import Maintenance
 from src.entities.station_entity import Station
 # Models
-from src.models.maintenance_models import MaintenanceModel
+from src.models.maintenance_models import MaintenanceView
 from src.services import maintenance_services
 from src.services.auth_services import require_auth
 # Services
@@ -25,13 +25,13 @@ maintenance_router = APIRouter()
 
 
 @maintenance_router.post('/{callsign}/maintenance/schedule',
-                         response_model=MaintenanceModel)
+                         response_model=MaintenanceView)
 @handle_exceptions(logger)
 @require_auth
 async def create_scheduled_maintenance(
         callsign:  Annotated[str, Path(pattern='^[A-Z]{6}$')],
         staff_id: str,
-        _access_info: FiefAccessTokenInfo = None,) -> MaintenanceModel:
+        _access_info: FiefAccessTokenInfo = None,) -> MaintenanceView:
     """Get the availability of lockers at the station"""
     station: Station = await Station().find(callsign=callsign)
 
@@ -41,13 +41,13 @@ async def create_scheduled_maintenance(
 
 
 @maintenance_router.get('/{callsign}/maintenance/next',
-                        response_model=MaintenanceModel)
+                        response_model=MaintenanceView)
 @handle_exceptions(logger)
 @require_auth
 async def get_next_scheduled_maintenance(
     callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
     _access_info: FiefAccessTokenInfo = None
-) -> MaintenanceModel:
+) -> MaintenanceView:
     """Get the availability of lockers at the station"""
     station: Station = await Station().find(callsign=callsign)
     return await maintenance_services.get_next(

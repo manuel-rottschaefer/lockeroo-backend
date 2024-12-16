@@ -104,8 +104,9 @@ class Locker(Entity):
 
     async def instruct_state(self, state: LockerStates):
         """Send a message to the station to unlock the locker."""
-        await self.document.fetch_link(LockerModel.station)
-        logger.debug(f"Broadcasting locker state {
-                     state} to '{self.document.id}'.")
+        # await self.document.fetch_link(LockerModel.station)
+        logger.debug(
+            (f"Sending {state} instruction to locker '#{self.document.id}' "
+             f"at station '#{self.document.station.callsign}'."))
         fast_mqtt.publish(
             f'stations/{self.station.callsign}/locker/{self.station_index}/instruct', state.value)

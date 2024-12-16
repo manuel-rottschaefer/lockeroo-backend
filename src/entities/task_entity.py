@@ -71,11 +71,13 @@ class Task(Entity):
         return instance
 
     @classmethod
+    # TODO: Do we even need these find methods at all?
     async def find(
         cls,
         task_type: Optional[TaskTypes] = None,
         task_state: Optional[TaskStates] = None,
         assigned_session: Optional[ObjId] = None,
+        station_callsign: Optional[str] = None,
         assigned_station: Optional[ObjId] = None,
         assigned_locker: Optional[ObjId] = None,
         # TODO: Check data type here
@@ -89,6 +91,7 @@ class Task(Entity):
             TaskItemModel.task_state: task_state,
             TaskItemModel.assigned_session.id: assigned_session,  # pylint: disable=no-member
             TaskItemModel.assigned_station.id: assigned_station,  # pylint: disable=no-member
+            TaskItemModel.assigned_station.callsign: station_callsign,  # pylint: disable=no-member
             TaskItemModel.assigned_locker.id: assigned_locker,  # pylint: disable=no-member
             TaskItemModel.queued_session_state: queued_state,
         }
@@ -221,6 +224,7 @@ class Task(Entity):
             if self.document.assigned_station:
                 # Instruct the station to enable the terminal
                 station: Station = Station(self.document.assigned_station)
+                await station.sync()
                 assert (station.document.terminal_state == TerminalStates.IDLE
                         ), f"Terminal of station '#{station.document.id}' is not idle."
                 station.document.instruct_terminal_state(

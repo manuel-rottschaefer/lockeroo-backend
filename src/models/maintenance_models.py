@@ -49,3 +49,29 @@ class MaintenanceModel(Document):  # pylint: disable=too-many-ancestors
 
     class Settings:  # pylint: disable=missing-class-docstring, too-few-public-methods
         name = "maintenance"
+
+
+class MaintenanceView(Document):  # pylint: disable=too-many-ancestors
+    """Entity of a station maintenance event"""
+
+    id: ObjId = Field(None, alias="_id")
+
+    assigned_station: ObjId = Field(
+        None, description="Station to which this maintenance is assigned to.")
+
+    # Planned datetimes
+    scheduled_for: datetime = Field(
+        description="Scheduled time of maintenance")
+    planned_duration: timedelta = Field(
+        timedelta(hours=1), description="Planned duration of the maintenance session.")
+
+    started: Optional[datetime] = Field(description="Actual starting time")
+    completed: Optional[datetime] = Field(
+        description="Actual completion time")
+
+    state: MaintenanceStates = Field(
+        description="Current state of the maintenance item"
+    )
+
+    assigned_staff: ObjId = Field(
+        None, description="The person assigned with this task")

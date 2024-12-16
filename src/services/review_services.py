@@ -48,7 +48,7 @@ async def handle_review_submission(session_id: ObjId,
             actual_state=session.session_state)
 
     # 3: Then insert the review into the database
-    await ReviewModel(
+    return await ReviewModel(
         assigned_session=session.id,
         submitted_ts=datetime.now(),
         experience_rating=experience_rating,
@@ -61,6 +61,7 @@ async def get_session_review(
         session_id: ObjId,
         user: UserModel) -> Optional[ReviewModel]:
     """Return a review for a session from the database."""
+
     # 1: Find the review entry
     review: ReviewModel = await ReviewModel.find_one(
         ReviewModel.assigned_session == session_id
@@ -68,14 +69,9 @@ async def get_session_review(
     if not review:
         raise ReviewNotFoundException(review_id=session_id)
 
-    # 2: Find the assigned session
-    session: Session = await Session().find(session_id=review.assigned_session.id)
-    if not session.exists:
-        logger.warning(
-            f'Session {review.assigned_session.id} does not exist, but should.')
-        return None
-    await session.fetch_link(SessionModel.user)
-    if session.user.id != user.id:
+    # 2: Check if the user is authorized to view the review
+    await review.document.fetch_link(ReviewModel.assigned_session)
+    if review.assigned_session.user != user:
         raise UserNotAuthorizedException(user_id=user.id)
 
     return review

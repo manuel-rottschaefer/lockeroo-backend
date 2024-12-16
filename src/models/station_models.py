@@ -102,19 +102,21 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     def instruct_terminal_state(self, instruct_state: TerminalStates = None):
         """Send an update message regarding the session state to the mqtt broker."""
         state_to_broadcast = instruct_state if instruct_state is not None else self.terminal_state
-        logger.debug(f"Sending instruction for {state_to_broadcast} to station '#{
-                     self.callsign}'.")
+        logger.debug(
+            (f"Sending {state_to_broadcast} instruction to "
+             f"terminal at station '#{self.callsign}'."))
         fast_mqtt.publish(
             f"stations/{self.callsign}/terminal/instruct",
             str(state_to_broadcast.value).upper())  # pylint: disable=no-member
 
-    @dataclasses.dataclass
+    @ dataclasses.dataclass
     class Settings:  # pylint: disable=missing-class-docstring
         name = "stations"
-        use_cache = True
         use_state_management = True
-        cache_expiration_time = timedelta(seconds=10)
-        cache_capacity = 5
+        use_revision = False
+        use_cache = False
+        # cache_expiration_time = timedelta(seconds=10)
+        # cache_capacity = 5
 
 
 class StationView(View):
@@ -144,11 +146,6 @@ class StationView(View):
     address: str
     location: Dict
     nearby_public_transit: Optional[str]
-
-    # TODO: No method in a view, solve this differently
-    async def get_locker_availability(self, station_services):
-        """Get the availability of lockers at the station"""
-        return await station_services.get_locker_availability(self)
 
 
 class StationLockerAvailabilities(View):

@@ -74,4 +74,5 @@ class InvalidTerminalStateException(Exception):
             raise HTTPException(status_code=400, detail=self.__str__())
 
     def __str__(self):
-        return f"Invalid station report at station '{self.station_callsign}'.)"
+        return (f"Invalid terminal state at station '{self.station_callsign}'.)"
+                f" Expected '{self.expected_state}', got '{self.actual_state}'.")
