@@ -91,7 +91,7 @@ async def handle_creation_request(
         return
 
     # 5: Check whether the given locker type exists
-    if locker_type not in LOCKER_TYPES.keys():
+    if locker_type.lower() not in LOCKER_TYPES.keys():
         raise InvalidLockerTypeException(locker_type=locker_type)
     locker_type = LOCKER_TYPES[locker_type]
 
@@ -353,7 +353,9 @@ async def handle_update_subscription_request(session_id: ObjId, socket: WebSocke
     # 4: Register the connection
     await socket.accept()
     websocket_services.register_connection(session.id, socket)
-    logger.debug(f"Session '#{session.id}' is now sending updates.")
+    logger.debug(
+        ("Subscription has been activated for "
+         f"session '#{session.id}'."))
     await socket.send_text(session.session_state)
     try:
         while True:
@@ -361,7 +363,9 @@ async def handle_update_subscription_request(session_id: ObjId, socket: WebSocke
 
     # 5: Register a disconnect event
     except WebSocketDisconnect:
-        logger.debug(f"Session '#{session.id}' is no longer sending updates.")
+        logger.debug(
+            ("Subscription has been activated for "
+             f"session '#{session.id}'."))
         websocket_services.unregister_connection(session.id)
     except Exception as e:  # pylint: disable=broad-exception-caught
         logger.error(f"Error in ws for session '{

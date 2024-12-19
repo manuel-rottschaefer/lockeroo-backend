@@ -183,7 +183,6 @@ async def handle_station_payment_report(
 async def handle_locker_report(
         _client, topic, payload, _qos, _properties) -> None:
     """Handle a locker report from a station"""
-
     # Import station and locker information
     callsign: str = topic.split('/')[1]
     locker_index: int = int(topic.split('/')[3])
@@ -197,6 +196,10 @@ async def handle_locker_report(
         logger.error(
             f"Invalid locker report from station {callsign} for locker {locker_index}.")
         return
+
+    logger.debug(
+        (f"Station '{callsign}' reported {report} "
+         f"at locker {locker_index}."))
 
     try:
         if report == LockerStates.UNLOCKED:
