@@ -25,32 +25,44 @@ class LoggingService:
      debug messages as well as defined service exceptions."""
 
     def __init__(self):
-        self.logging = logging.getLogger(__name__)
+        # Create a file handler
+        backend_logfile = f"src/logs/{
+            datetime.today().strftime('%Y-%m-%d')}.log"
+
+        # Create a formatter and add it to the handler
+        formatter = logging.Formatter(
+            "{asctime} - {levelname} - {message}", style="{", datefmt="%Y-%m-%d %H:%M:%S")
+
+        handler = logging.FileHandler(backend_logfile, encoding="utf-8")
+        handler.setFormatter(formatter)
+
+        self.logger = logging.getLogger('backend_logger')
+        self.logger.setLevel(logging.DEBUG)
+        self.logger.addHandler(handler)
+        self.logger.propagate = False
 
     def debug(self, message: str):
         """Pass message to default logger with level DEBUG"""
-        self.logging.debug(message)
+        self.logger.debug(message)
 
     def info(self, message: str):
         """Pass message to default logger with level INFO"""
-        self.logging.info(message)
+        self.logger.info(message)
 
     def warning(self, message: str):
         """Pass message to default logger with level DEBUG"""
-        self.logging.warning(message)
+        self.logger.warning(message)
 
     def error(self, message: str):
         """Pass message to default logger with level ERROR"""
-        self.logging.error(message)
+        self.logger.error(message)
 
-
-def new_log_section():
-    """Create a new log section"""
-    with open(LOGFILE, 'r', encoding='utf-8') as log:
-        lines = log.readlines()
-        if not lines or '---' not in lines[-1].strip():
-            logging.info(
-                '--------------------------------------------------------------')
+    def new_section(self):
+        """Create a new log section"""
+        with open(LOGFILE, 'r', encoding='utf-8') as log:
+            lines = log.readlines()
+            if not lines or '---' not in lines[-1].strip():
+                logging.info('-' * 64)
 
 
 def init_loggers():
@@ -62,8 +74,9 @@ def init_loggers():
     for mod_logger in loggers:
         # logging.debug(f'Setting logger {mod_logger} to level state warning.')
         logging.getLogger(mod_logger).setLevel(logging.WARNING)
-    new_log_section()
-    return LoggingService()
+    backend_logger = LoggingService()
+    backend_logger.new_section()
+    return backend_logger
 
 
 logger = init_loggers()

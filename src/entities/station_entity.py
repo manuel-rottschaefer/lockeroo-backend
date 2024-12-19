@@ -118,12 +118,12 @@ class Station(Entity):
     async def register_terminal_state(
         self: StationModel, new_terminal_state: TerminalStates = None
     ) -> None:
-        """Update the terminal state of a station. This function either accepts a TerminalState or a SessionState. """
+        """Update the terminal state of a station."""
         self.document.terminal_state = new_terminal_state
         await self.document.save_changes(
             skip_actions=['notify_station_state', 'instruct_terminal_state'])
         logger.debug(
-            f"Terminal at station '#{self.id}' set to {
+            f"Terminal at station '#{self.callsign}' set to {
                 self.terminal_state}."
         )
 

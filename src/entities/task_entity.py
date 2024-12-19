@@ -5,7 +5,6 @@ from typing import List, Optional, Union
 from datetime import datetime, timedelta
 from asyncio import sleep, create_task
 import os
-import traceback
 
 # Beanie
 from beanie import PydanticObjectId as ObjId, SortDirection
@@ -74,14 +73,14 @@ class Task(Entity):
     # TODO: Do we even need these find methods at all?
     async def find(
         cls,
-        task_type: Optional[TaskTypes] = None,
-        task_state: Optional[TaskStates] = None,
-        assigned_session: Optional[ObjId] = None,
-        station_callsign: Optional[str] = None,
-        assigned_station: Optional[ObjId] = None,
-        assigned_locker: Optional[ObjId] = None,
+        task_type: Optional[TaskTypes] = 'unset',
+        task_state: Optional[TaskStates] = 'unset',
+        assigned_session: Optional[ObjId] = 'unset',
+        station_callsign: Optional[str] = 'unset',
+        assigned_station: Optional[ObjId] = 'unset',
+        assigned_locker: Optional[ObjId] = 'unset',
         # TODO: Check data type here
-        queued_state: Optional[Union[SessionStates, TerminalStates]] = None,
+        queued_state: Optional[Union[SessionStates, TerminalStates]] = 'unset',
     ):
         """Get a task at a station."""
         instance = cls()
@@ -97,7 +96,7 @@ class Task(Entity):
         }
 
         # Filter out None values
-        query = {k: v for k, v in query.items() if v is not None}
+        query = {k: v for k, v in query.items() if v is not 'unset'}
         task_item: TaskItemModel = await TaskItemModel.find(
             query, fetch_links=True
         ).sort((TaskItemModel.created_ts, SortDirection.DESCENDING)).first_or_none()
@@ -205,12 +204,6 @@ class Task(Entity):
         logger.debug(f"Task '#{self.document.id}' will time out to {
             self.document.timeout_states[0]} in {timeout_window} seconds."
         )
-
-        # 4: Call activation handlers
-        # if self.document.task_type == TaskTypes.TERMINAL:
-        # Check that there is no other pending terminal task
-        # if not await self.is_next_in_queue:
-        #    return
 
         if self.document.task_type in [
                 TaskTypes.TERMINAL, TaskTypes.LOCKER]:

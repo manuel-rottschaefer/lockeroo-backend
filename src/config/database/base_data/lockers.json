@@ -2,7 +2,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#001",
@@ -18,7 +18,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#002",
@@ -34,7 +34,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#003",
@@ -50,7 +50,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#004",
@@ -66,7 +66,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#005",
@@ -82,7 +82,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#006",
@@ -98,7 +98,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#007",
@@ -114,7 +114,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#008",
@@ -130,7 +130,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#009",
@@ -146,7 +146,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#010",
@@ -162,7 +162,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#011",
@@ -178,7 +178,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#012",
@@ -194,7 +194,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#013",
@@ -210,7 +210,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#014",
@@ -226,7 +226,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#015",
@@ -242,7 +242,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#016",
@@ -258,7 +258,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#017",
@@ -274,7 +274,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#018",
@@ -290,7 +290,7 @@
   {
     "station": {
       "$ref": "stations",
-      "$id": "66e6b53a71580df1e30b1f7a",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
     "callsign": "MUCODE#019",

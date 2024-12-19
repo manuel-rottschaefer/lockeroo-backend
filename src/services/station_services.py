@@ -221,7 +221,6 @@ async def handle_terminal_report(
 
     # 5: Update the station terminal state
     await station.register_terminal_state(TerminalStates.IDLE)
-    print(station.document.terminal_state)
 
     # 6: Update the session state
     await task.complete()
@@ -229,6 +228,7 @@ async def handle_terminal_report(
 
     # 7: Await station to confirm locker unlocking
     # await session.document.fetch_link(SessionModel.assigned_locker)
+    logger.debug(f"Creating confirmation task for session '{session.id}'.")
     await Task().create(
         task_type=TaskTypes.CONFIRMATION,
         station=station.document,

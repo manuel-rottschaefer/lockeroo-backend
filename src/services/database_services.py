@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
 
 # Services
-from src.services.logging_services import logger, new_log_section
+from src.services.logging_services import logger
 
 # Models
 from src.models.action_models import ActionModel
@@ -28,7 +28,7 @@ async def setup():
     """Initialize the database"""
     if os.getenv('STARTUP_RESET') == 'True':
         await restore_mongodb_data(os.getenv('MONGO_DUMP'))
-        new_log_section()
+        logger.new_section()
 
     await init_beanie(
         database=client["Lockeroo"],
@@ -57,10 +57,20 @@ def convert_oid(document):
     return document
 
 
+async def resolve_station_reference(station_ref):
+    """Resolve station reference to ObjectId"""
+    if "$callsign" in station_ref:
+        station = await db.stations.find_one({"callsign": station_ref["$callsign"]})
+        if station:
+            return station["_id"]
+    return None
+
+
 async def restore_json_mock_data(directory):
     """Load JSON files into the database"""
     logger.info("Restoring mock data")
-    for filename in os.listdir(directory):
+    # This is a workaround to ensure that the collections are created in the correct order
+    for filename in sorted(os.listdir(directory), reverse=True):
         if not filename.endswith(".json"):
             continue
 
@@ -70,19 +80,13 @@ async def restore_json_mock_data(directory):
         with open(os.path.join(directory, filename), "r", encoding="utf-8") as f:
             data = json.load(f)
             if data and isinstance(data, list):
-                if collection_name == "stations":
-                    db["stations"].create_index([("location", "2dsphere")])
-                for item in data:
-                    item = convert_oid(item)
-                    # if collection_name == "stations":
-                    #    station = StationModel(**item)
-                    #    await station.insert()
-                    # else:
-                    await collection.insert_one(item)
-
-            elif data:
-                data = convert_oid(data)
-                await collection.insert_one(data)
+                for document in data:
+                    if "station" in document and "$callsign" in document["station"]:
+                        station_id = await resolve_station_reference(document["station"])
+                        if station_id:
+                            document["station"]['$id'] = station_id
+                            del document["station"]["$callsign"]
+                    await collection.insert_one(convert_oid(document))
 
 
 async def restore_mongodb_data(directory):

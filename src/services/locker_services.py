@@ -52,10 +52,6 @@ if LOCKER_TYPES is None:
 async def handle_unlock_report(
         callsign: str, locker_index: int) -> None:
     """Process and verify a station report that a locker has been unlocked"""
-    logger.info(
-        (f"Station '{callsign}' reported {LockerStates.UNLOCKED} "
-         f"at locker {locker_index}"))
-
     # 1: Find the affected locker
     locker: Locker = await Locker().find(
         station_callsign=callsign,
@@ -64,6 +60,9 @@ async def handle_unlock_report(
         raise LockerNotFoundException(
             station=callsign,
             locker_index=locker_index)
+    logger.info(
+        (f"Station '{callsign}' reported {LockerStates.UNLOCKED} "
+         f"at locker {locker_index} ('#{locker.id}')."))
 
     # 2: Find the affected, pending task
     task: Task = await Task().find(
@@ -126,10 +125,6 @@ async def handle_unlock_report(
 async def handle_lock_report(
         callsign: str, locker_index: int) -> None:
     """Process and verify a station report that a locker has been closed"""
-    logger.info(
-        (f"Station '{callsign}' reported {LockerStates.LOCKED} "
-         f"at locker {locker_index}"))
-
     # 1: Find the affected, pending task
     task: Task = Task(await TaskItemModel.find(
         TaskItemModel.task_type == TaskTypes.LOCKER,
@@ -140,12 +135,6 @@ async def handle_lock_report(
     ).sort((
         TaskItemModel.created_ts, SortDirection.DESCENDING
     )).first_or_none())
-
-    # task: Task = await Task().find(
-    #    task_type=TaskTypes.LOCKER,
-    #    task_state=TaskStates.PENDING,
-    #    assigned_station=locker.document.station,
-    #    assigned_locker=locker.document.id)
     if not task.exists:
         raise TaskNotFoundException(
             task_type=TaskTypes.LOCKER,
@@ -154,6 +143,9 @@ async def handle_lock_report(
 
     # 2: Get the affected locker
     locker: Locker = Locker(task.assigned_locker)
+    logger.info(
+        (f"Station '{callsign}' reported {LockerStates.LOCKED} "
+         f"at locker {locker_index} ('#{locker.id}')."))
 
     # 3: Check if the reported locker matches that of the task
     await task.fetch_link(TaskItemModel.assigned_locker)

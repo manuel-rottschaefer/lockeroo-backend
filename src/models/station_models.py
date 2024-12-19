@@ -3,10 +3,11 @@
 import dataclasses
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict, Optional, Annotated
 
 # Beanie
-from beanie import Document
+from pymongo import TEXT
+from beanie import Document, Indexed
 from beanie import PydanticObjectId as ObjId
 from beanie import SaveChanges, View, after_event
 from pydantic import BaseModel, Field
@@ -59,7 +60,7 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     # Identification
     id: ObjId = Field(alias="_id")
     full_name: str
-    callsign: str
+    callsign: Annotated[str, Indexed(index_type=TEXT, unique=True)]
 
     # Internal Properties
     station_type: str

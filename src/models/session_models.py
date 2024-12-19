@@ -153,8 +153,6 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     @after_event(SaveChanges)
     async def notify_state(self):
         """Send an update message regarding the session state to the mqtt broker."""
-        logger.debug(f"Sending update for session '#{self.id}' of state {
-                     self.session_state} to MQTT broker.")
         await websocket_services.send_text(session_id=self.id, text=self.session_state)
 
     @after_event(SaveChanges)

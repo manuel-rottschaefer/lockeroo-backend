@@ -8,6 +8,9 @@ from functools import wraps
 # FastAPI
 from fastapi_mqtt import FastMQTT, MQTTConfig
 
+# Logging
+from src.services.logging_services import logger
+
 
 def validate_mqtt_topic(pattern: str, param_types: list):
     """Validate an mqtt topic string and its contained data types."""
@@ -18,19 +21,16 @@ def validate_mqtt_topic(pattern: str, param_types: list):
             regex_pattern = pattern.replace('+', '([^/]+)').replace('#', '.*')
             match = re.fullmatch(regex_pattern, topic)
             if not match:
-                # logger.warning(f"Invalid MQTT topic: {topic}")
+                logger.warning(f"Invalid MQTT topic: {topic}")
                 return
-
             # Extract parameters from the topic
             params = match.groups()
-
             # Convert parameters to specified types
             try:
                 converted_params = [param_type(
                     param) for param, param_type in zip(params, param_types)]
             except ValueError as e:
-                # logger.warning(
-                #    f"Parameter conversion error for topic {topic}: {e}")
+                logger.warning(f"Invalid parameter type: {e}")
                 return
 
             return await func(*converted_params, *args, **kwargs)
@@ -46,5 +46,12 @@ logging.getLogger("gmqtt.mqtt.package").setLevel(logging.WARNING)
 logging.getLogger("gmqtt.mqtt.protocol").setLevel(logging.WARNING)
 
 # Configure the MQTT Client
-mqtt_config = MQTTConfig()
+mqtt_config = MQTTConfig(
+    host="localhost",
+    port=1883,
+    keepalive=60,
+    version=5,
+    reconnect_retries=1,
+    reconnect_delay=6
+)
 fast_mqtt = FastMQTT(config=mqtt_config)
