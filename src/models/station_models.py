@@ -107,8 +107,9 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
             (f"Sending {state_to_broadcast} instruction to "
              f"terminal at station '#{self.callsign}'."))
         fast_mqtt.publish(
-            f"stations/{self.callsign}/terminal/instruct",
-            str(state_to_broadcast.value).upper())  # pylint: disable=no-member
+            message_or_topic=f"stations/{self.callsign}/terminal/instruct",
+            payload=state_to_broadcast.upper(),
+            qos=2)
 
     @ dataclasses.dataclass
     class Settings:  # pylint: disable=missing-class-docstring

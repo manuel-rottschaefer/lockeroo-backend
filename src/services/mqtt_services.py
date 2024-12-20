@@ -4,9 +4,11 @@
 import logging
 import re
 from functools import wraps
+from typing import Any
 
 # FastAPI
 from fastapi_mqtt import FastMQTT, MQTTConfig
+from gmqtt import Client as MQTTClient
 
 # Logging
 from src.services.logging_services import logger
@@ -55,3 +57,14 @@ mqtt_config = MQTTConfig(
     reconnect_delay=6
 )
 fast_mqtt = FastMQTT(config=mqtt_config)
+
+
+@fast_mqtt.on_connect()
+def connect(client: MQTTClient, _flags: int, _rc: int, _properties: Any):
+    client.subscribe("/mqtt")  # subscribing mqtt topic
+    # logger.debug(f"Connected to MQTT Broker: {client}")
+
+
+@fast_mqtt.on_disconnect()
+def disconnect(client: MQTTClient, _packet, _exc=None):
+    logger.debug(f"Disconnected from MQTT Broker: {client}.")

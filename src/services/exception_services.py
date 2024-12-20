@@ -4,7 +4,6 @@
 # and http exceptions if the user requested weird shit.
 #########
 
-from enum import Enum
 # Basics
 from functools import wraps
 

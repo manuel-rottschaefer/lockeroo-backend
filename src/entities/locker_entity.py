@@ -31,6 +31,7 @@ class Locker(Entity):
         index: Optional[int] = None,
     ):
         """Find a locker in the database"""
+        # TODO: The find methods should also handle exception cases
         instance = cls()
 
         query = {

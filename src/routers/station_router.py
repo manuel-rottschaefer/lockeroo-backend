@@ -3,7 +3,7 @@ This module contains the station router which handles all station related reques
 """
 
 # Basics
-from typing import Annotated, List, Optional
+from typing import Annotated, List, Optional, Any
 
 from beanie import PydanticObjectId as ObjId
 # FastAPI & Beanie
@@ -12,8 +12,10 @@ from fastapi import APIRouter, Path, Response
 from src.models.locker_models import LockerView, LockerStates
 from src.models.session_models import SessionStates, SessionView
 # Models
-from src.models.station_models import (StationStates, StationView,
-                                       TerminalStates)
+from src.models.station_models import (
+    StationStates,
+    StationView,
+    TerminalStates)
 # Services
 from src.services import locker_services, station_services
 from src.services.exception_services import handle_exceptions
@@ -21,7 +23,6 @@ from src.services.logging_services import logger
 from src.services.mqtt_services import fast_mqtt, validate_mqtt_topic
 # Exceptions
 from src.exceptions.station_exceptions import InvalidStationReportException
-import traceback
 
 # Create the router
 station_router = APIRouter()
@@ -124,16 +125,17 @@ async def handle_terminal_mode_confirmation(
             f"Invalid station terminal report from station {callsign}.")
         return
 
-    if mode == 'VERIFICATION':
-        terminal_state = TerminalStates.VERIFICATION
-    elif mode == 'PAYMENT':
-        terminal_state = TerminalStates.PAYMENT
+    if mode in ['VERIFICATION', 'PAYMENT']:
+        terminal_state = TerminalStates[mode]
+    else:
+        return
 
     await station_services.handle_terminal_confirmation(callsign, terminal_state)
 
 
 @validate_mqtt_topic('stations/+/verification/report', [ObjId])
 @fast_mqtt.subscribe('stations/+/verification/report')
+@handle_exceptions(logger)
 async def handle_verification_report(
         _client, topic, payload, _qos, _properties) -> None:
     """Handle a payment verification report from a station"""
@@ -148,66 +150,64 @@ async def handle_verification_report(
     logger.info(
         f"Station '{callsign}' reported {SessionStates.VERIFICATION} with card '#{card_id}'.")
 
-    try:
-        await station_services.handle_terminal_report(
-            callsign=callsign,
-            expected_session_state=SessionStates.VERIFICATION,
-            expected_terminal_state=TerminalStates.VERIFICATION,
-        )
-    except Exception as e:  # pylint disable=broad-except
-        logger.warning(traceback.format_exc())
+    await station_services.handle_terminal_report(
+        callsign=callsign,
+        expected_session_state=SessionStates.VERIFICATION,
+        expected_terminal_state=TerminalStates.VERIFICATION,
+    )
 
 
 @validate_mqtt_topic('stations/+/payment/report', [ObjId])
 @fast_mqtt.subscribe('stations/+/payment/report')
+@handle_exceptions(logger)
 async def handle_station_payment_report(
         _client, topic, _payload, _qos, _properties) -> None:
     """Handle a payment report from a station"""
     callsign = topic.split('/')[1]
 
-    logger.info(f"Station '#{callsign}' reported {
-                SessionStates.PAYMENT} with card '#123456'.")
+    logger.info(
+        (f"Station '#{callsign}' reported {SessionStates.PAYMENT} "
+         f"with card '#123456'."))
 
-    try:
-        await station_services.handle_terminal_report(
-            callsign=callsign,
-            expected_session_state=SessionStates.PAYMENT,
-            expected_terminal_state=TerminalStates.PAYMENT
-        )
-    except Exception as e:  # pylint disable=broad-except
-        logger.warning(e)
+    await station_services.handle_terminal_report(
+        callsign=callsign,
+        expected_session_state=SessionStates.PAYMENT,
+        expected_terminal_state=TerminalStates.PAYMENT
+    )
 
 
 @validate_mqtt_topic('stations/+/locker/+/report', [ObjId, int])
 @fast_mqtt.subscribe('stations/+/locker/+/report')
+@handle_exceptions(logger)
 async def handle_locker_report(
-        _client, topic, payload, _qos, _properties) -> None:
+        _client: Any, topic: str, payload: bytes, _qos: int, _properties: Any) -> None:
     """Handle a locker report from a station"""
     # Import station and locker information
-    callsign: str = topic.split('/')[1]
-    locker_index: int = int(topic.split('/')[3])
-    if not locker_index:
+    topic_parts = topic.split('/')
+    callsign: str = topic_parts[1]
+    try:
+        locker_index: int = int(topic_parts[3])
+    except (IndexError, ValueError):
         logger.warning(f"Invalid locker report from station {callsign}.")
         return
 
     # Extract the report from the payload
-    report: str = payload.decode('utf-8').lower()
-    if not report:
-        logger.error(
-            f"Invalid locker report from station {callsign} for locker {locker_index}.")
+    try:
+        report: str = payload.decode('utf-8').lower()
+    except UnicodeDecodeError:
+        logger.error(f"Failed to decode payload from station {
+                     callsign} for locker {locker_index}.")
         return
 
-    logger.debug(
-        (f"Station '{callsign}' reported {report} "
-         f"at locker {locker_index}."))
+    if not report:
+        logger.error(f"Empty locker report from station {
+                     callsign} for locker {locker_index}.")
+        return
 
-    try:
-        if report == LockerStates.UNLOCKED:
-            await locker_services.handle_unlock_report(callsign, locker_index)
-        elif report == LockerStates.LOCKED:
-            await locker_services.handle_lock_report(callsign, locker_index)
-        else:
-            raise InvalidStationReportException(
-                station_callsign=callsign, reported_state=report)
-    except Exception as e:  # pylint disable=broad-except
-        logger.warning(e)
+    if report == LockerStates.UNLOCKED:
+        await locker_services.handle_unlock_report(callsign, locker_index)
+    elif report == LockerStates.LOCKED:
+        await locker_services.handle_lock_report(callsign, locker_index)
+    else:
+        raise InvalidStationReportException(
+            station_callsign=callsign, reported_state=report)

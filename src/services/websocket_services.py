@@ -1,6 +1,6 @@
 """Provides utility functions for the websocket backend."""
 
-# Typing
+# Types
 from typing import Dict, Optional
 
 # FastAPI

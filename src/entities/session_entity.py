@@ -96,7 +96,7 @@ class Session(Entity):
             user=self.user.fief_id,
             locker_index=self.assigned_locker.station_index if self.assigned_locker else None,
             session_type=self.session_type,
-            session_state=self.session_state.name,
+            session_state=self.session_state,
             created_ts=self.created_ts
         )
 

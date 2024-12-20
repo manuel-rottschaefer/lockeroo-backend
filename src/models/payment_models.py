@@ -4,13 +4,11 @@ import dataclasses
 # Basics
 from datetime import datetime
 from enum import Enum
-from typing import Optional
 
 # Types
 from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
 from beanie import SaveChanges, after_event
-from beanie.operators import Set
 from pydantic import BaseModel, Field
 
 # Entities
@@ -34,13 +32,13 @@ class PaymentStates(Enum):
 
 class PricingModel(BaseModel):
     """Config representation of pricing models."""
-    name: str = Field(description="Name of the pricing model"),
+    name: str = Field(description="Name of the pricing model")
     base_fee: int = Field(
-        description="Minimal charge when starting a session (cent)."),
+        description="Minimal charge when starting a session (cent).")
     charge_fee: int = Field(
         description="Additional fee for connecting a device to the outlet.")
     base_duration: int = Field(
-        description="Minutes until the charge exceeds the base charge."),
+        description="Minutes until the charge exceeds the base charge.")
     rate_minute: float = Field(
         description="Charge for every started minue (cent)")
 

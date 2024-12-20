@@ -1,6 +1,6 @@
 """Provides utility functions for the maintenance management backend."""
 
-# Typing
+# Types
 from datetime import datetime, timedelta
 from typing import Optional
 

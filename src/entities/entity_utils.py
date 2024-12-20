@@ -1,8 +1,5 @@
 """Utils for all entity classes."""
 
-# Typing
-from typing import List
-
 # Beanie
 from beanie import After
 

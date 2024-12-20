@@ -29,7 +29,7 @@ review_router = APIRouter()
 @ handle_exceptions(logger)
 async def get_review(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
-    user: str = Header(default=None),
+    _user: str = Header(default=None, alias="user"),
     access_info: UserModel = Depends(require_auth),
 ):
     """Handle request to get a review for a session"""
@@ -47,8 +47,8 @@ async def submit_review(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
     experience_rating: Annotated[int, Query(ge=1, le=5)],
     cleanliness_rating: Annotated[int, Query(ge=1, le=5)],
-    details: str,
-    user: str = Header(default=None),
+    details: Annotated[str, Query(max_length=500)],
+    _user: str = Header(default=None, alias="user"),
     access_info: UserModel = Depends(require_auth),
 ):
     """Handle request to submit a review for a completed session"""

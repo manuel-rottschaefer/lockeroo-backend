@@ -1,5 +1,5 @@
 """Provides utility functions for the sesssion management backend."""
-# Typing
+# Types
 from typing import List, Optional
 
 # ObjectID handling
@@ -354,7 +354,7 @@ async def handle_update_subscription_request(session_id: ObjId, socket: WebSocke
     await socket.accept()
     websocket_services.register_connection(session.id, socket)
     logger.debug(
-        ("Subscription has been activated for "
+        ("Subscription has been ACTIVATED for "
          f"session '#{session.id}'."))
     await socket.send_text(session.session_state)
     try:
@@ -364,7 +364,7 @@ async def handle_update_subscription_request(session_id: ObjId, socket: WebSocke
     # 5: Register a disconnect event
     except WebSocketDisconnect:
         logger.debug(
-            ("Subscription has been activated for "
+            ("Subscription has been DEACTIVATED for "
              f"session '#{session.id}'."))
         websocket_services.unregister_connection(session.id)
     except Exception as e:  # pylint: disable=broad-exception-caught

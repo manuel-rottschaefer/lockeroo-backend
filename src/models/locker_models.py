@@ -4,12 +4,10 @@ as well as other Enums and configurations.
 """
 # Types
 import dataclasses
+from typing import List
 from datetime import datetime, timedelta
 from enum import Enum
-# Basics
-from typing import List, Optional
-
-# Types
+# Beanie
 from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
 from beanie import SaveChanges, View, after_event

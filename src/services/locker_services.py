@@ -1,25 +1,22 @@
 """Provides utility functions for the locker management backend."""
-# Basics
-import yaml
-# Typing
+# Types
 from typing import Dict
+import yaml
+
 # Beanie
 from beanie import SortDirection
 # Entities
-from src.entities.station_entity import Station
 from src.entities.session_entity import Session
 from src.entities.locker_entity import Locker
 from src.entities.task_entity import Task, restart_expiration_manager
 # Models
-from src.models.locker_models import LockerModel, LockerStates, LockerTypes
+from src.models.locker_models import LockerStates, LockerTypes
 from src.models.session_models import SessionStates
 from src.models.task_models import TaskItemModel, TaskStates, TaskTypes
 from src.services.action_services import create_action
 # Services
 from src.services.logging_services import logger
-from src.exceptions.station_exceptions import StationNotFoundException
-from src.exceptions.session_exceptions import (
-    SessionNotFoundException, InvalidSessionStateException)
+from src.exceptions.session_exceptions import SessionNotFoundException
 from src.exceptions.task_exceptions import TaskNotFoundException
 # Exceptions
 from src.exceptions.locker_exceptions import (
@@ -182,7 +179,7 @@ async def handle_lock_report(
     await task.complete()
     await restart_expiration_manager()
 
-    # 8: Catch a completed session here
+    # 8: Catch completed sessions
     next_state: SessionStates = await session.next_state
     if next_state == SessionStates.COMPLETED:
         return await session.handle_conclude()

@@ -2,14 +2,11 @@
 
 # Basics
 from datetime import datetime
-
+# Beanie
 from beanie import PydanticObjectId as ObjId
-
 # Models
 from src.models.action_models import ActionModel
 from src.models.session_models import SessionStates
-# Services
-from src.services.logging_services import logger
 
 
 async def create_action(session_id: ObjId,

@@ -96,7 +96,7 @@ class Task(Entity):
         }
 
         # Filter out None values
-        query = {k: v for k, v in query.items() if v is not 'unset'}
+        query = {k: v for k, v in query.items() if v != 'unset'}
         task_item: TaskItemModel = await TaskItemModel.find(
             query, fetch_links=True
         ).sort((TaskItemModel.created_ts, SortDirection.DESCENDING)).first_or_none()
@@ -251,33 +251,33 @@ class Task(Entity):
 
     async def handle_expiration(self) -> None:
         """Handle the expiration of a task item."""
-        # 1: Set Session and queue state to expired
-        session: Session = Session(self.document.assigned_session)
-
-        # 2: Set the queue state of this item to expired
+        # 1: Register Task Expiration
         assert (self.document.task_state == TaskStates.PENDING
                 ), f"Task '#{self.id}' is not pending."
         self.document.task_state = TaskStates.EXPIRED
 
-        # 3: Update the session state and create a new queue item
+        # 2: Update the session state to its timeout state
+        await self.document.fetch_link(TaskItemModel.assigned_session)
+
         assert len(self.timeout_states), f"No timeout states defined for task '#{
             self.id}'."
-        session.document.session_state = self.timeout_states[0]
+        self.document.assigned_session.session_state = self.timeout_states[0]
 
-        # 4: Save changes
-        await session.document.save_changes()
+        # 3: Save changes
         await self.document.save_changes()
+        await self.document.assigned_session.save_changes()
 
         # 5: End the queue flow here if the session has timed out or no additional timeout states
-        TIMEOUT_STATES = [SessionStates.EXPIRED, SessionStates.STALE]
-        if session.session_state in TIMEOUT_STATES or len(self.timeout_states) == 1:
+        TIMEOUT_STATES = [SessionStates.EXPIRED,
+                          SessionStates.ABORTED, SessionStates.STALE]
+        if self.document.assigned_session.session_state in TIMEOUT_STATES or len(self.timeout_states) == 1:
             return
 
         # 7: Else, create a new task item for the next timeout state
         await Task().create(
             task_type=self.document.task_type,
-            station=session.assigned_station,
-            session=session.document,
+            station=self.document.assigned_session.assigned_station,
+            session=self.document,
             queued_state=self.document.queued_session_state,
             timeout_states=self.document.timeout_states[1:])
 
@@ -291,14 +291,16 @@ async def expiration_manager_loop():
         (TaskItemModel.expires_at, SortDirection.ASCENDING)
     ).first_or_none()
     if next_expiring_task is None:
-        logger.debug(
-            "No pending tasks found, task expiration manager is now idle.")
+        # logger.debug(
+        #    "No pending tasks found, task expiration manager is now idle.")
         return
 
     next_expiration: datetime = next_expiring_task.expires_at
 
     # 2: Wait until the task expired
-    await sleep((next_expiration - datetime.now()).total_seconds())
+    await sleep(
+        (next_expiring_task.expires_at - datetime.now()
+         ).total_seconds())
 
     # 3: Check if the task is still pending, then fire up the expiration handler
     await next_expiring_task.sync()  # TODO: Is this necessary?

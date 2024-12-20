@@ -188,7 +188,7 @@ class SessionView(View):
     session_type: SessionTypes = Field(
         None, description="Type of session")
 
-    session_state: str = Field(
+    session_state: SessionStates = Field(
         None, description="Current state of the session")
 
     created_ts: datetime = Field(

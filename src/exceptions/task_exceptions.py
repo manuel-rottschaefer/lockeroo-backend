@@ -1,5 +1,5 @@
 """This module provides exception classes for task management."""
-# Typing
+# Types
 from typing import Union
 # Beanie
 from beanie import PydanticObjectId as ObjId

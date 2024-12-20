@@ -1,5 +1,5 @@
 """This module provides exception classes for session management."""
-# Typing
+# Types
 from typing import List
 # Beanie
 from beanie import PydanticObjectId as ObjId

@@ -6,7 +6,6 @@ from typing import Dict, List, Optional
 import yaml
 # Beanie
 from beanie.operators import In, Near, Set
-from beanie import SortDirection
 # API services
 from fastapi import Response, status
 
@@ -227,8 +226,6 @@ async def handle_terminal_report(
     await restart_expiration_manager()
 
     # 7: Await station to confirm locker unlocking
-    # await session.document.fetch_link(SessionModel.assigned_locker)
-    logger.debug(f"Creating confirmation task for session '{session.id}'.")
     await Task().create(
         task_type=TaskTypes.CONFIRMATION,
         station=station.document,

@@ -3,21 +3,12 @@
 # Basics
 from datetime import datetime
 from typing import Optional
-
+# Beanie
 from beanie import PydanticObjectId as ObjId
-# FastAPI
-from fastapi import HTTPException
-
-# Entities
-from src.entities.session_entity import Session
 # Nodels
 from src.models.review_models import ReviewModel
 from src.models.session_models import SessionModel, SessionStates
 from src.models.user_models import UserModel
-
-# Services
-from src.services.logging_services import logger
-
 # Exceptions
 from src.exceptions.session_exceptions import (
     SessionNotFoundException,

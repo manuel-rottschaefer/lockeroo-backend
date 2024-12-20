@@ -3,17 +3,11 @@
 # Types
 from datetime import datetime, timedelta
 from uuid import UUID
-
 # Beanie
 from beanie import PydanticObjectId as ObjId, SortDirection
 from beanie.operators import In
-
 # Models
 from src.models.session_models import SessionModel, SessionStates, ACTIVE_SESSION_STATES
-
-# Services
-from src.services.logging_services import logger
-
 # Exceptions
 from src.exceptions.user_exceptions import UserHasActiveSessionException
 
