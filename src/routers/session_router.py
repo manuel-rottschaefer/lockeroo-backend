@@ -60,8 +60,8 @@ async def request_new_session(
     access_info: UserModel = Depends(require_auth),
 ):
     """Handle request to create a new session"""
-    logger.info(f"User '{access_info.id}' is requesting a new session at station '{
-                station_callsign}'.")
+    logger.info((f"User '#{access_info.id}' is requesting a "
+                f"new session at station '{station_callsign}'."))
     return await session_services.handle_creation_request(
         user=access_info,
         callsign=station_callsign,
@@ -81,8 +81,8 @@ async def request_session_cancel(
 ):
     """Handle request to cancel a locker session"""
 
-    logger.info(f"User '{access_info.id}' is trying to cancel session '{
-                session_id}'.")
+    logger.info((f"User '{access_info.id}' is trying to "
+                f"cancel session '#{session_id}'."))
     return await session_services.handle_cancel_request(
         session_id=session_id,
         user=access_info
@@ -101,8 +101,8 @@ async def choose_session_payment_method(
     access_info: UserModel = Depends(require_auth),
 ):
     """Handle request to select a payment method"""
-    logger.info(f"User '{access_info.id}' is choosing a payment method for session '{
-                session_id}'.")
+    logger.info((f"User '{access_info.id}' is choosing a "
+                f"payment method for session '{session_id}'."))
     return await session_services.handle_payment_selection(
         user=access_info,
         session_id=ObjId(session_id),
@@ -142,8 +142,9 @@ async def request_session_hold(
     access_info: UserModel = Depends(require_auth),
 ):
     """Handle request to pause a locker session"""
-    logger.info(f"User '{access_info.id}' is trying to hold session '{
-                session_id}'.")
+    logger.info(
+        (f"User '{access_info.id}' is trying to "
+         f"hold session '#{session_id}'."))
     return await session_services.handle_hold_request(
         session_id=ObjId(session_id),
         user=access_info
@@ -162,8 +163,9 @@ async def request_session_payment(
     access_info: UserModel = Depends(require_auth),
 ):
     """Handle request to enter the payment phase of a session"""
-    logger.info(f"User '{
-                access_info.id}' is requesting to conduct a payment for session '{session_id}'.")
+    logger.info(
+        (f"User '{access_info.id}' is requesting to "
+         f"conduct a payment for session '#{session_id}'."))
     return await session_services.handle_payment_request(
         session_id=ObjId(session_id),
         user=access_info

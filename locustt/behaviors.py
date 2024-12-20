@@ -147,7 +147,6 @@ class RegularSession(BaseBehavior):
     """Run a regular session."""
 
     def run(self):  # pylint: disable=missing-function-docstring
-        print()
         session = self.create_session()
         session = self.select_payment_method(session.id, 'terminal')
         session = self.request_verification(session.id)

@@ -32,16 +32,17 @@ class TaskStates(str, Enum):
     EXPIRED = "expired"             # Session has expired
 
 
-class TaskTypes(str, Enum):
-    """Types of queued actions."""
-    # Awaiting user actions (no station involved)
-    USER = "user"
-    # Awaiting action report at terminal (verification/payment)
-    TERMINAL = "terminal"
-    # Awaiting action report at locker (locking)
-    LOCKER = "locker"
-    # Awaiting confirmation of locker or terminal state
-    CONFIRMATION = "confirmation"
+class TaskTarget(str, Enum):
+    """Target of the queued actions."""
+    USER = "user"  # Awaits user actions
+    TERMINAL = "terminal"  # Awaits terminal actions
+    LOCKER = "locker"  # Awaits locker actions
+
+
+class TaskType(str, Enum):
+    """Type of the queued actions."""
+    REPORT = "report"  # Awaits an action report
+    CONFIRMATION = "confirmation"  # Awaits an action confirmation
 
 
 class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
@@ -49,8 +50,11 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     at a station terminal and to register and handle timeout situations."""
     id: ObjId = Field(None, alias="_id")
 
-    task_type: TaskTypes = Field(
+    task_type: TaskType = Field(
         description="The type of action being queued/awaited.")
+
+    target: TaskTarget = Field(
+        description="The target of the action being queued/awaited.")
 
     assigned_session: Link[SessionModel] = Field(
         None, description="The session which this task handles.")
@@ -94,7 +98,7 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     @after_event(SaveChanges)
     async def log_state(self) -> None:
         """Log database operation."""
-        logger.debug(f"Task '#{self.id}' of type {
+        logger.debug(f"Task '#{self.id}' for {self.target} of {
                      self.task_type} set to {self.task_state}.")
 
     @dataclass

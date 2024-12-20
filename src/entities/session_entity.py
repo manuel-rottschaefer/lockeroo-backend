@@ -46,10 +46,13 @@ class Session(Entity):
 
         query = {
             SessionModel.id: ObjId(session_id),
-            SessionModel.user: user,
+            SessionModel.user.id: user.id if user else None,  # pylint: disable=no-member
             SessionModel.assigned_station: assigned_station,
-            SessionModel.assigned_locker.station_index: locker_index,  # pylint: disable=no-member
+            SessionModel.assigned_locker.station_index: locker_index  # pylint: disable=no-member
         }
+
+        # if user:
+        #    query[SessionModel.user.id] = user.id  # pylint: disable=no-member
 
         # Handle session_state being either a single value or a list
         if session_states is not None:

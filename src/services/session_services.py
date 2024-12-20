@@ -12,7 +12,7 @@ from src.entities.payment_entity import Payment
 # Entities
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
-from src.entities.task_entity import Task, TaskStates, TaskTypes
+from src.entities.task_entity import Task, TaskStates, TaskType, TaskTarget
 # Models
 from src.models.action_models import ActionModel
 from src.models.session_models import (
@@ -81,7 +81,8 @@ async def handle_creation_request(
         raise StationNotAvailableException(callsign=callsign)
 
     # 3: Check if the user already has a running session
-    session: Session = await Session().find(user=user, session_states=ACTIVE_SESSION_STATES)
+    session: Session = await Session().find(
+        user=user, session_states=ACTIVE_SESSION_STATES)
     if session.exists:
         raise UserHasActiveSessionException(user_id=user.id)
 
@@ -107,17 +108,18 @@ async def handle_creation_request(
         locker=locker.document,
         station=station.document)
     logger.debug(
-        f"Created session '#{session.id}' at locker '#{locker.callsign}'."
+        f"Created session '#{session.id}' for user '#{
+            user.id}' at locker '#{locker.callsign}'."
     )
 
     # 8: Await user to select payment method
     await Task().create(
-        task_type=TaskTypes.USER,
+        task_target=TaskTarget.USER,
+        task_type=TaskType.REPORT,
         session=session.document,
         station=station.document,
         queued_state=None,
         timeout_states=[SessionStates.EXPIRED],
-        has_queue=False
     )
 
     # 8: Log the action
@@ -147,7 +149,8 @@ async def handle_payment_selection(
 
     # 3: Find the related task
     task: Task = await Task().find(
-        task_type=TaskTypes.USER,
+        task_target=TaskTarget.USER,
+        task_type=TaskType.REPORT,
         task_state=TaskStates.PENDING,
         assigned_session=session.id,)
     await task.complete()
@@ -158,6 +161,9 @@ async def handle_payment_selection(
             session_id=session_id,
             expected_states=[SessionStates.CREATED],
             actual_state=session.session_state)
+
+    assert (session.document.session_state == SessionStates.CREATED
+            ), f"Session '#{session.id}' is in {session.session_state}."
 
     # 5: Assign the payment method to the session
     await session.assign_payment_method(payment_method)
@@ -197,12 +203,12 @@ async def handle_verification_request(
     # 5: Await station to enable terminal
     await session.document.fetch_link(SessionModel.assigned_station)
     await Task().create(
-        task_type=TaskTypes.CONFIRMATION,
+        task_target=TaskTarget.TERMINAL,
+        task_type=TaskType.CONFIRMATION,
         session=session.document,
         station=session.assigned_station,
         queued_state=None,
         timeout_states=[SessionStates.ABORTED],
-        has_queue=True
     )
 
     # 6: Log a queueVerification action
@@ -272,13 +278,13 @@ async def handle_payment_request(session_id: ObjId, user: UserModel) -> Optional
 
     # 5: Await station to enable terminal
     await Task().create(
-        task_type=TaskTypes.CONFIRMATION,
+        task_target=TaskTarget.TERMINAL,
+        task_type=TaskType.CONFIRMATION,
         session=session.document,
         station=session.assigned_station,
         queued_state=None,
         timeout_states=[session.session_state,
                         SessionStates.EXPIRED],
-        has_queue=True
     )
 
     # 6: Log the request

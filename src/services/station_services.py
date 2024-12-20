@@ -25,7 +25,9 @@ from src.models.station_models import (StationLockerAvailabilities,
                                        StationModel, StationStates,
                                        StationType, StationView,
                                        TerminalStates)
-from src.models.task_models import TaskItemModel, TaskTypes, TaskStates
+from src.models.task_models import (
+    TaskItemModel, TaskStates, TaskType, TaskTarget
+)
 # Services
 from src.services.logging_services import logger
 from src.exceptions.task_exceptions import TaskNotFoundException
@@ -178,7 +180,8 @@ async def handle_terminal_report(
 
     # 2: Find the assigned task
     task: Task = await Task().find(
-        task_type=TaskTypes.TERMINAL,
+        task_target=TaskTarget.TERMINAL,
+        task_type=TaskType.REPORT,
         task_state=TaskStates.PENDING,
         queued_state=expected_session_state,
         station_callsign=callsign,
@@ -186,7 +189,7 @@ async def handle_terminal_report(
     if not task.exists:
         raise TaskNotFoundException(
             assigned_station=callsign,
-            task_type=TaskTypes.USER,
+            task_type=TaskType.REPORT,
             raise_http=False)
     # await task.fetch_link(TaskItemModel.assigned_session)
 
@@ -227,13 +230,13 @@ async def handle_terminal_report(
 
     # 7: Await station to confirm locker unlocking
     await Task().create(
-        task_type=TaskTypes.CONFIRMATION,
+        task_target=TaskTarget.LOCKER,
+        task_type=TaskType.CONFIRMATION,
         station=station.document,
         locker=session.assigned_locker,
         session=session.document,
         queued_state=None,
         timeout_states=[SessionStates.ABORTED],
-        has_queue=False
     )
 
 
@@ -257,7 +260,8 @@ async def handle_terminal_confirmation(
 
     # 3: Find assigned task
     task: Task = await Task().find(
-        task_type=TaskTypes.CONFIRMATION,
+        task_target=TaskTarget.TERMINAL,
+        task_type=TaskType.CONFIRMATION,
         task_state=TaskStates.PENDING,
         assigned_station=station.document.id,
         assigned_locker=None)
@@ -277,12 +281,14 @@ async def handle_terminal_confirmation(
     session: Session = Session(task.assigned_session)
     await task.fetch_link(TaskItemModel.assigned_session)
 
+    # 8: Await the station to report the verification/payment
     await Task().create(
-        task_type=TaskTypes.TERMINAL,
+        task_target=TaskTarget.TERMINAL,
+        task_type=TaskType.REPORT,
         station=station.document,
         session=session.document,
         queued_state=await session.next_state,
+        # TODO: Dynamic next session state
         timeout_states=[SessionStates.PAYMENT_SELECTED,
                         SessionStates.EXPIRED],
-        has_queue=False
     )

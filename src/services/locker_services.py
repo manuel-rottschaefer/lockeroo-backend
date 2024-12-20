@@ -12,7 +12,7 @@ from src.entities.task_entity import Task, restart_expiration_manager
 # Models
 from src.models.locker_models import LockerStates, LockerTypes
 from src.models.session_models import SessionStates
-from src.models.task_models import TaskItemModel, TaskStates, TaskTypes
+from src.models.task_models import TaskItemModel, TaskStates, TaskType, TaskTarget
 from src.services.action_services import create_action
 # Services
 from src.services.logging_services import logger
@@ -46,7 +46,7 @@ if LOCKER_TYPES is None:
         LOCKER_TYPES = {}
 
 
-async def handle_unlock_report(
+async def handle_unlock_confirmation(
         callsign: str, locker_index: int) -> None:
     """Process and verify a station report that a locker has been unlocked"""
     # 1: Find the affected locker
@@ -63,23 +63,24 @@ async def handle_unlock_report(
 
     # 2: Find the affected, pending task
     task: Task = await Task().find(
-        task_type=TaskTypes.CONFIRMATION,
+        task_target=TaskTarget.LOCKER,
+        task_type=TaskType.CONFIRMATION,
         task_state=TaskStates.PENDING,
         assigned_locker=locker.document.id)
     if not task.exists:
         raise TaskNotFoundException(
-            task_type=TaskTypes.CONFIRMATION,
+            task_type=TaskType.CONFIRMATION,
             assigned_station=callsign,
             raise_http=False)
 
     # 3: Check if the reported locker matches that of the task
     await task.fetch_link(TaskItemModel.assigned_locker)
-    if locker.callsign != task.assigned_locker.callsign:
-        raise InvalidLockerReportException(
-            locker_id=locker.id, raise_http=False)
+    assert (locker.callsign == task.assigned_locker.callsign
+            ), f"Locker '{locker.id}' does not match task '{task.id}'."
 
     # 4: Check whether the locker was actually registered as unlocked
     if locker.reported_state != LockerStates.LOCKED.value:
+        # TODO: This should maybe be an assert as it should never happen in prod
         raise InvalidLockerStateException(
             locker_id=locker.id,
             expected_state=LockerStates.LOCKED,
@@ -107,15 +108,15 @@ async def handle_unlock_report(
     await task.complete()
     await restart_expiration_manager()
 
-    # 8: Create a queue item for the user
+    # 8: Create a queue item for the user to lock the locker
     await Task().create(
-        task_type=TaskTypes.LOCKER,
+        task_target=TaskTarget.LOCKER,
+        task_type=TaskType.REPORT,
         session=session.document,
         station=locker.document.station,
         locker=locker.document,
         queued_state=await session.next_state,
         timeout_states=[SessionStates.STALE],
-        has_queue=False
     )
 
 
@@ -124,7 +125,8 @@ async def handle_lock_report(
     """Process and verify a station report that a locker has been closed"""
     # 1: Find the affected, pending task
     task: Task = Task(await TaskItemModel.find(
-        TaskItemModel.task_type == TaskTypes.LOCKER,
+        TaskItemModel.target == TaskTarget.LOCKER,
+        TaskItemModel.task_type == TaskType.REPORT,
         TaskItemModel.task_state == TaskStates.PENDING,
         TaskItemModel.assigned_station.callsign == callsign,  # pylint: disable=no-member
         TaskItemModel.assigned_locker.station_index == locker_index,  # pylint: disable=no-member
@@ -134,12 +136,13 @@ async def handle_lock_report(
     )).first_or_none())
     if not task.exists:
         raise TaskNotFoundException(
-            task_type=TaskTypes.LOCKER,
+            task_type=TaskType.REPORT,
             assigned_station=callsign,
             raise_http=False)
 
     # 2: Get the affected locker
     locker: Locker = Locker(task.assigned_locker)
+    assert locker.exists, f"Locker '{locker.id}' does not exist."
     logger.info(
         (f"Station '{callsign}' reported {LockerStates.LOCKED} "
          f"at locker {locker_index} ('#{locker.id}')."))
@@ -186,11 +189,11 @@ async def handle_lock_report(
 
     # 9: Await user to return to the locker to pick up his stuff.
     await Task().create(
-        task_type=TaskTypes.LOCKER,
+        task_target=TaskTarget.USER,
+        task_type=TaskType.REPORT,
         session=session.document,
         station=locker.document.station,
         locker=locker.document,
         queued_state=next_state,
         timeout_states=[SessionStates.STALE],
-        has_queue=False
     )

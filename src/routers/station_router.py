@@ -113,7 +113,7 @@ async def reset_station_queue(
 
 @validate_mqtt_topic('stations/+/terminal/confirm', [ObjId])
 @fast_mqtt.subscribe('stations/+/terminal/confirm')
-async def handle_terminal_mode_confirmation(
+async def handle_terminal_confirmation(
         _client, topic, payload, _qos, _properties) -> None:
     """Handle a confirmation from a station that it entered a mode at its terminal"""
     callsign = topic.split('/')[1]
@@ -205,7 +205,7 @@ async def handle_locker_report(
         return
 
     if report == LockerStates.UNLOCKED:
-        await locker_services.handle_unlock_report(callsign, locker_index)
+        await locker_services.handle_unlock_confirmation(callsign, locker_index)
     elif report == LockerStates.LOCKED:
         await locker_services.handle_lock_report(callsign, locker_index)
     else:

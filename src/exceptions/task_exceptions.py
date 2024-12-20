@@ -6,7 +6,7 @@ from beanie import PydanticObjectId as ObjId
 # Exceptions
 from fastapi import HTTPException
 # Models
-from src.models.task_models import TaskTypes
+from src.models.task_models import TaskType
 from src.models.session_models import SessionStates
 
 
@@ -16,7 +16,7 @@ class TaskNotFoundException(Exception):
     def __init__(self, task_id: ObjId = None,
                  queued_state: SessionStates = None,
                  assigned_station: Union[ObjId, str] = None,
-                 task_type: TaskTypes = None,
+                 task_type: TaskType = None,
                  raise_http: bool = True):
         self.task_id = task_id
         self.queued_state = queued_state
