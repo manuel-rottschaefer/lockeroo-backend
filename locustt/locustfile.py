@@ -5,15 +5,30 @@ from dotenv import load_dotenv
 import paho.mqtt.client as mqttc
 
 from locust import HttpUser, TaskSet, task, between
-from locustt.behaviors import regular_session_behavior
 from locustt.locust_logger import LocustLogger
 
+from locustt.behaviors import (
+    RegularSession,
+    AbandonAfterCreate,
+    AbandonAfterPaymentSelection,
+    AbandonDuringVerification,
+    AbandonDuringStashing,
+    AbandonDuringActive,
+    AbandonDuringPayment,
+    AbandonDuringRetrieval
+)
 
-# Load dotenv
+
+# Load backend environment
 load_dotenv('./environments/.env')
 
 # Set up logging
 locust_logger = LocustLogger().logger
+
+# Connect to the mqtt client
+mqtt_client = mqttc.Client(mqttc.CallbackAPIVersion.VERSION2)
+mqtt_client.connect("localhost", 1883, 60)
+mqtt_client.loop_start()  # Start the loop to keep the connection alive
 
 
 class UserManager():
@@ -33,22 +48,12 @@ class UserManager():
         locust_logger.debug(f"User {user_id} returned to available users.")
 
 
-class MQTTManager():
-    """Provides locust with a single MQTT client to emulate station behavior"""
-
-    def __init__(self):
-        self.client = mqttc.Client(mqttc.CallbackAPIVersion.VERSION2)
-        self.client.connect("localhost", 1883, 60)
-        locust_logger.debug("MQTT client connected to localhost:1883")
-
-
 user_management = UserManager()
-mqtt_manager = MQTTManager()
 
 
 class SessionTaskSet(TaskSet):
     """TaskSet for regular session behavior"""
-    mqtt = mqtt_manager
+    mqtt = mqtt_client
     logger = locust_logger
     user_id: str = user_management.get_available_user()
     headers: dict = {"user": user_id}
@@ -56,9 +61,37 @@ class SessionTaskSet(TaskSet):
     ws_endpoint: str = getenv('API_WS_URL')
     station_callsign: str = 'MUCODE'
 
-    @task(1)
+    @task(90)
     def regular_session_task(self):
-        regular_session_behavior(self)
+        RegularSession(self).run()
+
+    @task(2)
+    def abandon_after_create(self):
+        AbandonAfterCreate(self).run()
+
+    @task(2)
+    def abandon_after_payment_selection(self):
+        AbandonAfterPaymentSelection(self).run()
+
+    @task(2)
+    def abandon_during_verification(self):
+        AbandonDuringVerification(self).run()
+
+    @task(1)
+    def abandon_during_stashing(self):
+        AbandonDuringStashing(self).run()
+
+    @task(1)
+    def abandon_during_active(self):
+        AbandonDuringActive(self).run()
+
+    @task(1)
+    def abandon_during_payment(self):
+        AbandonDuringPayment(self).run()
+
+    @task(1)
+    def abandon_during_retrieval(self):
+        AbandonDuringRetrieval(self).run()
 
 
 class LockerStationUser(HttpUser):
