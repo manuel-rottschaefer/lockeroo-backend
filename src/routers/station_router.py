@@ -23,6 +23,7 @@ from src.services.logging_services import logger
 from src.services.mqtt_services import fast_mqtt, validate_mqtt_topic
 # Exceptions
 from src.exceptions.station_exceptions import InvalidStationReportException
+from src.exceptions.locker_exceptions import InvalidLockerReportException
 
 # Create the router
 station_router = APIRouter()
@@ -176,6 +177,26 @@ async def handle_station_payment_report(
     )
 
 
+@validate_mqtt_topic('stations/+/locker/+/confirm', [ObjId, int])
+@fast_mqtt.subscribe('stations/+/locker/+/confirm')
+@handle_exceptions(logger)
+async def handle_locker_confirmation(
+        _client: Any, topic: str, payload: bytes, _qos: int, _properties: Any) -> None:
+    """Handle a locker confirmation from a station"""
+    # Import station and locker information
+    topic_parts = topic.split('/')
+    callsign: str = topic_parts[1]
+    locker_index: int = int(topic_parts[3])
+    confirmation: str = payload.decode('utf-8').lower()
+
+    if confirmation != LockerStates.UNLOCKED.value:
+        raise InvalidLockerReportException(
+            locker_index=locker_index,
+            raise_http=False)
+
+    await locker_services.handle_unlock_confirmation(callsign, locker_index)
+
+
 @validate_mqtt_topic('stations/+/locker/+/report', [ObjId, int])
 @fast_mqtt.subscribe('stations/+/locker/+/report')
 @handle_exceptions(logger)
@@ -185,29 +206,12 @@ async def handle_locker_report(
     # Import station and locker information
     topic_parts = topic.split('/')
     callsign: str = topic_parts[1]
-    try:
-        locker_index: int = int(topic_parts[3])
-    except (IndexError, ValueError):
-        logger.warning(f"Invalid locker report from station {callsign}.")
-        return
+    locker_index: int = int(topic_parts[3])
+    report: str = payload.decode('utf-8').lower()
 
-    # Extract the report from the payload
-    try:
-        report: str = payload.decode('utf-8').lower()
-    except UnicodeDecodeError:
-        logger.error(f"Failed to decode payload from station {
-                     callsign} for locker {locker_index}.")
-        return
+    if report != LockerStates.LOCKED.value:
+        raise InvalidLockerReportException(
+            locker_index=locker_index,
+            raise_http=False)
 
-    if not report:
-        logger.error(f"Empty locker report from station {
-                     callsign} for locker {locker_index}.")
-        return
-
-    if report == LockerStates.UNLOCKED:
-        await locker_services.handle_unlock_confirmation(callsign, locker_index)
-    elif report == LockerStates.LOCKED:
-        await locker_services.handle_lock_report(callsign, locker_index)
-    else:
-        raise InvalidStationReportException(
-            station_callsign=callsign, reported_state=report)
+    await locker_services.handle_lock_report(callsign, locker_index)

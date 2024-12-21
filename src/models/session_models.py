@@ -75,7 +75,7 @@ ACTIVE_SESSION_STATES: List[SessionStates] = [
     SessionStates.RETRIEVAL
 ]
 
-SESSION_STATE_TIMEOUTS: Dict[SessionStates, int] = {
+SESSION_TIMEOUTS: Dict[SessionStates, int] = {
     SessionStates.CREATED: 60,
     SessionStates.PAYMENT_SELECTED: 120,
     SessionStates.VERIFICATION: 60,

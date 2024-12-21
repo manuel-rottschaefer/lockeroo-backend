@@ -22,3 +22,7 @@ class LocustLogger():
         self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(handler)
         self.logger.propagate = False
+
+
+# Initialize the logger
+logger = LocustLogger().logger

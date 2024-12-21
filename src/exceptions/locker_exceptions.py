@@ -1,4 +1,6 @@
 """This module provides exception classes for locker management."""
+# Types
+from typing import Optional
 # Beanie
 from beanie import PydanticObjectId as ObjId
 # Models
@@ -81,11 +83,18 @@ class InvalidLockerStateException(Exception):
 class InvalidLockerReportException(Exception):
     """Exception raised when a locker report is not valid."""
 
-    def __init__(self, locker_id: ObjId, raise_http: bool = True):
+    def __init__(self,
+                 locker_id:  Optional[ObjId] = None,
+                 locker_index: Optional[int] = None,
+                 raise_http: bool = True):
         self.locker_id = locker_id
+        self.locker_index = locker_index
 
         if raise_http:
             raise HTTPException(status_code=400, detail=self.__str__())
 
     def __str__(self):
-        return f"Invalid locker report for locker '#{self.locker_id}'."
+        if self.locker_id:
+            return f"Invalid locker report for locker '#{self.locker_id}'."
+        elif self.locker_index:
+            return f"Invalid locker report for locker index '{self.locker_index}'."

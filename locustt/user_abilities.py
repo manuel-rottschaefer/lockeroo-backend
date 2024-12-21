@@ -7,6 +7,21 @@ import websockets.sync.client as websockets
 from typing import Optional
 
 
+def get_session_details(
+        task_set,
+        session_id: str) -> Optional[SessionView]:
+    """Try to get session details."""
+    task_set.logger.debug(
+        f"Getting session details for session '#{session_id}'.")
+    res = task_set.client.get(
+        task_set.endpoint + f"/sessions/{session_id}/details",
+        headers=task_set.headers, timeout=3)
+    if res.status_code == 400:
+        return None
+    res.raise_for_status()
+    return SessionView(**res.json())
+
+
 def create_session(
         task_set,
         station_callsign: str,

@@ -15,7 +15,7 @@ from src.entities.entity_utils import Entity
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
 from src.entities.locker_entity import Locker
-from src.models.session_models import SessionModel, SessionStates, SESSION_STATE_TIMEOUTS
+from src.models.session_models import SessionModel, SessionStates, SESSION_TIMEOUTS
 # Models
 from src.models.station_models import StationModel, TerminalStates
 from src.models.locker_models import LockerModel, LockerStates
@@ -177,9 +177,9 @@ class Task(Entity):
             if self.document.task_type == TaskType.CONFIRMATION:
                 timeout_window = int(os.getenv("STATION_EXPIRATION", '10'))
             else:
-                timeout_window = SESSION_STATE_TIMEOUTS.get(session_state)
+                timeout_window = SESSION_TIMEOUTS.get(session_state)
         else:
-            timeout_window = SESSION_STATE_TIMEOUTS.get(
+            timeout_window = SESSION_TIMEOUTS.get(
                 session_state)  # Default case if no match found
 
         assert timeout_window, f"No timeout window found for task '#{
@@ -205,9 +205,9 @@ class Task(Entity):
         self.document.expiration_window = timeout_window
         await self.document.save_changes()
 
-        logger.debug(
-            (f"Task '#{self.document.id}' will time out to "
-             f"{self.document.timeout_states[0]} in {timeout_window} seconds."))
+        # logger.debug(
+        #    (f"Task '#{self.document.id}' will time out to "
+        #     f"{self.document.timeout_states[0]} in {timeout_window} seconds."))
 
         # If the task awaited a report, advance the session state
         if self.document.task_type == TaskType.REPORT:
@@ -218,7 +218,7 @@ class Task(Entity):
 
         elif self.document.task_type == TaskType.CONFIRMATION:
             # Check if the task is awaiting confirmation from terminal or locker
-            if self.document.assigned_station:
+            if self.document.target in TaskTarget.TERMINAL:
                 # Instruct the station to enable the terminal
                 station: Station = Station(self.document.assigned_station)
                 await station.sync()
@@ -226,7 +226,7 @@ class Task(Entity):
                         ), f"Terminal of station '#{station.document.id}' is not idle."
                 if terminal_state := self.map_session_to_terminal_state(session.session_state):
                     station.document.instruct_terminal_state(terminal_state)
-            elif self.document.assigned_locker:
+            elif self.document.target == TaskTarget.LOCKER:
                 # Instruct the locker to unlock
                 locker: Locker = Locker(self.document.assigned_locker)
                 assert (locker.document.reported_state == LockerStates.LOCKED
@@ -255,6 +255,7 @@ class Task(Entity):
     async def handle_expiration(self) -> None:
         """Handle the expiration of a task item."""
         # 1: Register Task Expiration
+        await self.document.sync()
         assert (self.document.task_state == TaskStates.PENDING
                 ), f"Task '#{self.id}' is not pending."
         self.document.task_state = TaskStates.EXPIRED
