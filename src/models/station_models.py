@@ -78,7 +78,7 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     service_due: bool
 
     # Operation history
-    total_sessions: int
+    total_session_count: int
     total_session_duration: timedelta
     last_service_date: datetime
 

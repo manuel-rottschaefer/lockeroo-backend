@@ -67,8 +67,8 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
     ### Statistics ###
     total_session_count: int = Field(...,
                                      description='Total number of sessions.')
-    total_session_duration: int = Field(...,
-                                        description='Total duration of all sessions.')
+    total_session_duration: timedelta = Field(...,
+                                              description='Total duration of all sessions.')
     last_service_ts: datetime = Field(...,
                                       description='Timestamp of the last service.')
 
