@@ -1,21 +1,14 @@
 """This module provides utilities for  database for stations."""
-
-# Basics
-from typing import Optional
-
-# Beanie
-from beanie import PydanticObjectId as ObjId
-from beanie import SortDirection
-from beanie.operators import Set
-
 # Entities
 from src.entities.entity_utils import Entity
 from src.entities.locker_entity import Locker
 from src.models.locker_models import LockerModel
 # Models
 from src.models.session_models import SessionModel, SessionStates
-from src.models.station_models import (StationModel, StationStates,
-                                       TerminalStates)
+from src.models.station_models import (
+    StationModel,
+    StationStates,
+    TerminalStates)
 # Logging
 from src.services.logging_services import logger
 # Services
@@ -25,34 +18,6 @@ from src.services.maintenance_services import has_scheduled
 class Station(Entity):
     """Adds behaviour for a station instance."""
     document: StationModel
-
-    @classmethod
-    async def find(
-        cls,
-        station_id: Optional[ObjId] = None,
-        callsign: Optional[str] = None,
-        station_state: Optional[StationStates] = None,
-        terminal_state: Optional[TerminalStates] = None,
-    ):
-        """Find a session in the database"""
-        instance = cls()
-
-        query = {
-            StationModel.id: station_id,
-            StationModel.callsign: callsign,
-            StationModel.station_state: station_state,
-            StationModel.terminal_state: terminal_state,
-        }
-
-        # Filter out None values
-        query = {k: v for k, v in query.items() if v is not None}
-
-        station_item: StationModel = await StationModel.find(
-            query).sort((StationModel.full_name,
-                         SortDirection.DESCENDING)).first_or_none()
-
-        instance.document = station_item if station_item else None
-        return instance
 
     ### Attributes ###
     @property

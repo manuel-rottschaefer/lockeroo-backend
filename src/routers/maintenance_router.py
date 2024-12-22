@@ -14,11 +14,14 @@ from src.entities.maintenance_entity import Maintenance
 from src.entities.station_entity import Station
 # Models
 from src.models.maintenance_models import MaintenanceView
+from src.models.station_models import StationModel
 from src.services import maintenance_services
 from src.services.auth_services import require_auth
 # Services
 from src.services.exception_services import handle_exceptions
 from src.services.logging_services import logger
+# Exceptions
+from src.exceptions.station_exceptions import StationNotFoundException
 
 # Create the router
 maintenance_router = APIRouter()
@@ -33,7 +36,11 @@ async def create_scheduled_maintenance(
         staff_id: str,
         _access_info: FiefAccessTokenInfo = None,) -> MaintenanceView:
     """Get the availability of lockers at the station"""
-    station: Station = await Station().find(callsign=callsign)
+    station: Station = Station(await StationModel.find(
+        StationModel.callsign == callsign)
+    )
+    if not station.exists:
+        raise StationNotFoundException(callsign=callsign)
 
     maintenance_item = await Maintenance().create(station_id=station.id,
                                                   staff_id=staff_id)
@@ -49,7 +56,11 @@ async def get_next_scheduled_maintenance(
     _access_info: FiefAccessTokenInfo = None
 ) -> MaintenanceView:
     """Get the availability of lockers at the station"""
-    station: Station = await Station().find(callsign=callsign)
+    station: Station = Station(await StationModel.find(
+        StationModel.callsign == callsign).first_or_none()
+    )
+    if not station.exists:
+        raise StationNotFoundException(callsign=callsign)
     return await maintenance_services.get_next(
         station_id=station.id
     )

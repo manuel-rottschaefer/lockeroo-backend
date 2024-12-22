@@ -1,15 +1,10 @@
 """This module provides utilities for  database for sessions."""
-
 # Basics
 from datetime import datetime, timedelta
 # Types
-from typing import Union, List, Optional
-
+from typing import List
 # Beanie
-from beanie import SortDirection, WriteRules
-from beanie import PydanticObjectId as ObjId
-from beanie.operators import Set
-
+from beanie import WriteRules
 # Entities
 from src.entities.entity_utils import Entity
 # Models
@@ -17,10 +12,11 @@ from src.models.station_models import StationModel
 from src.models.action_models import ActionModel
 from src.models.locker_models import LockerModel
 from src.models.user_models import UserModel
-from src.models.session_models import (SessionModel,
-                                       SessionView,
-                                       SessionStates,
-                                       FOLLOW_UP_STATES)
+from src.models.session_models import (
+    SessionModel,
+    SessionView,
+    SessionStates,
+    FOLLOW_UP_STATES)
 
 # Services
 from src.services.logging_services import logger
@@ -30,46 +26,6 @@ from src.services.action_services import create_action
 class Session(Entity):
     """Add behaviour to a session instance."""
     document: SessionModel
-
-    @classmethod
-    async def find(
-        cls,
-        session_id: Optional[str] = None,
-        user: Optional[UserModel] = None,
-        session_states: Optional[Union[SessionStates,
-                                       List[SessionStates]]] = None,
-        assigned_station: Optional[StationModel] = None,
-        locker_index: Optional[int] = None
-    ):
-        """Find a session in the database"""
-        instance = cls()
-
-        query = {
-            SessionModel.id: ObjId(session_id),
-            SessionModel.user.id: user.id if user else None,  # pylint: disable=no-member
-            SessionModel.assigned_station: assigned_station,
-            SessionModel.assigned_locker.station_index: locker_index  # pylint: disable=no-member
-        }
-
-        # if user:
-        #    query[SessionModel.user.id] = user.id  # pylint: disable=no-member
-
-        # Handle session_state being either a single value or a list
-        if session_states is not None:
-            if isinstance(session_states, list):
-                query[SessionModel.session_state] = {"$in": session_states}
-            else:
-                query[SessionModel.session_state] = session_states
-
-        # Filter out None values
-        query = {k: v for k, v in query.items() if v is not None}
-        session_item: SessionModel = await SessionModel.find(
-            query, fetch_links=True
-        ).sort((SessionModel.created_ts, SortDirection.DESCENDING)).first_or_none()
-
-        if session_item:
-            instance.document = session_item
-        return instance
 
     @classmethod
     async def create(
@@ -103,7 +59,7 @@ class Session(Entity):
             created_ts=self.created_ts
         )
 
-        ### Calculated Properties ###
+    ### Calculated Properties ###
 
     @ property
     def exists(self) -> bool:
@@ -176,9 +132,13 @@ class Session(Entity):
 
         # Update station statistics
         await self.assigned_station.inc(
-            {StationModel.total_sessions: 1,
+            {StationModel.total_session_count: 1,
              StationModel.total_session_duration: total_duration})
+        # Update locker statistics
+        await self.assigned_locker.inc(
+            {LockerModel.total_session_count: 1,
+             LockerModel.total_session_duration: total_duration})
         # Update user statistics
         await self.document.user.inc({
-            UserModel.total_sessions: 1,
+            UserModel.total_session_count: 1,
             UserModel.total_session_duration: total_duration})

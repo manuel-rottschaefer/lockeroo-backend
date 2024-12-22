@@ -1,13 +1,13 @@
 """This module provides utilities for  database for tasks."""
 
 # Basics
-from typing import List, Optional, Union
+from typing import List, Optional
 from datetime import datetime, timedelta
 from asyncio import sleep, create_task
 import os
 
 # Beanie
-from beanie import PydanticObjectId as ObjId, SortDirection
+from beanie import SortDirection
 from beanie.operators import In
 
 # Entities
@@ -69,44 +69,6 @@ class Task(Entity):
         else:
             await instance.activate()
 
-        return instance
-
-    @classmethod
-    # TODO: Do we even need these find methods at all?
-    async def find(
-        cls,
-        task_type: Optional[TaskType] = 'unset',
-        task_target: Optional[TaskTarget] = 'unset',
-        task_state: Optional[TaskStates] = 'unset',
-        assigned_session: Optional[ObjId] = 'unset',
-        station_callsign: Optional[str] = 'unset',
-        assigned_station: Optional[ObjId] = 'unset',
-        assigned_locker: Optional[ObjId] = 'unset',
-        # TODO: Check data type here
-        queued_state: Optional[Union[SessionStates, TerminalStates]] = 'unset',
-    ):
-        """Get a task at a station."""
-        instance = cls()
-
-        query = {
-            TaskItemModel.task_type: task_type,
-            TaskItemModel.target: task_target,
-            TaskItemModel.task_state: task_state,
-            TaskItemModel.assigned_session.id: assigned_session,  # pylint: disable=no-member
-            TaskItemModel.assigned_station.id: assigned_station,  # pylint: disable=no-member
-            TaskItemModel.assigned_station.callsign: station_callsign,  # pylint: disable=no-member
-            TaskItemModel.assigned_locker.id: assigned_locker,  # pylint: disable=no-member
-            TaskItemModel.queued_session_state: queued_state,
-        }
-
-        # Filter out None values
-        query = {k: v for k, v in query.items() if v != 'unset'}
-        task_item: TaskItemModel = await TaskItemModel.find(
-            query, fetch_links=True
-        ).sort((TaskItemModel.created_ts, SortDirection.DESCENDING)).first_or_none()
-
-        if task_item:
-            instance.document = task_item
         return instance
 
     async def pop_queue(

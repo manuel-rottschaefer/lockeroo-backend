@@ -2,23 +2,22 @@
 # Types
 from typing import Dict
 import yaml
-
 # Beanie
 from beanie import SortDirection
 # Entities
-from src.entities.session_entity import Session
-from src.entities.locker_entity import Locker
 from src.entities.task_entity import Task, restart_expiration_manager
+from src.entities.session_entity import Session
+from src.entities.locker_entity import Locker, LockerStates
 # Models
-from src.models.locker_models import LockerStates, LockerTypes
 from src.models.session_models import SessionStates
+from src.models.locker_models import LockerModel, LockerTypes
 from src.models.task_models import TaskItemModel, TaskStates, TaskType, TaskTarget
 from src.services.action_services import create_action
 # Services
 from src.services.logging_services import logger
+# Exceptions
 from src.exceptions.session_exceptions import SessionNotFoundException
 from src.exceptions.task_exceptions import TaskNotFoundException
-# Exceptions
 from src.exceptions.locker_exceptions import (
     LockerNotFoundException,
     InvalidLockerStateException,
@@ -50,9 +49,11 @@ async def handle_unlock_confirmation(
         callsign: str, locker_index: int) -> None:
     """Process and verify a station report that a locker has been unlocked"""
     # 1: Find the affected locker
-    locker: Locker = await Locker().find(
-        station_callsign=callsign,
-        index=locker_index)
+    locker: Locker = Locker(await LockerModel.find(
+        LockerModel.station.callsign == callsign,  # pylint: disable=no-member
+        LockerModel.station_index == locker_index,  # pylint: disable=no-member
+        fetch_links=True
+    ).first_or_none())
     if not locker.exists:
         raise LockerNotFoundException(
             station=callsign,
@@ -62,11 +63,16 @@ async def handle_unlock_confirmation(
          f"at locker {locker_index} ('#{locker.id}')."))
 
     # 2: Find the affected, pending task
-    task: Task = await Task().find(
-        task_target=TaskTarget.LOCKER,
-        task_type=TaskType.CONFIRMATION,
-        task_state=TaskStates.PENDING,
-        assigned_locker=locker.document.id)
+    task: Task = Task(await TaskItemModel.find(
+        TaskItemModel.target == TaskTarget.LOCKER,
+        TaskItemModel.task_type == TaskType.CONFIRMATION,
+        TaskItemModel.task_state == TaskStates.PENDING,
+        TaskItemModel.assigned_station.callsign == callsign,  # pylint: disable=no-member
+        TaskItemModel.assigned_locker.id == locker.document.id,  # pylint: disable=no-member
+        fetch_links=True
+    ).sort((
+        TaskItemModel.created_ts, SortDirection.DESCENDING
+    )).first_or_none())
     if not task.exists:
         raise TaskNotFoundException(
             task_type=TaskType.CONFIRMATION,

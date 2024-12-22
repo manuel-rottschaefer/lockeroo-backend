@@ -2,13 +2,12 @@
 
 # Basics
 from typing import Dict, List, Optional
-
 import yaml
 # Beanie
+from beanie import SortDirection
 from beanie.operators import In, Near, Set
 # API services
 from fastapi import Response, status
-
 # Entities
 from src.entities.station_entity import Station
 from src.entities.locker_entity import Locker
@@ -69,7 +68,9 @@ async def discover(lat: float, lon: float, radius: int,
 async def get_details(callsign: str, response: Response) -> Optional[StationView]:
     """Get detailed information about a station."""
     # Get station data from the database
-    station: Station = await Station().find(callsign=callsign)
+    station: Station = Station(await StationModel.find(
+        StationModel.callsign == callsign).first_or_none()
+    )
     if not station.exists:
         response.status_code = status.HTTP_404_NOT_FOUND
         raise StationNotFoundException(callsign=callsign)
@@ -78,7 +79,9 @@ async def get_details(callsign: str, response: Response) -> Optional[StationView
 
 async def get_active_session_count(callsign: str, response: Response) -> Optional[int]:
     """Get the amount of currently active sessions at this station."""
-    station: Station = await Station().find(callsign=callsign)
+    station: Station = Station(await StationModel.find(
+        StationModel.callsign == callsign).first_or_none()
+    )
     if not station.exists:
         response.status_code = status.HTTP_404_NOT_FOUND
         raise StationNotFoundException(callsign=callsign)
@@ -95,15 +98,18 @@ async def get_locker_by_index(
         callsign: str, locker_index: int, response: Response,) -> Optional[LockerModel]:
     """Get the locker at a station by its index."""
     # 1: Get the station
-    station: Station = await Station().find(callsign=callsign)
+    station: Station = Station(await StationModel.find(
+        StationModel.callsign == callsign).first_or_none()
+    )
     if not station.exists:
         response.status_code = status.HTTP_404_NOT_FOUND
         raise StationNotFoundException(callsign=callsign)
 
     # 2: Get the assigned locker
-    locker: Locker = await Locker().find(
-        station=station.document.id,
-        index=locker_index)
+    locker: Locker = Locker(await LockerModel.find(
+        LockerModel.station == station.document.id,
+        LockerModel.station_index == locker_index
+    ).first_or_none())
     if not locker.exists:
         raise LockerNotFoundException(
             station=callsign,
@@ -116,7 +122,9 @@ async def get_locker_overview(
     """Determine for each locker type if it is available at the given station."""
 
     # 1: Check whether the station exists
-    station: Station = await Station().find(callsign=callsign)
+    station: Station = Station(await StationModel.find(
+        StationModel.callsign == callsign).first_or_none()
+    )
 
     if not station.exists:
         response.status_code = status.HTTP_404_NOT_FOUND
@@ -140,7 +148,9 @@ async def get_locker_overview(
 
 async def set_station_state(callsign: str, station_state: StationStates) -> StationView:
     """Set the state of a station."""
-    station: Station = Station().find(callsign=callsign)
+    station: Station = Station(await StationModel.find(
+        StationModel.callsign == callsign).first_or_none()
+    )
     await station.register_station_state(station_state)
     return station.document
 
@@ -149,10 +159,11 @@ async def reset_queue(callsign: str, response: Response) -> StationView:
     """Reset the queue of the station by putting all queue
     items in state QUEUED and re-evaluating the queue."""
     # 1: Find the assigned station
-    station: Station = await Station().find(callsign=callsign)
+    station: Station = Station(await StationModel.find(
+        StationModel.callsign == callsign).first_or_none()
+    )
     if not station.exists():
-        response.status_code = status.HTTP_404_NOT_FOUND
-        raise StationNotFoundException(callsign=callsign)
+        raise StationNotFoundException(callsign=callsign, raise_http=True)
 
     # 2: Get all stale queue items at the station
     tasks: List[TaskItemModel] = await TaskItemModel.find(
@@ -179,13 +190,17 @@ async def handle_terminal_report(
         the client so that the user can proceed. """
 
     # 2: Find the assigned task
-    task: Task = await Task().find(
-        task_target=TaskTarget.TERMINAL,
-        task_type=TaskType.REPORT,
-        task_state=TaskStates.PENDING,
-        queued_state=expected_session_state,
-        station_callsign=callsign,
-        assigned_locker=None)
+    task: Task = Task(await TaskItemModel.find(
+        TaskItemModel.target == TaskTarget.TERMINAL,
+        TaskItemModel.task_type == TaskType.REPORT,
+        TaskItemModel.task_state == TaskStates.PENDING,
+        TaskItemModel.assigned_station.callsign == callsign,  # pylint: disable=no-member
+        TaskItemModel.assigned_locker == None,  # pylint: disable=no-member singleton-comparison
+        TaskItemModel.queued_session_state == expected_session_state,
+        fetch_links=True
+    ).sort((
+        TaskItemModel.created_ts, SortDirection.DESCENDING
+    )).first_or_none())
     if not task.exists:
         raise TaskNotFoundException(
             assigned_station=callsign,
@@ -246,7 +261,9 @@ async def handle_terminal_confirmation(
     logger.info(f"Station '{callsign}' confirmed terminal in {
                 terminal_state}.")
     # 1: Find the assigned station
-    station: Station = await Station().find(callsign=callsign)
+    station: Station = Station(await StationModel.find(
+        StationModel.callsign == callsign).first_or_none()
+    )
     if not station.exists:
         raise StationNotFoundException(
             callsign=callsign, raise_http=False)
@@ -259,12 +276,15 @@ async def handle_terminal_confirmation(
             raise_http=False)
 
     # 3: Find assigned task
-    task: Task = await Task().find(
-        task_target=TaskTarget.TERMINAL,
-        task_type=TaskType.CONFIRMATION,
-        task_state=TaskStates.PENDING,
-        assigned_station=station.document.id,
-        assigned_locker=None)
+    task: Task = Task(await TaskItemModel.find(
+        TaskItemModel.target == TaskTarget.TERMINAL,
+        TaskItemModel.task_type == TaskType.CONFIRMATION,
+        TaskItemModel.task_state == TaskStates.PENDING,
+        TaskItemModel.assigned_station.callsign == callsign,  # pylint: disable=no-member
+        fetch_links=True
+    ).sort((
+        TaskItemModel.created_ts, SortDirection.DESCENDING
+    )).first_or_none())
     if not task.exists:
         raise InvalidStationReportException(
             callsign, terminal_state.value,

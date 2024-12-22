@@ -22,7 +22,6 @@ from src.services.exception_services import handle_exceptions
 from src.services.logging_services import logger
 from src.services.mqtt_services import fast_mqtt, validate_mqtt_topic
 # Exceptions
-from src.exceptions.station_exceptions import InvalidStationReportException
 from src.exceptions.locker_exceptions import InvalidLockerReportException
 
 # Create the router

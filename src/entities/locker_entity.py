@@ -1,10 +1,6 @@
 """This module provides utilities for  database for lockers."""
-
-# Types
-from typing import Optional
-
 # Beanie
-from beanie import PydanticObjectId as ObjId, SortDirection
+from beanie import SortDirection
 from beanie.operators import In, NotIn
 
 # Entities
@@ -21,34 +17,6 @@ from src.services.mqtt_services import fast_mqtt
 class Locker(Entity):
     """Add behaviour to a locker instance."""
     document: LockerModel
-
-    @classmethod
-    async def find(
-        cls,
-        locker_id: Optional[ObjId] = None,
-        station: Optional[ObjId] = None,
-        station_callsign: Optional[str] = None,
-        index: Optional[int] = None,
-    ):
-        """Find a locker in the database"""
-        # TODO: The find methods should also handle exception cases
-        instance = cls()
-
-        query = {
-            LockerModel.id: locker_id,
-            LockerModel.station.id: station,  # pylint: disable=no-member
-            LockerModel.station.callsign: station_callsign,  # pylint: disable=no-member
-            LockerModel.station_index: index,  # pylint: disable=no-member
-        }
-        # Filter out None values
-        query = {k: v for k, v in query.items() if v is not None}
-        locker_item: LockerModel = await LockerModel.find(
-            query, fetch_links=True
-        ).sort((LockerModel.total_session_count, SortDirection.DESCENDING)).first_or_none()
-
-        if locker_item:
-            instance.document = locker_item
-        return instance
 
     @classmethod
     async def find_available(cls, station: StationModel, locker_type: LockerTypes):

@@ -10,35 +10,11 @@ from beanie import PydanticObjectId as ObjId
 from src.entities.entity_utils import Entity
 # Models
 from src.models.maintenance_models import MaintenanceModel, MaintenanceStates
-# Exceptions
-from src.exceptions.maintenance_exceptions import MaintenanceNotFoundException
 
 
 class Maintenance(Entity):
     """Add behaviour to a maintenance instance."""
     document: MaintenanceModel
-
-    @classmethod
-    async def fetch(
-        cls,
-        maintenance_id: ObjId = None,
-        station_id: ObjId = None,
-        with_linked: bool = False
-    ):
-        """Create a Session instance and fetch the object async."""
-        instance = cls()
-        if maintenance_id is not None:
-            instance.document = await MaintenanceModel.get(maintenance_id)
-
-        elif station_id is not None:
-            instance.document = await MaintenanceModel.find_one(
-                MaintenanceModel.assigned_station == station_id,
-                fetch_links=with_linked
-            )
-
-        if not instance.exists:
-            raise MaintenanceNotFoundException(maintenance_id=maintenance_id)
-        return instance
 
     @classmethod
     async def create(

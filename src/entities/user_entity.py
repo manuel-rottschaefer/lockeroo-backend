@@ -1,13 +1,6 @@
 """This module provides utilities for user management."""
-
-# Basics
-from typing import Optional
-
 # Beanie
-from beanie import PydanticObjectId as ObjId
-from beanie import SortDirection
 from beanie.operators import In
-
 # Entities
 from src.entities.entity_utils import Entity
 # Models
@@ -18,28 +11,6 @@ from src.models.session_models import SessionModel, SessionStates, ACTIVE_SESSIO
 class User(Entity):
     """Adds behaviour for a station instance."""
     document: UserModel
-
-    @classmethod
-    async def find(
-        cls,
-        user_id: Optional[ObjId] = None,
-    ):
-        """Find a session in the database"""
-        instance = cls()
-
-        query = {
-            UserModel.id: user_id,
-        }
-
-        # Filter out None values
-        query = {k: v for k, v in query.items() if v is not None}
-
-        user_item: UserModel = await UserModel.find(
-            query).sort((UserModel.created_ts,
-                         SortDirection.DESCENDING)).first_or_none()
-
-        instance.document = user_item
-        return instance
 
     ### Attributes ###
     @property
