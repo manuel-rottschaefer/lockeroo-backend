@@ -1,6 +1,5 @@
 """This module provides a UserPool class that locust can use to manage user IDs"""
 from uuid import uuid4
-from locustt.locust_logger import logger
 
 
 class UserPool():
@@ -14,9 +13,9 @@ class UserPool():
         if len(self.available_users) == 0:
             return None
         user = self.available_users.pop()
-        logger.debug(f"User {user} retrieved from available users.")
+        # logger.debug(f"User {user} retrieved from available users.")
         return user
 
     def return_user(self, user_id: uuid4):
         self.available_users.append(user_id)
-        logger.debug(f"User {user_id} returned to available users.")
+        # logger.debug(f"User {user_id} returned to available users.")

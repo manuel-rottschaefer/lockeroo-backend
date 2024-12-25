@@ -8,9 +8,9 @@ import paho.mqtt.client as mqttc
 import websockets.sync.client as sync_websockets
 from locust import HttpUser, TaskSet
 
-from locustt.locust_logger import LocustLogger, logger
+from locustt.locust_logger import LocustLogger
 from locustt.user_pool import UserPool
-from src.models.session_models import SessionStates, SessionView
+from src.models.session_models import SessionState, SessionView
 
 # Initialize the user pool
 user_pool = UserPool()
@@ -20,13 +20,18 @@ mqtt_client = mqttc.Client(mqttc.CallbackAPIVersion.VERSION2)
 mqtt_client.connect("localhost", 1883, 60)
 mqtt_client.loop_start()
 
+# Initialize the logger once
+locust_logger = LocustLogger().logger
+
 LOCKER_TYPES = ['small', 'medium', 'large']
 
 
 class LocustSession:
+    """A session object for locust users."""
+
     def __init__(self, task_set: TaskSet, user: HttpUser):
         self.task_set: TaskSet = task_set
-        self.logger: LocustLogger = logger
+        self.logger = locust_logger  # Reuse the initialized logger
         self.client: HttpUser = user.client
         self.mqtt_client: mqttc.Client = mqtt_client
         self.station_callsign = "MUCODE"
@@ -35,8 +40,10 @@ class LocustSession:
         self.endpoint: str = getenv('API_BASE_URL')
         self.ws_endpoint: str = getenv('API_WS_URL')
         self.session: SessionView
+        self.user_id: Optional[str] = None
+        self.headers: dict
 
-        self.awaited_state: Optional[SessionStates] = None
+        self.awaited_state: Optional[SessionState] = None
 
     def subscribe_to_updates(self):
         """Subscribe to a session update stream and handle awaited states."""
@@ -51,10 +58,15 @@ class LocustSession:
         thread = threading.Thread(target=monitor, daemon=True)
         thread.start()
 
-    def await_session_state(self, state: SessionStates) -> None:
+    def await_session_state(self, state: SessionState) -> None:
         """Wait for the next state to be reached."""
-        while self.session.session_state != state.lower():
-            sleep(0.1)
+        try:
+            while self.session.session_state != state.lower():
+                sleep(0.1)
+            self.logger.info(
+                f"Session '#{self.session.id}' reached state '{state}'.")
+        except KeyboardInterrupt:
+            pass
 
     def delay_session(self, state: Union[list, int]):
         if isinstance(state, list):
@@ -64,14 +76,14 @@ class LocustSession:
 
     def log_unexpected_state(self, session, state):
         self.logger.warning(
-            f"Session '{session.id}' is in state '{
+            f"Session '#{session.id}' is in state '{
                 session.session_state}', "
             f"expected '{state}'.")
 
     def verify_session_state(self, expected_state):
         if self.session.session_state != expected_state:
             self.logger.warning(
-                f"Session '{self.session.id}' is in state '{
+                f"Session '#{self.session.id}' is in state '{
                     self.session.session_state}', "
                 f"expected '{expected_state}'.")
 
@@ -104,10 +116,12 @@ class LocustSession:
         res.raise_for_status()
         # Check if the session state matches the expected state
         session = SessionView(**res.json())
-        if session.session_state != SessionStates.CREATED:
-            self.log_unexpected_state(session, SessionStates.CREATED)
+        if session.session_state != SessionState.CREATED:
+            self.log_unexpected_state(session, SessionState.CREATED)
         # Return obtained session
-        session: SessionView = SessionView(**res.json())
+        self.logger.info(
+            (f"Session '#{session.id}' created "
+             f"with behavior {self.__class__.__name__}."))
         return session
 
     def user_select_payment_method(self):
@@ -123,10 +137,12 @@ class LocustSession:
         res.raise_for_status()
         # Check if the session state matches the expected state
         session = SessionView(**res.json())
-        if session.session_state != SessionStates.PAYMENT_SELECTED:
-            self.log_unexpected_state(session, SessionStates.PAYMENT_SELECTED)
+        if session.session_state != SessionState.PAYMENT_SELECTED:
+            self.log_unexpected_state(session, SessionState.PAYMENT_SELECTED)
         # Return current session
-        return SessionView(**res.json())
+        self.logger.info(f"Payment method selected for session '#{
+                         self.session.id}'.")
+        return session
 
     def user_request_verification(self):
         """Try to request verification for a session."""
@@ -140,7 +156,9 @@ class LocustSession:
         # Check if the session state matches the expected state
         session = SessionView(**res.json())
         # Return current session
-        return SessionView(**res.json())
+        self.logger.info(f"Verification requested for session '#{
+                         self.session.id}'.")
+        return session
 
     def request_payment(self):
         """Try to request payment for a session."""
@@ -154,7 +172,9 @@ class LocustSession:
         # Check if the session state matches the expected state
         session = SessionView(**res.json())
         # Return current session
-        return SessionView(**res.json())
+        self.logger.info(f"Payment requested for session '#{
+                         self.session.id}'.")
+        return session
 
     #########################
     ###  STATION ACTIONS  ###
@@ -163,26 +183,27 @@ class LocustSession:
     def station_report_verification(self):
         self.mqtt_client.publish(
             f'stations/{self.station_callsign}/verification/report', '123456', qos=2)
-        logger.info(f"Verification reported at station '{
-                    self.station_callsign}'.")
+        self.logger.info(f"Verification reported at station '#{
+            self.station_callsign}'.")
 
-    def report_payment(self):
+    def station_report_payment(self):
         self.mqtt_client.publish(
             f'stations/{self.station_callsign}/payment/report', '123456', qos=2)
-        logger.info(f"Payment reported at station '{self.station_callsign}'.")
+        self.logger.info(f"Payment reported at station '#{
+                         self.station_callsign}'.")
 
-    def report_locker_open(self):
+    def station_report_locker_open(self):
         self.mqtt_client.publish((
             f"stations/{self.station_callsign}/locker/"
             f"{self.session.locker_index}/report'"), 'UNLOCKED', qos=2)
-        logger.info((
+        self.logger.info((
             f"Locker {self.session.locker_index} opened "
             f"at station '{self.station_callsign}'."))
 
-    def report_locker_close(self):
+    def station_report_locker_close(self):
         self.mqtt_client.publish((
             f"stations/{self.station_callsign}/locker/"
             f"{self.session.locker_index}/report"), 'LOCKED', qos=2)
-        logger.info((
+        self.logger.info((
             f"Locker {self.session.locker_index} closed "
             f"at station '{self.station_callsign}'."))

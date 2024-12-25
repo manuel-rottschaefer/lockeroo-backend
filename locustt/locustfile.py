@@ -14,13 +14,11 @@ from locustt.behaviors import (
 )
 
 # Load environment variables
-load_dotenv('./environments/.env')
-load_dotenv('environments/quick.env')
+load_dotenv('environments/.env')
 
 
 class SessionTaskSet(TaskSet):
     """TaskSet for regular session behavior"""
-
     @task(90)
     def regular_session_task(self):
         RegularSession(self, self.user).run()

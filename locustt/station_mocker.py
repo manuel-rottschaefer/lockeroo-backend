@@ -1,15 +1,21 @@
 import paho.mqtt.client as mqtt
+from time import sleep
 import os
 import re
 
 
-def is_terminal_path(topic):
+def is_terminal_instruction(topic):
     pattern = r'^stations/[A-Z]{6}/terminal/instruct$'
     return re.match(pattern, topic) is not None
 
 
-def is_locker_path(topic):
+def is_locker_instruction(topic):
     pattern = r'^stations/[A-Z]{6}/locker/\d{1,2}/instruct$'
+    return re.match(pattern, topic) is not None
+
+
+def is_action_report(topic):
+    pattern = r'^stations/[A-Z]{6}/(verification|payment|)/report$'
     return re.match(pattern, topic) is not None
 
 
@@ -24,7 +30,7 @@ def on_message(_client, _userdata, msg: mqtt.MQTTMessage):
     topic = msg.topic.split('/')
     payload = msg.payload.decode('utf-8')
 
-    if is_terminal_path(msg.topic) and payload in ['VERIFICATION', 'PAYMENT', 'IDLE']:
+    if is_terminal_instruction(msg.topic) and payload in ['VERIFICATION', 'PAYMENT', 'IDLE']:
         print(f"Received mode instruction {
               payload} for station {msg.topic.split('/')[1]}.")
         mqttc.publish(
@@ -34,7 +40,7 @@ def on_message(_client, _userdata, msg: mqtt.MQTTMessage):
         print(f"Confirmed mode {payload} for station {
               msg.topic.split('/')[1]}.")
 
-    elif is_locker_path(msg.topic) and payload in ['locked', 'unlocked']:
+    elif is_locker_instruction(msg.topic) and payload in ['locked', 'unlocked']:
         print(f"Received state instruction {payload} for locker {
               topic[3]} at station {topic[1]}.")
         mqttc.publish(
@@ -43,6 +49,13 @@ def on_message(_client, _userdata, msg: mqtt.MQTTMessage):
             qos=2)
         print(f"Confirmed state {payload} for locker {
               topic[3]} at station {topic[1]}.")
+
+    elif is_action_report(msg.topic):
+        sleep(.1)
+        mqttc.publish(
+            topic=f"stations/{topic[1]}/terminal/confirm",
+            payload="IDLE",
+            qos=2)
 
 
 # Set up MQTT client

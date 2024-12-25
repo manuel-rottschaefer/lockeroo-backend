@@ -20,9 +20,8 @@ class LocustLogger():
 
         self.logger = logging.getLogger('locust_logger')
         self.logger.setLevel(logging.DEBUG)
-        self.logger.addHandler(handler)
+
+        # Avoid adding multiple handlers
+        if not self.logger.handlers:
+            self.logger.addHandler(handler)
         self.logger.propagate = False
-
-
-# Initialize the logger
-logger = LocustLogger().logger
