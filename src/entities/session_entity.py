@@ -16,9 +16,6 @@ from src.models.session_models import (
     SessionState,
     FOLLOW_UP_STATES)
 
-# Services
-from src.services.action_services import create_action
-
 
 class Session(Entity):
     """Add behaviour to a session instance."""
@@ -31,7 +28,7 @@ class Session(Entity):
             id=self.id,
             assigned_station=self.assigned_station.id,
             user=self.user.fief_id,
-            locker_index=self.assigned_locker.station_index if self.assigned_locker else None,
+            station_index=self.assigned_locker.station_index if self.assigned_locker else None,
             session_type=self.session_type,
             session_state=self.session_state
         )
@@ -90,8 +87,6 @@ class Session(Entity):
 
     async def handle_conclude(self) -> None:
         """Calculate and store statistical data when session completes/expires/aborts."""
-        await create_action(session_id=self.id,
-                            action_type=SessionState.COMPLETED)
         total_duration: timedelta = await self.total_duration
 
         # Update session state

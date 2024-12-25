@@ -5,21 +5,20 @@ import yaml
 # Beanie
 from beanie import SortDirection
 # Entities
-from src.entities.task_entity import Task, restart_expiration_manager
+from src.entities.task_entity import Task
 from src.entities.session_entity import Session
-from src.entities.locker_entity import Locker, LockerStates
+from src.entities.locker_entity import Locker, LockerState
 # Models
 from src.models.session_models import SessionState
-from src.models.locker_models import LockerModel, LockerTypes
+from src.models.locker_models import LockerTypes
+from src.models.action_models import ActionModel, ActionType
 from src.models.task_models import TaskItemModel, TaskState, TaskType, TaskTarget
-from src.services.action_services import create_action
 # Services
 from src.services.logging_services import logger
 # Exceptions
 from src.exceptions.session_exceptions import SessionNotFoundException
 from src.exceptions.task_exceptions import TaskNotFoundException
 from src.exceptions.locker_exceptions import (
-    LockerNotFoundException,
     InvalidLockerStateException,
     InvalidLockerReportException)
 
@@ -46,29 +45,19 @@ if LOCKER_TYPES is None:
 
 
 async def handle_unlock_confirmation(
-        callsign: str, locker_index: int) -> None:
+        callsign: str, station_index: int) -> None:
     """Process and verify a station report that a locker has been unlocked"""
-    # 1: Find the affected locker
-    locker: Locker = Locker(await LockerModel.find(
-        LockerModel.station.callsign == callsign,  # pylint: disable=no-member
-        LockerModel.station_index == locker_index,  # pylint: disable=no-member
-        fetch_links=True
-    ).first_or_none())
-    if not locker.exists:
-        raise LockerNotFoundException(
-            station=callsign,
-            locker_index=locker_index)
     logger.info(
-        (f"Station '{callsign}' reported {LockerStates.UNLOCKED} "
-         f"at locker {locker_index} ('#{locker.id}')."))
+        (f"Station '{callsign}' reported {LockerState.UNLOCKED} "
+         f"at locker {station_index}"))
 
-    # 2: Find the affected, pending task
+    # 1: Find the affected, pending task
     task: Task = Task(await TaskItemModel.find(
         TaskItemModel.target == TaskTarget.LOCKER,
         TaskItemModel.task_type == TaskType.CONFIRMATION,
         TaskItemModel.task_state == TaskState.PENDING,
         TaskItemModel.assigned_station.callsign == callsign,  # pylint: disable=no-member
-        TaskItemModel.assigned_locker.id == locker.doc.id,  # pylint: disable=no-member
+        TaskItemModel.assigned_locker.station_index == station_index,  # pylint: disable=no-member
         fetch_links=True
     ).sort((
         TaskItemModel.created_at, SortDirection.ASCENDING
@@ -79,19 +68,18 @@ async def handle_unlock_confirmation(
             assigned_station=callsign,
             raise_http=False)
 
+    # 2: Fetch the locker
+    await task.doc.fetch_link(TaskItemModel.assigned_locker)
+    locker: Locker = Locker(task.assigned_locker)
+
     # 3: Check if the reported locker matches that of the task
     await task.doc.fetch_link(TaskItemModel.assigned_locker)
     assert (locker.callsign == task.assigned_locker.callsign
             ), f"Locker '#{locker.id}' does not match task '#{task.id}'."
 
-    # 4: Check whether the locker was actually registered as unlocked
-    if locker.reported_state != LockerStates.LOCKED.value:
-        # TODO: This should maybe be an assert as it should never happen in prod
-        raise InvalidLockerStateException(
-            locker_id=locker.id,
-            expected_state=LockerStates.LOCKED,
-            actual_state=locker.reported_state,
-            raise_http=False)
+    # 4: Check whether the locker is actually registered as unlocked
+    assert (locker.doc.reported_state == LockerState.LOCKED
+            ), f"Locker '#{locker.doc.id}' is not locked."
 
     # 5: Find the assigned session
     session: Session = Session(task.assigned_session)
@@ -108,12 +96,10 @@ async def handle_unlock_confirmation(
         f"{[state for state in [SessionState.VERIFICATION, SessionState.PAYMENT, SessionState.HOLD]]}.")
 
     # 6: If those checks pass, update the locker and create an action
-    await locker.register_state(LockerStates.UNLOCKED)
-    await create_action(session.id, session.session_state)
+    await locker.register_state(LockerState.UNLOCKED)
 
     # 7: Complete the task and restart the expiration manager
     await task.complete()
-    await restart_expiration_manager()
 
     # 8: Create a queue item for the user to lock the locker
     await Task(await TaskItemModel(
@@ -128,7 +114,7 @@ async def handle_unlock_confirmation(
 
 
 async def handle_lock_report(
-        callsign: str, locker_index: int) -> None:
+        callsign: str, station_index: int) -> None:
     """Process and verify a station report that a locker has been closed"""
     # 1: Find the affected, pending task
     task: Task = Task(await TaskItemModel.find(
@@ -136,7 +122,7 @@ async def handle_lock_report(
         TaskItemModel.task_type == TaskType.REPORT,
         TaskItemModel.task_state == TaskState.PENDING,
         TaskItemModel.assigned_station.callsign == callsign,  # pylint: disable=no-member
-        TaskItemModel.assigned_locker.station_index == locker_index,  # pylint: disable=no-member
+        TaskItemModel.assigned_locker.station_index == station_index,  # pylint: disable=no-member
         fetch_links=True
     ).sort((
         TaskItemModel.created_at, SortDirection.ASCENDING
@@ -151,8 +137,8 @@ async def handle_lock_report(
     locker: Locker = Locker(task.assigned_locker)
     assert locker.exists, f"Locker '#{locker.id}' does not exist."
     logger.info(
-        (f"Station '{callsign}' reported {LockerStates.LOCKED} "
-         f"at locker {locker_index} ('#{locker.id}')."))
+        (f"Station '{callsign}' reported {LockerState.LOCKED} "
+         f"at locker {station_index} ('#{locker.id}')."))
 
     # 3: Check if the reported locker matches that of the task
     await task.doc.fetch_link(TaskItemModel.assigned_locker)
@@ -161,10 +147,10 @@ async def handle_lock_report(
             locker_id=locker.id, raise_http=False)
 
     # 4: Check whether the locker was actually registered as unlocked
-    if locker.reported_state != LockerStates.UNLOCKED.value:
+    if locker.reported_state != LockerState.UNLOCKED.value:
         raise InvalidLockerStateException(
             locker_id=locker.id,
-            expected_state=LockerStates.UNLOCKED,
+            expected_state=LockerState.UNLOCKED,
             actual_state=locker.reported_state,
             raise_http=False)
 
@@ -177,18 +163,23 @@ async def handle_lock_report(
 
     assert (session.doc.session_state in [
         SessionState.STASHING,
-        SessionState.ACTIVE,
+        # TODO: This should not be required
+        # SessionState.ACTIVE,
         SessionState.RETRIEVAL]
     ), (f"Session '#{session.id}' is in {session.session_state}, expected "
         f"{[state for state in [SessionState.STASHING, SessionState.ACTIVE, SessionState.RETRIEVAL]]}.")
 
     # 6: If those checks pass, update the locker and create an action
-    await locker.register_state(LockerStates.LOCKED)
-    await create_action(session.id, session.session_state)
+    await locker.register_state(LockerState.LOCKED)
+
+    action_type: ActionType = (
+        ActionType.LOCK_AFTER_STASHING if session.doc.session_state == SessionState.STASHING
+        else ActionType.LOCK_AFTER_RETRIEVAL)
+    await ActionModel(
+        assigned_session=session.doc, action_type=action_type).insert()
 
     # 7: Complete the task and restart the expiration manager
     await task.complete()
-    await restart_expiration_manager()
 
     # 8: Catch completed sessions
     next_state: SessionState = await session.next_state

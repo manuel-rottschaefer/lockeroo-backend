@@ -5,7 +5,7 @@ from beanie.operators import In, NotIn
 
 # Entities
 from src.entities.entity_utils import Entity
-from src.models.locker_models import LockerModel, LockerStates, LockerTypes
+from src.models.locker_models import LockerModel, LockerState, LockerTypes
 from src.models.session_models import SessionModel, SessionState, ACTIVE_SESSION_STATES
 # Models
 from src.models.station_models import StationModel
@@ -64,14 +64,14 @@ class Locker(Entity):
         """Check whether this object exists."""
         return self.doc is not None
 
-    async def register_state(self, state: LockerStates):
+    async def register_state(self, state: LockerState):
         """Update the reported (actual) locker state"""
         logger.debug(f"Locker '#{self.doc.callsign.replace('#', '')}' ('{
                      self.doc.id}') registered as: {state}.")
         self.doc.reported_state = state
         await self.doc.save_changes(skip_actions=['log_changes'])
 
-    async def instruct_state(self, state: LockerStates):
+    async def instruct_state(self, state: LockerState):
         """Send a message to the station to unlock the locker."""
         logger.debug(
             (f"Sending {state} instruction to locker '#{self.doc.id}' "

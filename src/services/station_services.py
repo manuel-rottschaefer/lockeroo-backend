@@ -2,6 +2,7 @@
 
 # Basics
 from typing import Dict, List, Optional
+from datetime import datetime
 import yaml
 # Beanie
 from beanie import SortDirection
@@ -12,17 +13,19 @@ from fastapi import Response, status
 from src.entities.station_entity import Station
 from src.entities.locker_entity import Locker
 from src.entities.session_entity import Session
-from src.entities.task_entity import Task, restart_expiration_manager
+from src.entities.task_entity import Task
 # Models
 from src.exceptions.station_exceptions import (
     InvalidTerminalStateException,
     StationNotFoundException)
 from src.models.locker_models import LockerModel
-from src.models.session_models import SessionModel, SessionState, ACTIVE_SESSION_STATES
-from src.models.station_models import (StationLockerAvailabilities,
-                                       StationModel, StationStates,
-                                       StationType, StationView,
-                                       TerminalState)
+from src.models.session_models import (
+    SessionModel, SessionState, ACTIVE_SESSION_STATES)
+from src.models.station_models import (
+    StationLockerAvailabilities,
+    StationModel, StationStates,
+    StationType, StationView,
+    TerminalState)
 from src.models.task_models import (
     TaskItemModel, TaskState, TaskType, TaskTarget
 )
@@ -53,6 +56,13 @@ if STATION_TYPES is None:
     except TypeError as e:
         logger.warning(f"Data structure mismatch: {e}")
         STATION_TYPES = {}
+
+
+async def get_all_stations() -> List[StationView]:
+    """Returns a list of all installed stations."""
+    return await StationModel.find(
+        StationModel.installed_at < datetime.now()
+    ).limit(100)
 
 
 async def discover(lat: float, lon: float, radius: int,
@@ -94,7 +104,7 @@ async def get_active_session_count(callsign: str, response: Response) -> Optiona
 
 
 async def get_locker_by_index(
-        callsign: str, locker_index: int, response: Response,) -> Optional[LockerModel]:
+        callsign: str, station_index: int, response: Response,) -> Optional[LockerModel]:
     """Get the locker at a station by its index."""
     # 1: Get the station
     station: Station = Station(await StationModel.find(
@@ -107,12 +117,12 @@ async def get_locker_by_index(
     # 2: Get the assigned locker
     locker: Locker = Locker(await LockerModel.find(
         LockerModel.station == station.doc.id,
-        LockerModel.station_index == locker_index
+        LockerModel.station_index == station_index
     ).first_or_none())
     if not locker.exists:
         raise LockerNotFoundException(
             station=callsign,
-            locker_index=locker_index)
+            station_index=station_index)
     return locker.doc
 
 
@@ -220,7 +230,7 @@ async def handle_terminal_report(
     if station.terminal_state != expected_terminal_state:
         raise InvalidTerminalStateException(
             station_callsign=callsign,
-            expected_state=expected_terminal_state,
+            expected_states=[expected_terminal_state],
             actual_state=station.terminal_state,
             raise_http=False)
 
@@ -234,7 +244,6 @@ async def handle_terminal_report(
 
     # 6: Update the session state
     await task.complete()
-    await restart_expiration_manager()
 
     # 7: Await terminal to confirm idle
     await Task(await TaskItemModel(
@@ -260,24 +269,25 @@ async def handle_terminal_state_confirmation(
         raise StationNotFoundException(
             callsign=callsign, raise_http=False)
     if station.terminal_state == confirmed_state:
-        logger.warning(
-            "Invalid station report.")
+        raise InvalidTerminalStateException(
+            station_callsign=callsign,
+            expected_states=[
+                state for state in TerminalState if state != confirmed_state],
+            actual_state=confirmed_state)
 
     # Register the new state
     await station.register_terminal_state(confirmed_state)
 
     # 2: Find the pending task for this station
-    # TODO: This may be unsafe
+    # TODO: FIXME This query may retrieve wrong tasks
     pending_task: Task = Task(await TaskItemModel.find(
+        TaskItemModel.assigned_station.id == station.id,  # pylint: disable=no-member
         TaskItemModel.target == TaskTarget.TERMINAL,
         TaskItemModel.task_type == TaskType.CONFIRMATION,
-        # TaskItemModel.task_state == TaskState.PENDING,
         In(TaskItemModel.task_state, [TaskState.QUEUED, TaskState.PENDING]),
-        TaskItemModel.assigned_station.id == station.id  # pylint: disable=no-member
     ).sort((
         TaskItemModel.created_at, SortDirection.DESCENDING
     )).first_or_none())
-
     if not pending_task.exists:
         raise TaskNotFoundException(
             assigned_station=callsign,
@@ -288,7 +298,6 @@ async def handle_terminal_state_confirmation(
     await pending_task.doc.fetch_link(TaskItemModel.assigned_session)
     session: Session = Session(pending_task.doc.assigned_session)
 
-    # TODO: Experimental
     if confirmed_state == TerminalState.IDLE:
         next_task: Task = await Task.get_next_in_queue(station_id=station.id)
         if next_task.exists:
@@ -331,7 +340,7 @@ async def handle_terminal_state_confirmation(
     else:
         raise InvalidTerminalStateException(
             station_callsign=callsign,
-            expected_state=confirmed_state,
+            expected_states=[confirmed_state],
             actual_state=confirmed_state
         )
 
@@ -339,4 +348,3 @@ async def handle_terminal_state_confirmation(
     await pending_task.complete()
     if new_task is not None:
         await new_task.move_in_queue()
-    await restart_expiration_manager()

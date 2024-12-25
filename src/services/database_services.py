@@ -22,6 +22,8 @@ from src.models.session_models import SessionModel
 from src.models.station_models import StationModel
 from src.models.task_models import TaskItemModel
 from src.models.user_models import UserModel
+from src.models.review_models import ReviewModel
+from src.models.billing_models import BillModel
 
 
 async def setup():
@@ -40,7 +42,10 @@ async def setup():
             PaymentModel,
             TaskItemModel,
             MaintenanceModel,
-            UserModel
+            UserModel,
+            BillModel,
+            PaymentModel,
+            ReviewModel
         ],
     )
 
