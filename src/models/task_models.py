@@ -92,18 +92,18 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     completed_at: Optional[datetime] = Field(
         None, description="The datetime when the task item was completed or expired.")
 
-    @before_event(Insert)
+    @ before_event(Insert)
     def handle_creation_event(self):
         self.created_at = datetime.now()
 
-    @after_event(Insert)
+    @ after_event(Insert)
     async def log_creation(self):
         await self.fetch_link(TaskItemModel.assigned_session)
         logger.debug(
             (f"Created task '#{self.id}' of {self.task_type} "
              f"for session '#{self.assigned_session.id}'."))  # pylint: disable=no-member
 
-    @after_event(SaveChanges)
+    @ after_event(SaveChanges)
     async def log_state(self) -> None:
         """Log database operation."""
         logger.debug(f"Task '#{self.id}' for {self.target} of {
@@ -113,3 +113,12 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     class Settings:  # pylint: disable=missing-class-docstring
         name = "tasks"
         use_state_management = True
+
+    @dataclass
+    class Config:  # pylint: disable=missing-class-docstring
+        json_schema_extra = {
+            "task_type": "report",
+            "target": "user",
+            "task_state": "queued",
+            "expiration_window": 3600
+        }

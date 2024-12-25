@@ -1,6 +1,6 @@
 """This module provides the Models for Payment events."""
 # Types
-import dataclasses
+from dataclasses import dataclass
 # Basics
 from datetime import datetime
 from enum import Enum
@@ -42,12 +42,21 @@ class PricingModel(BaseModel):
     rate_minute: float = Field(
         description="Charge for every started minue (cent)")
 
+    @dataclass
+    class Config:  # pylint: disable=missing-class-docstring
+        json_schema_extra = {
+            "name": "Standard",
+            "base_fee": 100,
+            "charge_fee": 50,
+            "base_duration": 60,
+            "rate_minute": 0.5
+        }
+
 
 class PaymentModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a payment object in the database"""
     ### Identification ###
-    id: ObjId = Field(
-        None, alias="_id", description='ObjectID in the database')
+    id: ObjId = Field(None, alias="_id")
 
     assigned_station: Link[StationModel] = Field(
         description="Station at which the payment process is conducted.")
@@ -64,7 +73,7 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
     last_updated: datetime = Field(datetime.now(),
                                    description='The timestamp of the last update to this payment.')
 
-    @after_event(SaveChanges)
+    @ after_event(SaveChanges)
     async def check_pending(self):
         """Check if this payment is now pending."""
         # 1: Update the timestamp
@@ -81,6 +90,15 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
 
         await self.doc.save_changes()
 
-    @dataclasses.dataclass
+    @dataclass
     class Settings:  # pylint: disable=missing-class-docstring
         name = "payments"
+
+    @dataclass
+    class Config:  # pylint: disable=missing-class-docstring
+        json_schema_extra = {
+            "assigned_station": "60d5ec49f1d2b2a5d8f8b8b8",
+            "assigned_session": "60d5ec49f1d2b2a5d8f8b8b8",
+            "state": "scheduled",
+            "price": 1000
+        }

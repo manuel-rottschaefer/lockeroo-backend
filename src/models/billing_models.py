@@ -6,6 +6,7 @@ A bill is only issued after a completed session,
 it is not meant for use within an active session
 """
 # Basics
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
@@ -16,9 +17,8 @@ from beanie import PydanticObjectId as ObjId
 from pydantic import Field
 
 
-class BillPaymentMethods(Enum, str):
+class BillPaymentMethod(str, Enum):
     """Enumeration of available payment methods"""
-
     TERMINAL = "terminal"
     PAYPAL = "paypal"
     STRIPE = "stripe"
@@ -31,10 +31,17 @@ class BillModel(Document):  # pylint: disable=too-many-ancestors
     ### Identification ###
     id: ObjId = Field(None, alias="_id")
 
-    payment_method: BillPaymentMethods = Field(
+    payment_method: BillPaymentMethod = Field(
         None, description="Selected payment method"
     )
 
     issued_at: datetime = Field(
         None, description="The timestamp at which the bill was requested."
     )
+
+    @dataclass
+    class Config:  # pylint: disable=missing-class-docstring
+        json_schema_extra = {
+            "payment_method": "paypal",
+            "issued_at": "2023-10-10T10:00:00"
+        }

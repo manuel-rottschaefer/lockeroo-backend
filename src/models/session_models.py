@@ -1,7 +1,7 @@
 """This module provides the Models for Session management."""
 # Basics
 # Types
-import dataclasses
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import List, Dict, Optional, Union
@@ -126,7 +126,7 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     assigned_locker: Link[LockerModel] = Field(
         description="The assigned locker to this session.")
 
-    user: Link[UserModel] = Field(  # TODO: Remove union here
+    user: Link[UserModel] = Field(
         None, description="The assigned user to this session.")
 
     ### Session Properties ###
@@ -168,28 +168,37 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
         logger.debug(
             f"Session '#{self.id}' moved to {self.session_state}.")
 
-    @ dataclasses.dataclass
+    @ dataclass
     class Settings:  # pylint: disable=missing-class-docstring
         name = "sessions"
         use_state_management = True
         use_revision = False
         use_cache = False
-        # Set the expiration time to one second so the session state is not cached over requests
-        # cache_expiration_time = timedelta(seconds=1)
-        # cache_capacity = 5
+
+    @dataclass
+    class Config:  # pylint: disable=missing-class-docstring
+        json_schema_extra = {
+            "assigned_station": "60d5ec49f1d2b2a5d8f8b8b8",
+            "assigned_locker": "60d5ec49f1d2b2a5d8f8b8b8",
+            "user": "60d5ec49f1d2b2a5d8f8b8b8",
+            "session_type": "personal",
+            "payment_method": "terminal",
+            "session_state": "created",
+            "created_at": "2023-10-10T10:00:00"
+        }
 
 
 class SessionView(View):
     """Used for serving information about an active session"""
     # Identification
-    id: ObjId
-    assigned_station: ObjId = Field(
+    id: ObjId = Field(None, alias='_id')
+    assigned_station: str = Field(
         description="Station at which the session takes place")
 
     user: UUID = Field(
         None, description="The assigned user to this session.")
 
-    locker_index: Optional[int] = Field(
+    station_index: Optional[int] = Field(
         default=None, description="Local index of the locker at its station")
 
     session_type: SessionTypes = Field(
@@ -202,11 +211,19 @@ class SessionView(View):
     # session view isrequested to avoid duplicate data entries
     # TODO: Implement a timestamping mechanism
 
-    @ dataclasses.dataclass
+    @ dataclass
     class Config:  # pylint: disable=missing-class-docstring
         from_attributes = True
+        json_schema_extra = {
+            "id": "60d5ec49f1d2b2a5d8f8b8b8",
+            "assigned_station": "CENTRAL",
+            "user": "12345678-1234-5678-1234-567812345678",
+            "station_index": 1,
+            "session_type": "personal",
+            "session_state": "created"
+        }
 
-    @ dataclasses.dataclass
+    @ dataclass
     class Settings:  # pylint: disable=missing-class-docstring
         source = SessionModel
         projection = {
@@ -215,7 +232,7 @@ class SessionView(View):
             "session_state": "$session_state.name",
             "session_type": "$session_type",
             "assigned_station": "$assigned_station._id",
-            "locker_index": "$assigned_locker.station_index"
+            "station_index": "$assigned_locker.station_index"
         }
 
 
@@ -232,6 +249,6 @@ class CompletedSession(View):
     totalDuration: Optional[float] = None
     activeDuration: Optional[float] = None
 
-    @ dataclasses.dataclass
+    @ dataclass
     class Config:  # pylint: disable=missing-class-docstring
         from_attributes = True
