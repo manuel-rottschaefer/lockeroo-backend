@@ -23,7 +23,7 @@ dashboard_router = APIRouter()
 
 
 @dashboard_router.get('/active_session_count/')
-@handle_exceptions(logger)
+@ handle_exceptions(logger)
 # @require_auth
 async def get_active_session_count(
     _access_info: FiefAccessTokenInfo = None

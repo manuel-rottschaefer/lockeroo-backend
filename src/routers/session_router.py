@@ -27,13 +27,14 @@ session_router = APIRouter()
 ### REST ENDPOINTS ###
 
 
-@session_router.get('/{session_id}/details',
-                    response_model=Optional[SessionView],
-                    status_code=status.HTTP_200_OK,
-                    description=('Get the details of a session including (active) time,'
-                                 'current price and locker state.')
-                    )
-@handle_exceptions(logger)
+@session_router.get(
+    '/{session_id}/details',
+    response_model=Optional[SessionView],
+    status_code=status.HTTP_200_OK,
+    description=('Get the details of a session including (active) time,'
+                 'current price and locker state.')
+)
+@ handle_exceptions(logger)
 async def get_session_details(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
     _user: str = Header(default=None, alias="user"),
@@ -49,10 +50,11 @@ async def get_session_details(
     )
 
 
-@session_router.post('/create',
-                     response_model=Optional[SessionView],
-                     status_code=status.HTTP_201_CREATED,
-                     description='Request a new session at a given station')
+@session_router.post(
+    '/create',
+    response_model=Optional[SessionView],
+    status_code=status.HTTP_201_CREATED,
+    description='Request a new session at a given station')
 async def request_new_session(
     station_callsign: Annotated[str, Query(pattern='^[A-Z]{6}$')],
     locker_type: str,
@@ -70,10 +72,11 @@ async def request_new_session(
     )
 
 
-@ session_router.put('/{sessionID}/cancel',
-                     response_model=Optional[SessionView],
-                     status_code=status.HTTP_200_OK,
-                     description='Request to cancel a locker session before it has been started')
+@ session_router.put(
+    '/{sessionID}/cancel',
+    response_model=Optional[SessionView],
+    status_code=status.HTTP_200_OK,
+    description='Request to cancel a locker session before it has been started')
 async def request_session_cancel(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
 
@@ -90,10 +93,11 @@ async def request_session_cancel(
     )
 
 
-@ session_router.put('/{session_id}/payment/select',
-                     response_model=Optional[SessionView],
-                     status_code=status.HTTP_202_ACCEPTED,
-                     description="Select a payment method for a session")
+@ session_router.put(
+    '/{session_id}/payment/select',
+    response_model=Optional[SessionView],
+    status_code=status.HTTP_202_ACCEPTED,
+    description="Select a payment method for a session")
 @ handle_exceptions(logger)
 async def choose_session_payment_method(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
@@ -111,10 +115,11 @@ async def choose_session_payment_method(
     )
 
 
-@ session_router.put('/{session_id}/payment/verify',
-                     response_model=Optional[SessionView],
-                     status_code=status.HTTP_202_ACCEPTED,
-                     description='Request to enter the verification queue of a session')
+@ session_router.put(
+    '/{session_id}/payment/verify',
+    response_model=Optional[SessionView],
+    status_code=status.HTTP_202_ACCEPTED,
+    description='Request to enter the verification queue of a session')
 @ handle_exceptions(logger)
 async def request_session_verification(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
@@ -131,10 +136,11 @@ async def request_session_verification(
         user=access_info)
 
 
-@ session_router.put('/{session_id}/hold',
-                     response_model=Optional[SessionView],
-                     status_code=status.HTTP_202_ACCEPTED,
-                     description='Request to hold (pause) a locker session')
+@ session_router.put(
+    '/{session_id}/hold',
+    response_model=Optional[SessionView],
+    status_code=status.HTTP_202_ACCEPTED,
+    description='Request to hold (pause) a locker session')
 @ handle_exceptions(logger)
 async def request_session_hold(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
@@ -152,10 +158,11 @@ async def request_session_hold(
     )
 
 
-@ session_router.put('/{session_id}/payment',
-                     response_model=Optional[SessionView],
-                     status_code=status.HTTP_202_ACCEPTED,
-                     description='Request to enter the payment phase of a session')
+@ session_router.put(
+    '/{session_id}/payment',
+    response_model=Optional[SessionView],
+    status_code=status.HTTP_202_ACCEPTED,
+    description='Request to enter the payment phase of a session')
 @ handle_exceptions(logger)
 async def request_session_payment(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
@@ -173,10 +180,11 @@ async def request_session_payment(
     )
 
 
-@ session_router.get('/{session_id}/history',
-                     response_model=Optional[List[ActionView]],
-                     status_code=status.HTTP_200_OK,
-                     description="Get a list of all actions of a session.")
+@ session_router.get(
+    '/{session_id}/history',
+    response_model=Optional[List[ActionView]],
+    status_code=status.HTTP_200_OK,
+    description="Get a list of all actions of a session.")
 @ handle_exceptions(logger)
 async def get_session_history(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],

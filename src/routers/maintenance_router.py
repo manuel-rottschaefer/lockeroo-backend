@@ -29,7 +29,7 @@ maintenance_router = APIRouter()
 
 @maintenance_router.post('/{callsign}/maintenance/schedule',
                          response_model=MaintenanceView)
-@handle_exceptions(logger)
+@ handle_exceptions(logger)
 @require_auth
 async def create_scheduled_maintenance(
         callsign:  Annotated[str, Path(pattern='^[A-Z]{6}$')],
@@ -49,7 +49,7 @@ async def create_scheduled_maintenance(
 
 @maintenance_router.get('/{callsign}/maintenance/next',
                         response_model=MaintenanceView)
-@handle_exceptions(logger)
+@ handle_exceptions(logger)
 @require_auth
 async def get_next_scheduled_maintenance(
     callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')],

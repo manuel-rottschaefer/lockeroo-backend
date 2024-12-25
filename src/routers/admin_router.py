@@ -18,7 +18,7 @@ admin_router = APIRouter()
 
 @admin_router.get('/reset',
                   description='Reset the database and populate it with mock data')
-@handle_exceptions(logger)
+@ handle_exceptions(logger)
 async def reset_db():
     """Reset the db"""
     await restore_json_mock_data(os.getenv('MONGO_DATA'))
