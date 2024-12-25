@@ -69,7 +69,7 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
                                      description='Total number of sessions.')
     total_session_duration: timedelta = Field(...,
                                               description='Total duration of all sessions.')
-    last_service_ts: datetime = Field(...,
+    last_service_at: datetime = Field(...,
                                       description='Timestamp of the last service.')
 
     @after_event(SaveChanges)

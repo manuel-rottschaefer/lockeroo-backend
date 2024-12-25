@@ -1,21 +1,21 @@
 """This module provides the Models for Station Maintenance events."""
 # Types
 from dataclasses import dataclass
+from typing import List, Optional
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Union
 
 # Beanie
 from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
-from beanie import SaveChanges, after_event
+from beanie import SaveChanges, Insert, before_event, after_event
 from dotenv import load_dotenv
 from pydantic import Field
 
 # Models
-from src.models.session_models import SessionModel, SessionStates
+from src.models.session_models import SessionModel, SessionState
 from src.models.station_models import StationModel
-from src.models.locker_models import LockerModel, LockerStates
+from src.models.locker_models import LockerModel
 
 # Services
 from src.services.logging_services import logger
@@ -24,7 +24,7 @@ from src.services.logging_services import logger
 load_dotenv('environments/.env')
 
 
-class TaskStates(str, Enum):
+class TaskState(str, Enum):
     """Possible states for Tasks."""
     QUEUED = "queued"               # Session is queued for verification/payment
     PENDING = "pending"             # Session is awaiting verification/payment
@@ -65,35 +65,43 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     assigned_locker: Optional[Link[LockerModel]] = Field(
         None, description="The station which this task may be assigned to.")
 
-    task_state: TaskStates = Field(
-        TaskStates.QUEUED,
+    task_state: TaskState = Field(
+        TaskState.QUEUED,
         description='State of the task item. Not related to the session state.')
 
-    queued_session_state: Optional[Union[LockerStates, SessionStates]] = Field(
-        None,
-        description="The next state of the assigned session or terminal after activation.\
-        State Type depends on task type.")
+    moves_session: bool = Field(
+        False, description="Whether the session moves to the next state on task activation.")
 
-    timeout_states: List[SessionStates] = Field(
-        default=[SessionStates.EXPIRED],
+    timeout_states: List[SessionState] = Field(
+        default=[SessionState.EXPIRED],
         description="List of states the assigned session takes on after expiring, \
         each list item is a next try for this task.")
 
     expiration_window: int = Field(
         0, description="The time in seconds until the task expires.")
 
+    created_at: Optional[datetime] = Field(
+        None, description="The datetime when the task item was created.")
+
     expires_at: Optional[datetime] = Field(
         None, description="The timestamp when the task will time out.")
-
-    created_ts: datetime = Field(
-        datetime.now(),
-        description="The datetime when the task item was created.")
 
     activated_at: Optional[datetime] = Field(
         None, description="The datetime when the task item was activated.")
 
     completed_at: Optional[datetime] = Field(
         None, description="The datetime when the task item was completed or expired.")
+
+    @before_event(Insert)
+    def handle_creation_event(self):
+        self.created_at = datetime.now()
+
+    @after_event(Insert)
+    async def log_creation(self):
+        await self.fetch_link(TaskItemModel.assigned_session)
+        logger.debug(
+            (f"Created task '#{self.id}' of {self.task_type} "
+             f"for session '#{self.assigned_session.id}'."))  # pylint: disable=no-member
 
     @after_event(SaveChanges)
     async def log_state(self) -> None:

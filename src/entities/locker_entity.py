@@ -6,7 +6,7 @@ from beanie.operators import In, NotIn
 # Entities
 from src.entities.entity_utils import Entity
 from src.models.locker_models import LockerModel, LockerStates, LockerTypes
-from src.models.session_models import SessionModel, SessionStates, ACTIVE_SESSION_STATES
+from src.models.session_models import SessionModel, SessionState, ACTIVE_SESSION_STATES
 # Models
 from src.models.station_models import StationModel
 # Services
@@ -16,7 +16,7 @@ from src.services.mqtt_services import fast_mqtt
 
 class Locker(Entity):
     """Add behaviour to a locker instance."""
-    document: LockerModel
+    doc: LockerModel
 
     @classmethod
     async def find_available(cls, station: StationModel, locker_type: LockerTypes):
@@ -27,12 +27,12 @@ class Locker(Entity):
         stale_session = await SessionModel.find(
             SessionModel.assigned_station.id == station.id,  # pylint: disable=no-member
             SessionModel.assigned_locker.locker_type == locker_type.name,  # pylint: disable=no-member
-            SessionModel.session_state == SessionStates.STALE,
+            SessionModel.session_state == SessionState.STALE,
             fetch_links=True
-        ).sort((SessionModel.created_ts, SortDirection.ASCENDING)).first_or_none()
+        ).sort((SessionModel.created_at, SortDirection.ASCENDING)).first_or_none()
 
         if stale_session:
-            instance.document = await LockerModel.get(stale_session.assigned_locker.id)
+            instance.doc = await LockerModel.get(stale_session.assigned_locker.id)
             return instance
 
         # 2. Find all active sessions at this station
@@ -40,7 +40,7 @@ class Locker(Entity):
             SessionModel.assigned_station.id == station.id,  # pylint: disable=no-member
             In(SessionModel.session_state, ACTIVE_SESSION_STATES),
             fetch_links=True
-        ).sort((SessionModel.created_ts, SortDirection.ASCENDING)).to_list()
+        ).sort((SessionModel.created_at, SortDirection.ASCENDING)).to_list()
         active_lockers = [
             session.assigned_locker.id for session in active_sessions]
         # TODO: Create a station locker count key, it is useful for such tasks
@@ -55,27 +55,26 @@ class Locker(Entity):
             fetch_links=True
         ).sort((LockerModel.total_session_count, SortDirection.ASCENDING)).first_or_none()
         if available_locker:
-            instance.document = available_locker
+            instance.doc = available_locker
 
         return instance
 
     @property
     def exists(self) -> bool:
         """Check whether this object exists."""
-        return self.document is not None
+        return self.doc is not None
 
     async def register_state(self, state: LockerStates):
         """Update the reported (actual) locker state"""
-        logger.debug(f"Locker '#{self.document.callsign.replace('#', '')}' ('{
-                     self.document.id}') registered as: {state}.")
-        self.document.reported_state = state
-        await self.document.save_changes(skip_actions=['log_changes'])
+        logger.debug(f"Locker '#{self.doc.callsign.replace('#', '')}' ('{
+                     self.doc.id}') registered as: {state}.")
+        self.doc.reported_state = state
+        await self.doc.save_changes(skip_actions=['log_changes'])
 
     async def instruct_state(self, state: LockerStates):
         """Send a message to the station to unlock the locker."""
-        # await self.document.fetch_link(LockerModel.station)
         logger.debug(
-            (f"Sending {state} instruction to locker '#{self.document.id}' "
-             f"at station '#{self.document.station.callsign}'."))
+            (f"Sending {state} instruction to locker '#{self.doc.id}' "
+             f"at station '#{self.doc.station.callsign}'."))
         fast_mqtt.publish(
             f'stations/{self.station.callsign}/locker/{self.station_index}/instruct', state.value)

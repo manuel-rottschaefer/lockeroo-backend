@@ -7,7 +7,7 @@ from uuid import UUID
 from beanie import PydanticObjectId as ObjId, SortDirection
 from beanie.operators import In
 # Models
-from src.models.session_models import SessionModel, SessionStates, ACTIVE_SESSION_STATES
+from src.models.session_models import SessionModel, SessionState, ACTIVE_SESSION_STATES
 # Exceptions
 from src.exceptions.user_exceptions import UserHasActiveSessionException
 
@@ -20,7 +20,7 @@ async def has_active_session(user_id: UUID) -> bool:
         In(SessionModel.session_state,
            ACTIVE_SESSION_STATES),  # pylint: disable=no-member
         fetch_links=True
-    ).sort((SessionModel.created_ts, SortDirection.DESCENDING)).first_or_none()
+    ).sort((SessionModel.created_at, SortDirection.DESCENDING)).first_or_none()
 
     if active_session:
         raise UserHasActiveSessionException(user_id=user_id)
@@ -31,7 +31,7 @@ async def has_active_session(user_id: UUID) -> bool:
 async def get_expired_session_count(user_id: ObjId) -> int:
     return await SessionModel.find(
         SessionModel.user.id == user_id,  # pylint: disable=no-member
-        SessionModel.session_state == SessionStates.EXPIRED,
-        SessionModel.created_ts >= (datetime.now() - timedelta(hours=24)),
+        SessionModel.session_state == SessionState.EXPIRED,
+        SessionModel.created_at >= (datetime.now() - timedelta(hours=24)),
         fetch_links=True
     ).count()

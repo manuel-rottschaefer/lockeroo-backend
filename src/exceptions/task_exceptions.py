@@ -7,19 +7,15 @@ from beanie import PydanticObjectId as ObjId
 from fastapi import HTTPException
 # Models
 from src.models.task_models import TaskType
-from src.models.session_models import SessionStates
 
 
 class TaskNotFoundException(Exception):
     """Exception raised when a task cannot be found by a given query."""
 
-    def __init__(self, task_id: ObjId = None,
-                 queued_state: SessionStates = None,
+    def __init__(self,
                  assigned_station: Union[ObjId, str] = None,
                  task_type: TaskType = None,
                  raise_http: bool = True):
-        self.task_id = task_id
-        self.queued_state = queued_state
         self.station = assigned_station
         self.type = task_type
 
@@ -28,4 +24,4 @@ class TaskNotFoundException(Exception):
 
     def __str__(self):
         return (f"Could not find task of type {self.type}"
-                f", awaiting {self.queued_state} at station '#{self.station}'.")
+                f" at station '#{self.station}'.")

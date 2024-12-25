@@ -10,12 +10,12 @@ from beanie import PydanticObjectId as ObjId
 from fastapi import APIRouter, Path, Response
 
 from src.models.locker_models import LockerView, LockerStates
-from src.models.session_models import SessionStates, SessionView
+from src.models.session_models import SessionState, SessionView
 # Models
 from src.models.station_models import (
     StationStates,
     StationView,
-    TerminalStates)
+    TerminalState)
 # Services
 from src.services import locker_services, station_services
 from src.services.exception_services import handle_exceptions
@@ -105,10 +105,7 @@ async def reset_station_queue(
         callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
         response: Response) -> StationView:
     """Reset the queue at the station. This is helpful if the queue is stale."""
-    return await station_services.reset_queue(
-        callsign=callsign,
-        response=response
-    )
+    return await station_services.reset_queue(callsign=callsign)
 
 
 @validate_mqtt_topic('stations/+/terminal/confirm', [ObjId])
@@ -117,20 +114,22 @@ async def handle_terminal_confirmation(
         _client, topic, payload, _qos, _properties) -> None:
     """Handle a confirmation from a station that it entered a mode at its terminal"""
     callsign = topic.split('/')[1]
-    mode = payload.decode('utf-8')
-    terminal_state: TerminalStates
+    mode = payload.decode('utf-8').upper()
+    terminal_state: TerminalState
 
     if not mode:
         logger.warning(
             f"Invalid station terminal report from station {callsign}.")
         return
 
-    if mode in ['VERIFICATION', 'PAYMENT']:
-        terminal_state = TerminalStates[mode]
+    # if mode in terminalstates
+    if mode in TerminalState.__members__:
+        terminal_state = TerminalState[mode]
     else:
         return
 
-    await station_services.handle_terminal_confirmation(callsign, terminal_state)
+    await station_services.handle_terminal_state_confirmation(
+        callsign, terminal_state)
 
 
 @validate_mqtt_topic('stations/+/verification/report', [ObjId])
@@ -142,18 +141,13 @@ async def handle_verification_report(
     callsign = topic.split('/')[1]
     card_id = payload.decode('utf-8')
 
-    # if not callsign or not card_id:
-    #    raise src.services.exception_services.InvalidStationReportException(
-    #        station_callsign=callsign,
-    #        reported_state=SessionStates.VERIFICATION)
-
     logger.info(
-        f"Station '{callsign}' reported {SessionStates.VERIFICATION} with card '#{card_id}'.")
+        f"Station '{callsign}' reported {SessionState.VERIFICATION} with card '#{card_id}'.")
 
     await station_services.handle_terminal_report(
         callsign=callsign,
-        expected_session_state=SessionStates.VERIFICATION,
-        expected_terminal_state=TerminalStates.VERIFICATION,
+        expected_session_state=SessionState.VERIFICATION,
+        expected_terminal_state=TerminalState.VERIFICATION,
     )
 
 
@@ -166,13 +160,13 @@ async def handle_station_payment_report(
     callsign = topic.split('/')[1]
 
     logger.info(
-        (f"Station '#{callsign}' reported {SessionStates.PAYMENT} "
+        (f"Station '#{callsign}' reported {SessionState.PAYMENT} "
          f"with card '#123456'."))
 
     await station_services.handle_terminal_report(
         callsign=callsign,
-        expected_session_state=SessionStates.PAYMENT,
-        expected_terminal_state=TerminalStates.PAYMENT
+        expected_session_state=SessionState.PAYMENT,
+        expected_terminal_state=TerminalState.PAYMENT
     )
 
 

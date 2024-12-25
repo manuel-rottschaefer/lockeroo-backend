@@ -43,9 +43,9 @@ class UserModel(Document):  # pylint: disable=too-many-ancestors
     has_active_session: bool = False
 
     # User statistics
-    signup_ts: datetime = Field(
+    signup_at: datetime = Field(
         datetime.now(), description="Timestamp of user signup.")
-    last_login_ts: Optional[datetime] = None
+    last_login_at: Optional[datetime] = None
 
     total_session_count: int = Field(0, description="Amount of total sessions")
     total_session_duration: float = Field(

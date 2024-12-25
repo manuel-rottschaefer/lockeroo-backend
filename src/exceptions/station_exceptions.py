@@ -1,12 +1,12 @@
 """This module provides exception classes for station management."""
-# Beanie
-from beanie import PydanticObjectId as ObjId
 # Log level
 from logging import INFO, WARNING
+# Beanie
+from beanie import PydanticObjectId as ObjId
 # Exceptions
 from fastapi import HTTPException
 # Models
-from src.models.station_models import TerminalStates
+from src.models.station_models import TerminalState
 
 
 class StationNotFoundException(Exception):
@@ -54,7 +54,7 @@ class InvalidStationReportException(Exception):
 
     def __str__(self):
         return f"Invalid station report of {
-            self.reported_state} at station '{self.station_callsign}'.)"
+            self.reported_state} at station '#{self.station_callsign}'.)"
 
 
 class InvalidTerminalStateException(Exception):
@@ -63,8 +63,8 @@ class InvalidTerminalStateException(Exception):
 
     def __init__(self,
                  station_callsign: str,
-                 expected_state: TerminalStates,
-                 actual_state: TerminalStates,
+                 expected_state: TerminalState,
+                 actual_state: TerminalState,
                  raise_http: bool = True):
         self.station_callsign = station_callsign
         self.expected_state = expected_state
@@ -74,5 +74,5 @@ class InvalidTerminalStateException(Exception):
             raise HTTPException(status_code=400, detail=self.__str__())
 
     def __str__(self):
-        return (f"Invalid terminal state at station '{self.station_callsign}'.)"
+        return (f"Invalid terminal state at station '#{self.station_callsign}'."
                 f" Expected '{self.expected_state}', got '{self.actual_state}'.")

@@ -5,7 +5,7 @@
     "station_type": "V1M",
     "hw_version": "V1",
     "sw_version": "1.0.0",
-    "installation_ts": "2024-09-01T00:00:00Z",
+    "installed_at": "2024-09-01T00:00:00Z",
     "installed_lockers": 18,
     "station_state": "available",
     "terminal_state": "idle",

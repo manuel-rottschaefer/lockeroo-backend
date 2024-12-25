@@ -44,7 +44,7 @@ async def create_scheduled_maintenance(
 
     maintenance_item = await Maintenance().create(station_id=station.id,
                                                   staff_id=staff_id)
-    return maintenance_item.document
+    return maintenance_item.doc
 
 
 @maintenance_router.get('/{callsign}/maintenance/next',

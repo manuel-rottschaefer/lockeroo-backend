@@ -6,11 +6,11 @@ from datetime import datetime
 from beanie import PydanticObjectId as ObjId
 # Models
 from src.models.action_models import ActionModel
-from src.models.session_models import SessionStates
+from src.models.session_models import SessionState
 
 
 async def create_action(session_id: ObjId,
-                        action_type: SessionStates) -> ActionModel:
+                        action_type: SessionState) -> ActionModel:
     """Create a new action entry"""
     new_action = await ActionModel(
         assigned_session=session_id,

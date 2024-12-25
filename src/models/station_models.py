@@ -25,7 +25,7 @@ class StationStates(str, Enum):
     OUTOFSERVICE = "outOfService"  # Station terminal is offline and awaiting repair
 
 
-class TerminalStates(str, Enum):
+class TerminalState(str, Enum):
     """Modes of station terminals.
     Should always be idle except for short periods when users are interacting."""
     # TODO: Add a watch service that checks whether terminals are reported
@@ -68,12 +68,12 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     sw_version: str
 
     # Setup and Installation Data
-    installation_ts: datetime
+    installed_at: datetime
     installed_lockers: int
 
     # Operation state
     station_state: StationStates = Field(default=StationStates.AVAILABLE)
-    terminal_state: TerminalStates = Field(default=TerminalStates.IDLE)
+    terminal_state: TerminalState = Field(default=TerminalState.IDLE)
     next_service_date: datetime
     service_due: bool
 
@@ -100,7 +100,7 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
 
     ### State broadcasting ###
     @after_event(SaveChanges)
-    def instruct_terminal_state(self, instruct_state: TerminalStates = None):
+    def instruct_terminal_state(self, instruct_state: TerminalState = None):
         """Send an update message regarding the session state to the mqtt broker."""
         state_to_broadcast = instruct_state if instruct_state is not None else self.terminal_state
         logger.debug(

@@ -11,35 +11,35 @@ from src.entities.station_entity import Station
 from src.models.payment_models import PaymentModel, PaymentStates, PricingModel
 from src.models.session_models import SessionModel
 # Models
-from src.models.station_models import TerminalStates
+from src.models.station_models import TerminalState
 # Services
 from src.services.payment_services import PRICING_MODELS
 
 
 class Payment(Entity):
     """Add behaviour to a payment Entity."""
-    document: PaymentModel
+    doc: PaymentModel
 
     @classmethod
     async def create(cls, session: SessionModel):
         """Create a new payment item and insert it into the database."""
         instance = cls()
 
-        instance.document = PaymentModel(
+        instance.doc = PaymentModel(
             assigned_station=session.assigned_station,
             assigned_session=session,
             state=PaymentStates.SCHEDULED,
             last_updated=datetime.now()
         )
-        await instance.document.insert()
+        await instance.doc.insert()
         return instance
 
     @property
     async def current_price(self) -> Optional[int]:
         """Calculate the total cost of a session in cents."""
         # 1: Get the assigned session
-        await self.document.fetch_all_links()
-        session: Session = Session(self.document.assigned_session)
+        await self.doc.fetch_all_links()
+        session: Session = Session(self.doc.assigned_session)
 
         # 2: Get the locker assigned to this session
         locker: Locker = Locker(session.assigned_locker)
@@ -60,8 +60,5 @@ class Payment(Entity):
 
     async def activate(self):
         """Activate the session by calculating the price, then sending it to the terminal."""
-        await self.document.fetch_all_links()
-        self.document.price = await self.current_price
-
-        station: Station = Station(self.document.assigned_station)
-        await station.register_terminal_state(TerminalStates.PAYMENT)
+        await self.doc.fetch_all_links()
+        self.doc.price = await self.current_price

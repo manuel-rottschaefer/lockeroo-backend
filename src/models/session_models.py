@@ -10,7 +10,8 @@ from uuid import UUID
 # Beanie
 from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
-from beanie import SaveChanges,  View, after_event
+from beanie import (
+    SaveChanges, Insert, View, before_event, after_event)
 from pydantic import Field
 
 # Models
@@ -31,7 +32,7 @@ class SessionTypes(str, Enum):
     RETOUR = "retour"
 
 
-class SessionStates(str, Enum):
+class SessionState(str, Enum):
     """A complete list of all session states with their timeout duration in seconds,
     whether the session is considered as 'active' in that state
     and the default follow-up session state."""
@@ -64,47 +65,47 @@ class SessionStates(str, Enum):
     ABORTED = "aborted"
 
 
-ACTIVE_SESSION_STATES: List[SessionStates] = [
-    SessionStates.CREATED,
-    SessionStates.ACTIVE,
-    SessionStates.PAYMENT_SELECTED,
-    SessionStates.VERIFICATION,
-    SessionStates.STASHING,
-    SessionStates.HOLD,
-    SessionStates.PAYMENT,
-    SessionStates.RETRIEVAL
+ACTIVE_SESSION_STATES: List[SessionState] = [
+    SessionState.CREATED,
+    SessionState.ACTIVE,
+    SessionState.PAYMENT_SELECTED,
+    SessionState.VERIFICATION,
+    SessionState.STASHING,
+    SessionState.HOLD,
+    SessionState.PAYMENT,
+    SessionState.RETRIEVAL
 ]
 
-SESSION_TIMEOUTS: Dict[SessionStates, int] = {
-    SessionStates.CREATED: 60,
-    SessionStates.PAYMENT_SELECTED: 120,
-    SessionStates.VERIFICATION: 60,
-    SessionStates.STASHING: 90,
-    SessionStates.ACTIVE: 86400,
-    SessionStates.HOLD: 300,
-    SessionStates.PAYMENT: 60,
-    SessionStates.RETRIEVAL: 90,
-    SessionStates.COMPLETED: 0,
-    SessionStates.CANCELLED: 0,
-    SessionStates.STALE: 0,
-    SessionStates.EXPIRED: 0,
-    SessionStates.ABORTED: 0
+SESSION_TIMEOUTS: Dict[SessionState, int] = {
+    SessionState.CREATED: 60,
+    SessionState.PAYMENT_SELECTED: 120,
+    SessionState.VERIFICATION: 60,
+    SessionState.STASHING: 90,
+    SessionState.ACTIVE: 86400,
+    SessionState.HOLD: 300,
+    SessionState.PAYMENT: 60,
+    SessionState.RETRIEVAL: 90,
+    SessionState.COMPLETED: 0,
+    SessionState.CANCELLED: 0,
+    SessionState.STALE: 0,
+    SessionState.EXPIRED: 0,
+    SessionState.ABORTED: 0
 }
 
-FOLLOW_UP_STATES: Dict[SessionStates, Union[SessionStates, None]] = {
-    SessionStates.CREATED: SessionStates.PAYMENT_SELECTED,
-    SessionStates.PAYMENT_SELECTED: SessionStates.VERIFICATION,
-    SessionStates.VERIFICATION: SessionStates.STASHING,
-    SessionStates.STASHING: SessionStates.ACTIVE,
-    SessionStates.ACTIVE: SessionStates.PAYMENT,
-    SessionStates.HOLD: SessionStates.PAYMENT,
-    SessionStates.PAYMENT: SessionStates.RETRIEVAL,
-    SessionStates.RETRIEVAL: SessionStates.COMPLETED,
-    SessionStates.COMPLETED: None,
-    SessionStates.CANCELLED: None,
-    SessionStates.STALE: None,
-    SessionStates.EXPIRED: None,
-    SessionStates.ABORTED: None
+FOLLOW_UP_STATES: Dict[SessionState, Union[SessionState, None]] = {
+    SessionState.CREATED: SessionState.PAYMENT_SELECTED,
+    SessionState.PAYMENT_SELECTED: SessionState.VERIFICATION,
+    SessionState.VERIFICATION: SessionState.STASHING,
+    SessionState.STASHING: SessionState.ACTIVE,
+    SessionState.ACTIVE: SessionState.PAYMENT,
+    SessionState.HOLD: SessionState.PAYMENT,
+    SessionState.PAYMENT: SessionState.RETRIEVAL,
+    SessionState.RETRIEVAL: SessionState.COMPLETED,
+    SessionState.COMPLETED: None,
+    SessionState.CANCELLED: None,
+    SessionState.STALE: None,
+    SessionState.EXPIRED: None,
+    SessionState.ABORTED: None
 }
 
 
@@ -128,9 +129,6 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     user: Link[UserModel] = Field(  # TODO: Remove union here
         None, description="The assigned user to this session.")
 
-    created_ts: datetime = Field(
-        datetime.now(), description="Datetime of session creation.")
-
     ### Session Properties ###
     session_type: SessionTypes = Field(
         default=SessionTypes.PERSONAL, description="The type of session service.\
@@ -140,32 +138,41 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
             Affects ability to hold and resume sessions.")
 
     ### State management ###
-    session_state: SessionStates = Field(
-        default=SessionStates.CREATED, description="The current, internal set session state.")
+    session_state: SessionState = Field(
+        default=SessionState.CREATED, description="The current, internal set session state.")
+
+    ### Required Timestamps ###
+    created_at: datetime = Field(
+        None, description="Timestamp of session creation."
+    )
 
     # Statistics
     total_duration: Optional[timedelta] = Field(
-        None,
-        description=("Total duration between session creation and completion.",
-                     "This value is only being calculated on demand and can be None."))
+        None, description=("Total duration between session creation and completion.",
+                           "This value is only being calculated on demand and can be None."))
 
-    ### Status Broadcasting ###
-    @after_event(SaveChanges)
-    async def notify_state(self):
+    @ before_event(Insert)
+    async def set_creation_data(self):
+        self.created_at = datetime.now()
+
+    @ after_event(Insert)
+    async def log_creation(self):
+        logger.debug(
+            (f"Created session '#{self.id}' for user "
+             f"'#{self.user.id}' at locker '#{self.assigned_locker.callsign}'."))  # pylint: disable=no-member
+
+    @ after_event(SaveChanges)
+    async def handle_update(self):
         """Send an update message regarding the session state to the mqtt broker."""
         await websocket_services.send_text(session_id=self.id, text=self.session_state)
-
-    @after_event(SaveChanges)
-    async def log_state_change(self):
-        """Log the state change."""
         logger.debug(
-            f"Session '#{self.id}' moved to {self.session_state}."
-        )
+            f"Session '#{self.id}' moved to {self.session_state}.")
 
-    @dataclasses.dataclass
+    @ dataclasses.dataclass
     class Settings:  # pylint: disable=missing-class-docstring
         name = "sessions"
         use_state_management = True
+        use_revision = False
         use_cache = False
         # Set the expiration time to one second so the session state is not cached over requests
         # cache_expiration_time = timedelta(seconds=1)
@@ -188,17 +195,18 @@ class SessionView(View):
     session_type: SessionTypes = Field(
         None, description="Type of session")
 
-    session_state: SessionStates = Field(
+    session_state: SessionState = Field(
         None, description="Current state of the session")
 
-    created_ts: datetime = Field(
-        datetime.now(), description="Datetime of session creation.")
+    # These timestamps are only gathered from session actions when a
+    # session view isrequested to avoid duplicate data entries
+    # TODO: Implement a timestamping mechanism
 
-    @dataclasses.dataclass
+    @ dataclasses.dataclass
     class Config:  # pylint: disable=missing-class-docstring
         from_attributes = True
 
-    @dataclasses.dataclass
+    @ dataclasses.dataclass
     class Settings:  # pylint: disable=missing-class-docstring
         source = SessionModel
         projection = {
@@ -217,17 +225,13 @@ class CompletedSession(View):
     station: ObjId
     locker: Optional[int] = None
     serviceType: SessionTypes
-    state: SessionStates
-
-    # Important timestamps
-    started_ts: datetime
-    completed_ts: datetime
+    state: SessionState
 
     # These values can be calculated with the createSummary method
     finalPrice: Optional[float] = None
     totalDuration: Optional[float] = None
     activeDuration: Optional[float] = None
 
-    @dataclasses.dataclass
+    @ dataclasses.dataclass
     class Config:  # pylint: disable=missing-class-docstring
         from_attributes = True

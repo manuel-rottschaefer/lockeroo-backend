@@ -35,6 +35,6 @@ class BillModel(Document):  # pylint: disable=too-many-ancestors
         None, description="Selected payment method"
     )
 
-    issued_ts: datetime = Field(
+    issued_at: datetime = Field(
         None, description="The timestamp at which the bill was requested."
     )

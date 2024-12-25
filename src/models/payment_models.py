@@ -68,18 +68,18 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
     async def check_pending(self):
         """Check if this payment is now pending."""
         # 1: Update the timestamp
-        self.document.last_updated = datetime.now()
+        self.doc.last_updated = datetime.now()
 
         # 2: Check if the payment is now pending
         # TODO: Properly implement this
         if self.state == PaymentStates.PENDING:
             session: Session = Session(self.assigned_session)
-            await session.document.fetch_all_links()
+            await session.doc.fetch_all_links()
             station: Station = await Station(session.assigned_station)
             fast_mqtt.publish(
                 f'/stations/{station.callsign}/payment/{self.price}')
 
-        await self.document.save_changes()
+        await self.doc.save_changes()
 
     @dataclasses.dataclass
     class Settings:  # pylint: disable=missing-class-docstring

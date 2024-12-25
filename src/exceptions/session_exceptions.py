@@ -8,7 +8,7 @@ from fastapi import HTTPException
 # Log level
 from logging import INFO, WARNING
 # Models
-from src.models.session_models import SessionStates
+from src.models.session_models import SessionState
 
 
 class SessionNotFoundException(Exception):
@@ -29,8 +29,8 @@ class InvalidSessionStateException(Exception):
     """Exception raised when a session is not matching the expected state."""
 
     def __init__(self, session_id: ObjId,
-                 expected_states: List[SessionStates],
-                 actual_state: SessionStates,
+                 expected_states: List[SessionState],
+                 actual_state: SessionState,
                  raise_http: bool = True):
         self.session_id = session_id
         self.expected_states = expected_states
@@ -42,4 +42,5 @@ class InvalidSessionStateException(Exception):
 
     def __str__(self):
         return (f"Invalid state of session '#{self.session_id}':"
-                f"Expected {self.expected_states}, got {self.actual_state}")
+                f"Expected {[state for state in self.expected_states]}, "
+                f"got {self.actual_state}")

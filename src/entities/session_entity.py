@@ -3,8 +3,6 @@
 from datetime import datetime, timedelta
 # Types
 from typing import List
-# Beanie
-from beanie import WriteRules
 # Entities
 from src.entities.entity_utils import Entity
 # Models
@@ -15,48 +13,27 @@ from src.models.user_models import UserModel
 from src.models.session_models import (
     SessionModel,
     SessionView,
-    SessionStates,
+    SessionState,
     FOLLOW_UP_STATES)
 
 # Services
-from src.services.logging_services import logger
 from src.services.action_services import create_action
 
 
 class Session(Entity):
     """Add behaviour to a session instance."""
-    document: SessionModel
-
-    @classmethod
-    async def create(
-        cls,
-        user: UserModel,
-        station: StationModel,
-        locker: LockerModel
-    ):
-        """Create a new session item and insert it into the database."""
-        instance = cls()
-        instance.document = SessionModel(
-            user=user,
-            assigned_station=station,
-            assigned_locker=locker,
-            session_state=SessionStates.CREATED,
-            created_ts=datetime.now(),
-        )
-        await instance.document.insert(link_rule=WriteRules.WRITE)
-        return instance
+    doc: SessionModel
 
     @property
     async def view(self) -> SessionView:
-        await self.document.fetch_all_links()
+        await self.doc.fetch_all_links()
         return SessionView(
             id=self.id,
             assigned_station=self.assigned_station.id,
             user=self.user.fief_id,
             locker_index=self.assigned_locker.station_index if self.assigned_locker else None,
             session_type=self.session_type,
-            session_state=self.session_state,
-            created_ts=self.created_ts
+            session_state=self.session_state
         )
 
     ### Calculated Properties ###
@@ -64,23 +41,23 @@ class Session(Entity):
     @ property
     def exists(self) -> bool:
         """Check whether this object exists."""
-        return self.document is not None
+        return self.doc is not None
 
     @ property
     async def total_duration(self) -> timedelta:
         """Returns the amount of seconds between session creation and completion or now."""
         # Return the seconds since the session was created if it is still running
-        if self.document.session_state != SessionStates.COMPLETED:
-            return datetime.now() - self.document.created_ts
+        if self.doc.session_state != SessionState.COMPLETED:
+            return datetime.now() - self.doc.created_at
 
         # Otherwise, return the seconds between creation and completion
         completed_action: ActionModel = await ActionModel.find_one(
             ActionModel.assigned_session.id == self.id,  # pylint: disable=no-member
-            ActionModel.action_type == SessionStates.COMPLETED.name,
+            ActionModel.action_type == SessionState.COMPLETED.name,
             fetch_links=True
         )
 
-        return completed_action.timestamp - self.document.created_ts
+        return completed_action.timestamp - self.doc.created_at
 
     @ property
     async def active_duration(self) -> timedelta:
@@ -91,44 +68,36 @@ class Session(Entity):
         active_duration: timedelta = timedelta(minutes=0)
         cycle_start: datetime = None
 
-        hold_states: List[SessionStates] = [
-            SessionStates.HOLD,
-            SessionStates.PAYMENT,
+        hold_states: List[SessionState] = [
+            SessionState.HOLD,
+            SessionState.PAYMENT,
         ]
 
         # Sum up time between all locked cycles
         async for action in ActionModel.find(ActionModel.assigned_session == self.id).sort(
             ActionModel.timestamp
         ):
-            if action.action_type in SessionStates.ACTIVE:
+            if action.action_type in SessionState.ACTIVE:
                 cycle_start = action.timestamp
             elif action.action_type in hold_states:
                 active_duration += action.timestamp - cycle_start
                 return active_duration
 
     @ property
-    async def next_state(self) -> SessionStates:
+    async def next_state(self) -> SessionState:
         """Return the next logical state of the session."""
         return FOLLOW_UP_STATES[self.session_state]
-
-    async def assign_payment_method(self, payment_method: str) -> None:
-        """Assign a payment method to a session."""
-        self.document.payment_method = payment_method
-        logger.debug(
-            (f"Payment method '{payment_method.upper()}' "
-             f"assigned to session '#{self.id}'.")
-        )
 
     async def handle_conclude(self) -> None:
         """Calculate and store statistical data when session completes/expires/aborts."""
         await create_action(session_id=self.id,
-                            action_type=SessionStates.COMPLETED)
+                            action_type=SessionState.COMPLETED)
         total_duration: timedelta = await self.total_duration
 
         # Update session state
-        self.document.session_state = SessionStates.COMPLETED
-        self.document.total_duration = total_duration
-        await self.document.save_changes()
+        self.doc.session_state = SessionState.COMPLETED
+        self.doc.total_duration = total_duration
+        await self.doc.save_changes()
 
         # Update station statistics
         await self.assigned_station.inc(
@@ -139,6 +108,6 @@ class Session(Entity):
             {LockerModel.total_session_count: 1,
              LockerModel.total_session_duration: total_duration})
         # Update user statistics
-        await self.document.user.inc({
+        await self.doc.user.inc({
             UserModel.total_session_count: 1,
             UserModel.total_session_duration: total_duration})

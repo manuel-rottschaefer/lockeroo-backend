@@ -14,7 +14,7 @@ from src.models.maintenance_models import MaintenanceModel, MaintenanceStates
 
 class Maintenance(Entity):
     """Add behaviour to a maintenance instance."""
-    document: MaintenanceModel
+    doc: MaintenanceModel
 
     @classmethod
     async def create(
@@ -24,11 +24,11 @@ class Maintenance(Entity):
     ):
         """Create a new maintenance event and insert it into the database."""
         instance = cls()
-        instance.document = MaintenanceModel(
+        instance.doc = MaintenanceModel(
             assigned_station=station_id,
             assigned_staff=staff_id,
             state=MaintenanceStates.SCHEDULED,
             scheduled_for=datetime.now(),
         )
-        await instance.document.insert()
+        await instance.doc.insert()
         return instance

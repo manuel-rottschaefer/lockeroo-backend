@@ -1,33 +1,31 @@
 """Utils for all entity classes."""
 
-# Beanie
-from beanie import After
-
 
 class Entity():
     """Defines an entity object."""
 
     def __init__(self, document=None):
         # Initialize the document attribute
-        self.document = document
+        self.doc = document
 
     def __getattr__(self, name):
-        """Delegate attribute and method access to the internal document."""
-        return getattr(self.document, name)
+        """Forward attribute access to the document if required, but not function calls"""
+        if name == "doc":
+            # Return the document attribute
+            return self.doc
+        else:
+            # Forward attribute access to the document
+            attr = getattr(self.doc, name)
+            if callable(attr):
+                raise AttributeError(
+                    f"'{type(self).__name__}' object has no attribute '{name}'")
+            return attr
 
     def __setattr__(self, name, value):
         """Delegate attribute setting to the internal document, except for 'document' itself."""
-        if name == "document":
+        if name == "doc":
             # Directly set the 'document' attribute on the instance
             super().__setattr__(name, value)
         else:
             # Delegate setting other attributes to the document
-            setattr(self.document, name, value)
-
-    async def save_model_changes(self, notify: bool = False):
-        """Save local changes to the database with the option to broadcast changes."""
-        # TODO: Make the skip-actions list dynamic
-        if notify:
-            await self.document.save_changes()
-        else:
-            await self.document.save_changes(skip_actions=[After])
+            setattr(self.doc, name, value)

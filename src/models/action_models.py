@@ -15,7 +15,7 @@ from beanie import View
 from pydantic import Field
 
 # Models
-from src.models.session_models import SessionModel, SessionStates
+from src.models.session_models import SessionModel, SessionState
 
 
 class ActionModel(Document):  # pylint: disable=too-many-ancestors
@@ -53,6 +53,6 @@ class ActionView(View):  # pylint: disable=too-many-ancestors
     timestamp: datetime = Field(
         None, description="The timestamp at which the action was registered."
     )
-    action_type: SessionStates = Field(
+    action_type: SessionState = Field(
         None, description="The type of action that has been registered."
     )

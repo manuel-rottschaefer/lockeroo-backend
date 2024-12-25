@@ -7,7 +7,7 @@ from typing import Optional
 from beanie import PydanticObjectId as ObjId
 # Nodels
 from src.models.review_models import ReviewModel
-from src.models.session_models import SessionModel, SessionStates
+from src.models.session_models import SessionModel, SessionState
 from src.models.user_models import UserModel
 # Exceptions
 from src.exceptions.session_exceptions import (
@@ -32,16 +32,16 @@ async def handle_review_submission(session_id: ObjId,
         raise SessionNotFoundException(session_id=session_id)
 
     # 2: Check if the session has already been completed
-    if session.session_state != SessionStates.COMPLETED:
+    if session.session_state != SessionState.COMPLETED:
         raise InvalidSessionStateException(
             session_id=session_id,
-            expected_states=[SessionStates.COMPLETED],
+            expected_states=[SessionState.COMPLETED],
             actual_state=session.session_state)
 
     # 3: Then insert the review into the database
     return await ReviewModel(
         assigned_session=session.id,
-        submitted_ts=datetime.now(),
+        submitted_at=datetime.now(),
         experience_rating=experience_rating,
         cleanliness_rating=cleanliness_rating,
         details=details
@@ -61,7 +61,7 @@ async def get_session_review(
         raise ReviewNotFoundException(review_id=session_id)
 
     # 2: Check if the user is authorized to view the review
-    await review.document.fetch_link(ReviewModel.assigned_session)
+    await review.doc.fetch_link(ReviewModel.assigned_session)
     if review.assigned_session.user != user:
         raise UserNotAuthorizedException(user_id=user.id)
 

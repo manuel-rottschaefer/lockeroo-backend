@@ -1,7 +1,7 @@
 """This module provides utilities for  database for tasks."""
 
 # Basics
-from typing import List, Optional
+from typing import Optional
 from datetime import datetime, timedelta
 from asyncio import sleep, create_task
 import os
@@ -15,184 +15,169 @@ from src.entities.entity_utils import Entity
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
 from src.entities.locker_entity import Locker
-from src.models.session_models import SessionModel, SessionStates, SESSION_TIMEOUTS
+from src.models.session_models import (
+    SessionModel, SessionState,
+    FOLLOW_UP_STATES,
+    SESSION_TIMEOUTS,
+    ACTIVE_SESSION_STATES)
 # Models
-from src.models.station_models import StationModel, TerminalStates
-from src.models.locker_models import LockerModel, LockerStates
-from src.models.task_models import TaskItemModel, TaskStates, TaskType, TaskTarget
+from src.models.station_models import TerminalState
+from src.models.locker_models import LockerStates
+from src.models.station_models import StationModel
+from src.models.task_models import TaskItemModel, TaskState, TaskType, TaskTarget
 # Services
 from src.services.logging_services import logger
 
 
 class Task(Entity):
     """Add behaviour to a task Model."""
-    document: TaskItemModel
-
-    @classmethod
-    async def create(cls,
-                     task_target: TaskTarget,
-                     task_type: TaskType,
-                     session: SessionModel,
-                     queued_state: Optional[SessionStates],
-                     timeout_states: List[SessionStates],
-                     station: Optional[StationModel] = None,
-                     locker: Optional[LockerModel] = None,
-                     ):
-        """Create a new task item and insert it into the database.
-        :param session_id: The session assigned to this task
-        :param station_id: The station assigned to the session
-        :param queued)state: The next state the session will have after queue activation
-        :param timeout_state: The state the session will have after expiring once.
-        """
-        instance = cls()
-        instance.document = TaskItemModel(
-            target=task_target,
-            task_type=task_type,
-            assigned_session=session,
-            assigned_station=station,
-            assigned_locker=locker,
-            task_state=TaskStates.QUEUED,
-            queued_session_state=queued_state,
-            timeout_states=timeout_states,
-            created_ts=datetime.now(),
-
-        )
-        await instance.document.insert()
-        logger.debug(
-            (f"Created task '#{instance.document.id}' "
-             f"of {task_type} for session '#{session.id}'."))
-
-        # TODO: Only Terminal Tasks of type confirmation are queued
-        if task_target == TaskTarget.TERMINAL and task_type == TaskType.CONFIRMATION:
-            if await instance.is_next_in_queue:
-                await instance.activate()
-        else:
-            await instance.activate()
-
-        return instance
-
-    async def pop_queue(
-        self,
-            station: StationModel) -> Optional[TaskItemModel]:
-        """Get the next task in queue at a station."""
-        # Find the next task in queue or pending task
-        next_task = await TaskItemModel.find(
-            TaskItemModel.assigned_station.id == station.id,  # pylint: disable=no-member
-            TaskItemModel.target == TaskTarget.TERMINAL,
-            # TaskItemModel.task_type == TaskType.REPORT,
-            In(TaskItemModel.task_state,
-                [TaskStates.PENDING, TaskStates.QUEUED]),
-            TaskItemModel.assigned_locker == None,  # pylint: disable=singleton-comparison
-            fetch_links=True
-        ).sort(
-            (TaskItemModel.created_ts, SortDirection.ASCENDING)
-        ).first_or_none()
-
-        # If the next task is pending, return None
-        if next_task is not None and next_task.task_state == TaskStates.PENDING:
-            logger.info(
-                (f"Not proceeding with queue activation, "
-                 f"Task '#{next_task.id}' is still pending."))
-            return None
-
-        # Return the next queued task
-        return next_task
+    doc: TaskItemModel
 
     @property
     def exists(self) -> bool:
-        return self.document is not None
+        return self.doc is not None
 
-    @property
+    @classmethod
+    async def get_next_in_queue(cls, station_id: str) -> Optional['Task']:
+        """Get the next task in queue at the station of the current task."""
+        task_item = await TaskItemModel.find(
+            TaskItemModel.assigned_station.id == station_id,  # pylint: disable=no-member
+            TaskItemModel.target == TaskTarget.TERMINAL,
+            In(TaskItemModel.task_state, [
+               TaskState.PENDING, TaskState.QUEUED]),
+            fetch_links=True
+        ).sort(
+            (TaskItemModel.created_at, SortDirection.ASCENDING)
+        ).first_or_none()
+
+        if task_item:
+            return cls(task_item)
+
     async def is_next_in_queue(self) -> bool:
-        """Check whether this task is next in queue"""
-        next_task = await self.pop_queue(
-            station=self.assigned_station)
-        if next_task is None:
+        """Get the next task in queue at a station and check if this task is next in queue."""
+        # 1: Check if the station is still occupied
+        await self.doc.fetch_link(TaskItemModel.assigned_station)
+        await self.assigned_station.sync()  # TODO: Is this required here?
+        if (self.assigned_station.terminal_state != TerminalState.IDLE
+                and self.doc.task_type != TaskType.REPORT):
+            logger.info(
+                f"Not proceeding with queue activation, Station "
+                f"'{self.assigned_station.callsign}' is still occupied.")
             return False
 
-        if is_next := next_task.id == self.id:
-            logger.debug(
-                f"Task '#{next_task.id}' identified as next in queue at station '{
-                    self.id}'."
+        # 2: Find the next task in queue or pending task
+        next_task: Task = await Task.get_next_in_queue(
+            station_id=self.doc.assigned_station.id)
+
+        # If the next task is pending, return None
+        if next_task is not None and next_task.id == self.id:
+            logger.debug((f"Task '#{next_task.id}' identified "
+                          f"as next in queue at station '#{self.id}'."))
+            return True
+        elif next_task.doc.task_state == TaskState.PENDING:
+            logger.info(
+                f"Not proceeding with queue activation, "
+                f"Task '#{next_task.id}' is still pending."
             )
-        return is_next
+
+    async def move_in_queue(self):
+        """Evaluate the position of this task in the queue and activate it in case it is next."""
+        await self.doc.fetch_link(TaskItemModel.assigned_station)
+        station = self.doc.assigned_station
+
+        # Tasks that are not terminal tasks are activated immediately
+        if self.target != TaskTarget.TERMINAL:
+            await self.activate()
+
+        elif self.doc.task_type == TaskType.REPORT:
+            if await self.is_next_in_queue():
+                await self.activate()
+
+        # Do not activate a task if the terminal is still occupied.
+        elif station.terminal_state != TerminalState.IDLE:
+            return
+
+        # Report tasks for terminals are activated immediately
+        # elif self.doc.task_type == TaskType.REPORT:
+        elif await self.is_next_in_queue():
+            await self.activate()
+
+        # Evaluate queue for terminal tasks
 
     ### State mapper ###
-    def map_session_to_terminal_state(self, session_state: SessionStates) -> Optional[TerminalStates]:
+
+    def map_session_to_terminal_state(
+            self, session_state: SessionState) -> Optional[TerminalState]:
         """Map session states to task states."""
         # TODO: This is a suboptimal solution, refactor this
         STATE_MAP = {  # pylint: disable=invalid-name
-            SessionStates.PAYMENT_SELECTED: TerminalStates.VERIFICATION,
-            SessionStates.ACTIVE: TerminalStates.PAYMENT
+            SessionState.PAYMENT_SELECTED: TerminalState.VERIFICATION,
+            SessionState.ACTIVE: TerminalState.PAYMENT
         }
         if session_state in STATE_MAP:
             return STATE_MAP.get(session_state)
 
     ### Session runner ###
 
-    def get_timeout_window(self, session_state):
-        """Get the timeout window in seconds from the config file."""
+    def get_timeout_window(self) -> int:
+        """Get the timeout window in seconds depending on the task context"""
         timeout_window = 0
-        if self.document.target == TaskTarget.USER:
-            timeout_window = int(os.getenv("USER_EXPIRATION", '300'))
-        elif self.document.target in {TaskTarget.TERMINAL, TaskTarget.LOCKER}:
-            if self.document.task_type == TaskType.CONFIRMATION:
-                timeout_window = int(os.getenv("STATION_EXPIRATION", '10'))
-            else:
-                timeout_window = SESSION_TIMEOUTS.get(session_state)
-        else:
-            timeout_window = SESSION_TIMEOUTS.get(
-                session_state)  # Default case if no match found
+        if self.doc.target in [TaskTarget.USER, TaskTarget.LOCKER]:
+            timeout_window = SESSION_TIMEOUTS[
+                self.doc.assigned_session.session_state]
 
-        assert timeout_window, f"No timeout window found for task '#{
-            self.document.id}'."
+        elif self.target == TaskTarget.TERMINAL:
+            timeout_window = int(os.getenv("STATION_EXPIRATION", '10'))
+
+        assert (timeout_window is not None
+                ), f"No timeout window found for task '#{self.doc.id}'."
 
         return timeout_window
 
     async def activate(self) -> None:
-        """Call the correct activation handler based on task type."""
+        """On activation, a series of actions are activated.
+        The task is then awaiting a state so it can be completed."""
+        assert (self.doc.task_state == TaskState.QUEUED
+                ), f"Task '#{self.doc.id}' is not queued."
+
         # 1: Get the assigned session
-        session: Session = Session(self.document.assigned_session)
+        session: Session = Session(self.doc.assigned_session)
 
         # 2: Get the timeout window for terminal confirmation
-        window_state: SessionStates = self.document.queued_session_state or session.session_state
-        timeout_window = self.get_timeout_window(window_state)
-        timeout_date: datetime = self.document.created_ts + \
+        timeout_window = self.get_timeout_window()
+        timeout_date: datetime = self.doc.created_at + \
             timedelta(seconds=timeout_window)
 
         # 3: Update task item
-        self.document.task_state = TaskStates.PENDING
-        self.document.activated_at = datetime.now()
-        self.document.expires_at = timeout_date
-        self.document.expiration_window = timeout_window
-        await self.document.save_changes()
+        self.doc.task_state = TaskState.PENDING
+        self.doc.activated_at = datetime.now()
+        self.doc.expires_at = timeout_date
+        self.doc.expiration_window = timeout_window
+        await self.doc.save_changes()
 
         # logger.debug(
-        #    (f"Task '#{self.document.id}' will time out to "
-        #     f"{self.document.timeout_states[0]} in {timeout_window} seconds."))
+        #    (f"Task '#{self.doc.id}' will time out to "
+        #     f"{self.doc.timeout_states[0]} in {timeout_window} seconds."))
 
         # If the task awaited a report, advance the session state
-        if self.document.task_type == TaskType.REPORT:
-            # Advance session to next state
-            if self.document.queued_session_state:
-                session.document.session_state = self.document.queued_session_state
-                await session.document.save_changes()
+        if self.doc.task_type == TaskType.REPORT and self.doc.moves_session:
+            session.doc.session_state = FOLLOW_UP_STATES[session.session_state]
+            await session.doc.save_changes()
 
-        elif self.document.task_type == TaskType.CONFIRMATION:
+        elif self.doc.task_type == TaskType.CONFIRMATION:
             # Check if the task is awaiting confirmation from terminal or locker
-            if self.document.target in TaskTarget.TERMINAL:
+            if self.doc.target == TaskTarget.TERMINAL:
                 # Instruct the station to enable the terminal
-                station: Station = Station(self.document.assigned_station)
-                await station.sync()
-                assert (station.document.terminal_state == TerminalStates.IDLE
-                        ), f"Terminal of station '#{station.document.id}' is not idle."
+                station: Station = Station(self.doc.assigned_station)
                 if terminal_state := self.map_session_to_terminal_state(session.session_state):
-                    station.document.instruct_terminal_state(terminal_state)
-            elif self.document.target == TaskTarget.LOCKER:
+                    station.doc.instruct_terminal_state(terminal_state)
+
+            elif self.doc.target == TaskTarget.LOCKER:
                 # Instruct the locker to unlock
-                locker: Locker = Locker(self.document.assigned_locker)
-                assert (locker.document.reported_state == LockerStates.LOCKED
-                        ), f"Locker {locker.document.id} is not locked."
+                await self.doc.fetch_link(TaskItemModel.assigned_locker)
+                locker: Locker = Locker(self.doc.assigned_locker)
+                assert (locker.doc.reported_state == LockerStates.LOCKED
+                        ), f"Locker {locker.doc.id} is not locked."
                 await locker.instruct_state(LockerStates.UNLOCKED)
 
         # 5: Restart the expiration manager
@@ -201,14 +186,20 @@ class Task(Entity):
     async def complete(self) -> None:
         """Complete a task item."""
         # 1: Set the task state to completed
-        self.document.task_state = TaskStates.COMPLETED
-        self.document.completed_at = datetime.now()
-        await self.document.save_changes()
+        self.doc.task_state = TaskState.COMPLETED
+        self.doc.completed_at = datetime.now()
+        await self.doc.save_changes()
+
+        await self.doc.fetch_link(TaskItemModel.assigned_station)
+        station: StationModel = self.doc.assigned_station
+        await station.sync()
 
         # 2: If this was a terminal task, enable the next task in queue
-        if self.document.target == TaskTarget.TERMINAL and self.document.task_type == TaskType.REPORT:
-            next_task = Task(await self.pop_queue(
-                station=self.document.assigned_station))
+        if (self.doc.target == TaskTarget.TERMINAL
+            and self.doc.task_type == TaskType.REPORT
+                and station.terminal_state == TerminalState.IDLE):
+            next_task: Task = await Task.get_next_in_queue(
+                station_id=self.doc.assigned_station.id)
             if next_task.exists:
                 logger.debug(
                     f"Task completed, Task '#{next_task.id}' is next at station.")
@@ -216,62 +207,65 @@ class Task(Entity):
 
     async def handle_expiration(self) -> None:
         """Handle the expiration of a task item."""
-        # 1: Register Task Expiration
-        await self.document.sync()
-        assert (self.document.task_state == TaskStates.PENDING
+        # 1: Refresh task document
+        await self.doc.sync()
+
+        # 2: If task is still pending, set it to expired
+        assert (self.doc.task_state == TaskState.PENDING
                 ), f"Task '#{self.id}' is not pending."
-        self.document.task_state = TaskStates.EXPIRED
+        self.doc.task_state = TaskState.EXPIRED
 
         # 2: Update the session state to its timeout state
-        await self.document.fetch_link(TaskItemModel.assigned_session)
-
-        assert len(self.timeout_states), f"No timeout states defined for task '#{
-            self.id}'."
-        self.document.assigned_session.session_state = self.timeout_states[0]
+        await self.doc.fetch_link(TaskItemModel.assigned_session)
+        session: SessionModel = self.doc.assigned_session
+        assert len(self.timeout_states
+                   ), f"No timeout states defined for task '#{self.id}'."
+        self.doc.assigned_session.session_state = self.timeout_states[0]
 
         # 3: Save changes
-        await self.document.save_changes()
-        await self.document.assigned_session.save_changes()
+        await self.doc.save_changes()
+        await session.save_changes()
+
+        # 4: Restart the expiration manager
+        await restart_expiration_manager()
 
         # 5: End the queue flow here if the session has timed out or no additional timeout states
-        TIMEOUT_STATES = [SessionStates.EXPIRED,
-                          SessionStates.ABORTED, SessionStates.STALE]
-        if self.document.assigned_session.session_state in TIMEOUT_STATES or len(self.timeout_states) == 1:
-            # Restart the expiration manager
-            await restart_expiration_manager()
+        if (session.session_state not in ACTIVE_SESSION_STATES
+                or len(self.timeout_states) == 1):
             return
 
-        # 7: Else, create a new task item for the next timeout state
-        await Task().create(
-            task_target=self.document.target,
-            task_type=self.document.task_type,
-            station=self.document.assigned_session.assigned_station,
-            session=self.document,
-            queued_state=self.document.queued_session_state,
-            timeout_states=self.document.timeout_states[1:])
+        # 7: Else, clone the current task with the next timeout state
+        await Task(await TaskItemModel(
+            target=self.doc.target,
+            task_type=self.doc.task_type,
+            assigned_station=self.doc.assigned_station,
+            assigned_session=self.doc.assigned_session,
+            assigned_locker=self.doc.assigned_locker,
+            timeout_states=self.doc.timeout_states[1:],
+            moves_session=self.doc.moves_session,
+        ).insert()).move_in_queue()
 
 
 async def expiration_manager_loop():
     """Handle expirations."""
     # 1: Get time to next expiration
     next_expiring_task: TaskItemModel = await TaskItemModel.find(
-        TaskItemModel.task_state == TaskStates.PENDING
+        TaskItemModel.task_state == TaskState.PENDING
     ).sort(
         (TaskItemModel.expires_at, SortDirection.ASCENDING)
     ).first_or_none()
     if next_expiring_task is None:
-        # logger.debug(
-        #    "No pending tasks found, task expiration manager is now idle.")
         return
 
+    sleep_duration: int = (
+        next_expiring_task.expires_at - datetime.now()).total_seconds()
+
     # 2: Wait until the task expired
-    await sleep(
-        (next_expiring_task.expires_at - datetime.now()
-         ).total_seconds())
+    await sleep(sleep_duration)
 
     # 3: Check if the task is still pending, then fire up the expiration handler
     await next_expiring_task.sync()  # TODO: Is this necessary?
-    if next_expiring_task.task_state == TaskStates.PENDING:
+    if next_expiring_task.task_state == TaskState.PENDING:
         await Task(next_expiring_task).handle_expiration()
 
 

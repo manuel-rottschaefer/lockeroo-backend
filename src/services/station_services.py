@@ -15,17 +15,16 @@ from src.entities.session_entity import Session
 from src.entities.task_entity import Task, restart_expiration_manager
 # Models
 from src.exceptions.station_exceptions import (
-    InvalidStationReportException,
     InvalidTerminalStateException,
     StationNotFoundException)
 from src.models.locker_models import LockerModel
-from src.models.session_models import SessionModel, SessionStates, ACTIVE_SESSION_STATES
+from src.models.session_models import SessionModel, SessionState, ACTIVE_SESSION_STATES
 from src.models.station_models import (StationLockerAvailabilities,
                                        StationModel, StationStates,
                                        StationType, StationView,
-                                       TerminalStates)
+                                       TerminalState)
 from src.models.task_models import (
-    TaskItemModel, TaskStates, TaskType, TaskTarget
+    TaskItemModel, TaskState, TaskType, TaskTarget
 )
 # Services
 from src.services.logging_services import logger
@@ -74,7 +73,7 @@ async def get_details(callsign: str, response: Response) -> Optional[StationView
     if not station.exists:
         response.status_code = status.HTTP_404_NOT_FOUND
         raise StationNotFoundException(callsign=callsign)
-    return station.document
+    return station.doc
 
 
 async def get_active_session_count(callsign: str, response: Response) -> Optional[int]:
@@ -107,14 +106,14 @@ async def get_locker_by_index(
 
     # 2: Get the assigned locker
     locker: Locker = Locker(await LockerModel.find(
-        LockerModel.station == station.document.id,
+        LockerModel.station == station.doc.id,
         LockerModel.station_index == locker_index
     ).first_or_none())
     if not locker.exists:
         raise LockerNotFoundException(
             station=callsign,
             locker_index=locker_index)
-    return locker.document
+    return locker.doc
 
 
 async def get_locker_overview(
@@ -152,10 +151,10 @@ async def set_station_state(callsign: str, station_state: StationStates) -> Stat
         StationModel.callsign == callsign).first_or_none()
     )
     await station.register_station_state(station_state)
-    return station.document
+    return station.doc
 
 
-async def reset_queue(callsign: str, response: Response) -> StationView:
+async def reset_queue(callsign: str) -> StationView:
     """Reset the queue of the station by putting all queue
     items in state QUEUED and re-evaluating the queue."""
     # 1: Find the assigned station
@@ -167,12 +166,12 @@ async def reset_queue(callsign: str, response: Response) -> StationView:
 
     # 2: Get all stale queue items at the station
     tasks: List[TaskItemModel] = await TaskItemModel.find(
-        TaskItemModel.assigned_station.id == station.document.id,  # pylint: disable=no-member
-        TaskItemModel.task_state == TaskStates.PENDING
-    ).sort((TaskItemModel.created_ts)).first_or_none()
+        TaskItemModel.assigned_station.id == station.doc.id,  # pylint: disable=no-member
+        TaskItemModel.task_state == TaskState.PENDING
+    ).sort((TaskItemModel.created_at, SortDirection.ASCENDING)).first_or_none()
 
     # 3: Set all to state QUEUED
-    await tasks.update(Set({TaskItemModel.task_state: TaskStates.QUEUED}))
+    await tasks.update(Set({TaskItemModel.task_state: TaskState.QUEUED}))
 
     # 4: Re-evaluate the queue
     first_task: Task = Task(tasks[0])
@@ -181,46 +180,43 @@ async def reset_queue(callsign: str, response: Response) -> StationView:
 
 async def handle_terminal_report(
         callsign: str,
-        expected_session_state: SessionStates,
-        expected_terminal_state: TerminalStates
+        expected_session_state: SessionState,
+        expected_terminal_state: TerminalState
 ) -> None:
     """This handler processes reports of completed actions at a station.
         It verifies the authenticity of the report and then updates the state
         values for the station and the assigned session as well as notifies
         the client so that the user can proceed. """
-
-    # 2: Find the assigned task
+    # 1: Find the assigned task
     task: Task = Task(await TaskItemModel.find(
         TaskItemModel.target == TaskTarget.TERMINAL,
         TaskItemModel.task_type == TaskType.REPORT,
-        TaskItemModel.task_state == TaskStates.PENDING,
+        TaskItemModel.task_state == TaskState.PENDING,
         TaskItemModel.assigned_station.callsign == callsign,  # pylint: disable=no-member
         TaskItemModel.assigned_locker == None,  # pylint: disable=no-member singleton-comparison
-        TaskItemModel.queued_session_state == expected_session_state,
         fetch_links=True
     ).sort((
-        TaskItemModel.created_ts, SortDirection.DESCENDING
+        TaskItemModel.created_at, SortDirection.ASCENDING
     )).first_or_none())
     if not task.exists:
         raise TaskNotFoundException(
             assigned_station=callsign,
             task_type=TaskType.REPORT,
             raise_http=False)
-    # await task.fetch_link(TaskItemModel.assigned_session)
 
-    # 1: Find the assigned station
-    station: Station = Station(task.document.assigned_station)
+    # 2: Find the assigned station
+    station: Station = Station(task.doc.assigned_station)
     if not station.exists:
         raise StationNotFoundException(
             callsign=callsign, raise_http=False)
 
-    # 2: Get the assigned session
+    # 3: Get the assigned session
     assert (task.assigned_session is not None
-            ), f"Task '{task.id}' exists but has no assigned session."
+            ), f"Task '#{task.id}' exists but has no assigned session."
     session = Session(task.assigned_session)
 
-    # 3: Check whether the station is currently told to await an action
-    await station.document.sync()
+    # 4: Check whether the station is currently told to await an action
+    await station.doc.sync()
     if station.terminal_state != expected_terminal_state:
         raise InvalidTerminalStateException(
             station_callsign=callsign,
@@ -228,7 +224,7 @@ async def handle_terminal_report(
             actual_state=station.terminal_state,
             raise_http=False)
 
-    # 4: Check whether the session is currently in the expected state
+    # 5: Check whether the session is currently in the expected state
     if session.session_state != expected_session_state:
         raise InvalidSessionStateException(
             session_id=session.id,
@@ -236,79 +232,111 @@ async def handle_terminal_report(
             actual_state=session.session_state,
             raise_http=False)
 
-    # 5: Update the station terminal state
-    await station.register_terminal_state(TerminalStates.IDLE)
-
     # 6: Update the session state
     await task.complete()
     await restart_expiration_manager()
 
-    # 7: Await station to confirm locker unlocking
-    await Task().create(
-        task_target=TaskTarget.LOCKER,
+    # 7: Await terminal to confirm idle
+    await Task(await TaskItemModel(
+        target=TaskTarget.TERMINAL,
         task_type=TaskType.CONFIRMATION,
-        station=station.document,
-        locker=session.assigned_locker,
-        session=session.document,
-        queued_state=None,
-        timeout_states=[SessionStates.ABORTED],
-    )
+        assigned_station=station.doc,
+        assigned_session=session.doc,
+        timeout_states=[SessionState.ABORTED],
+        moves_session=False,
+    ).insert()).move_in_queue()
 
 
-async def handle_terminal_confirmation(
-        callsign: str, terminal_state: TerminalStates):
+async def handle_terminal_state_confirmation(
+        callsign: str, confirmed_state: TerminalState):
     """Process a station report about its terminal state."""
     logger.info(f"Station '{callsign}' confirmed terminal in {
-                terminal_state}.")
-    # 1: Find the assigned station
+                confirmed_state}.")
+
+    # 1: Find the affected station
     station: Station = Station(await StationModel.find(
-        StationModel.callsign == callsign).first_or_none()
-    )
+        StationModel.callsign == callsign).first_or_none())
     if not station.exists:
         raise StationNotFoundException(
             callsign=callsign, raise_http=False)
+    if station.terminal_state == confirmed_state:
+        logger.warning(
+            "Invalid station report.")
 
-    # 2: If the terminal state matches the current state, ignore the report
-    if station.terminal_state == terminal_state:
-        raise InvalidStationReportException(
-            station_callsign=callsign,
-            reported_state=terminal_state,
-            raise_http=False)
+    # Register the new state
+    await station.register_terminal_state(confirmed_state)
 
-    # 3: Find assigned task
-    task: Task = Task(await TaskItemModel.find(
+    # 2: Find the pending task for this station
+    # TODO: This may be unsafe
+    pending_task: Task = Task(await TaskItemModel.find(
         TaskItemModel.target == TaskTarget.TERMINAL,
         TaskItemModel.task_type == TaskType.CONFIRMATION,
-        TaskItemModel.task_state == TaskStates.PENDING,
-        TaskItemModel.assigned_station.callsign == callsign,  # pylint: disable=no-member
-        fetch_links=True
+        # TaskItemModel.task_state == TaskState.PENDING,
+        In(TaskItemModel.task_state, [TaskState.QUEUED, TaskState.PENDING]),
+        TaskItemModel.assigned_station.id == station.id  # pylint: disable=no-member
     ).sort((
-        TaskItemModel.created_ts, SortDirection.DESCENDING
+        TaskItemModel.created_at, SortDirection.DESCENDING
     )).first_or_none())
-    if not task.exists:
-        raise InvalidStationReportException(
-            callsign, terminal_state.value,
+
+    if not pending_task.exists:
+        raise TaskNotFoundException(
+            assigned_station=callsign,
+            task_type=TaskType.CONFIRMATION,
             raise_http=False)
 
-    # 5: Update the terminal state
-    await station.register_terminal_state(terminal_state)
+    # 5: Get the assigned session
+    await pending_task.doc.fetch_link(TaskItemModel.assigned_session)
+    session: Session = Session(pending_task.doc.assigned_session)
 
-    # 6: Complete previous task
-    await task.complete()
+    # TODO: Experimental
+    if confirmed_state == TerminalState.IDLE:
+        next_task: Task = await Task.get_next_in_queue(station_id=station.id)
+        if next_task.exists:
+            await next_task.activate()
+
+    # 6: Create next task according to the session context
+    if confirmed_state == TerminalState.VERIFICATION:
+        new_task: Task = Task(await TaskItemModel(
+            target=TaskTarget.TERMINAL,
+            task_type=TaskType.REPORT,
+            assigned_station=station.doc,
+            assigned_session=session.doc,
+            timeout_states=[SessionState.PAYMENT_SELECTED,
+                            SessionState.EXPIRED],
+            moves_session=True,
+        ).insert())
+
+    elif confirmed_state == TerminalState.PAYMENT:
+        new_task: Task = Task(await TaskItemModel(
+            target=TaskTarget.TERMINAL,
+            task_type=TaskType.REPORT,
+            assigned_station=station.doc,
+            assigned_session=session.doc,
+            timeout_states=[session.doc.session_state,
+                            SessionState.EXPIRED],
+            moves_session=True,
+        ).insert())
+
+    elif confirmed_state == TerminalState.IDLE:
+        new_task: Task = Task(await TaskItemModel(
+            target=TaskTarget.LOCKER,
+            task_type=TaskType.CONFIRMATION,
+            assigned_station=station.doc,
+            assigned_session=session.doc,
+            assigned_locker=session.assigned_locker,
+            timeout_states=[SessionState.ABORTED],
+            moves_session=False,
+        ).insert())
+
+    else:
+        raise InvalidTerminalStateException(
+            station_callsign=callsign,
+            expected_state=confirmed_state,
+            actual_state=confirmed_state
+        )
+
+    # 7: Complete previous task and restart task expiration manager
+    await pending_task.complete()
+    if new_task is not None:
+        await new_task.move_in_queue()
     await restart_expiration_manager()
-
-    # 7: Launch the new user task
-    session: Session = Session(task.assigned_session)
-    await task.fetch_link(TaskItemModel.assigned_session)
-
-    # 8: Await the station to report the verification/payment
-    await Task().create(
-        task_target=TaskTarget.TERMINAL,
-        task_type=TaskType.REPORT,
-        station=station.document,
-        session=session.document,
-        queued_state=await session.next_state,
-        # TODO: Dynamic next session state
-        timeout_states=[SessionStates.PAYMENT_SELECTED,
-                        SessionStates.EXPIRED],
-    )

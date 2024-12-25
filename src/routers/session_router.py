@@ -12,12 +12,13 @@ from fastapi import APIRouter, Path, WebSocket, status, Query, Header, Depends
 # Models
 from src.models.session_models import PaymentTypes, SessionView
 from src.models.action_models import ActionView
-from src.models.user_models import UserModel
 # Services
 from src.services import session_services
 from src.services.auth_services import require_auth
 from src.services.exception_services import handle_exceptions
 from src.services.logging_services import logger
+# Entities
+from src.entities.user_entity import User
 
 # Create the router
 session_router = APIRouter()
@@ -36,11 +37,11 @@ session_router = APIRouter()
 async def get_session_details(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
     _user: str = Header(default=None, alias="user"),
-    access_info: UserModel = Depends(require_auth),
+    access_info: User = Depends(require_auth),
 ):
     """Return the details of a session. This is supposed to be used
     for refreshingthe app-state in case of disconnect or re-open."""
-    logger.info(f"User '{access_info.id}' is requesting details for session '{
+    logger.info(f"User '#{access_info.fief_id}' is requesting details for session '#{
                 session_id}'.")
     return await session_services.get_details(
         session_id=ObjId(session_id),
@@ -57,10 +58,10 @@ async def request_new_session(
     locker_type: str,
 
     _user: str = Header(default=None, alias="user"),
-    access_info: UserModel = Depends(require_auth),
+    access_info: User = Depends(require_auth),
 ):
     """Handle request to create a new session"""
-    logger.info((f"User '#{access_info.id}' is requesting a "
+    logger.info((f"User '#{access_info.fief_id}' is requesting a "
                 f"new session at station '{station_callsign}'."))
     return await session_services.handle_creation_request(
         user=access_info,
@@ -77,11 +78,11 @@ async def request_session_cancel(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
 
     _user: str = Header(default=None, alias="user"),
-    access_info: UserModel = Depends(require_auth),
+    access_info: User = Depends(require_auth),
 ):
     """Handle request to cancel a locker session"""
 
-    logger.info((f"User '{access_info.id}' is trying to "
+    logger.info((f"User '#{access_info.id}' is trying to "
                 f"cancel session '#{session_id}'."))
     return await session_services.handle_cancel_request(
         session_id=session_id,
@@ -98,11 +99,11 @@ async def choose_session_payment_method(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
     payment_method: PaymentTypes,
     _user: str = Header(default=None, alias="user"),
-    access_info: UserModel = Depends(require_auth),
+    access_info: User = Depends(require_auth),
 ):
     """Handle request to select a payment method"""
-    logger.info((f"User '{access_info.id}' is choosing a "
-                f"payment method for session '{session_id}'."))
+    logger.info((f"User '#{access_info.id}' is choosing a "
+                f"payment method for session '#{session_id}'."))
     return await session_services.handle_payment_selection(
         user=access_info,
         session_id=ObjId(session_id),
@@ -119,12 +120,12 @@ async def request_session_verification(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
 
     _user: str = Header(default=None, alias="user"),
-    access_info: UserModel = Depends(require_auth),
+    access_info: User = Depends(require_auth),
 ):
     """Handle request to enter the verification queue of a session"""
     logger.info(
-        (f"User '{access_info.id}' is requesting to conduct a "
-         f"verification for session '{session_id}'."))
+        (f"User '#{access_info.id}' is requesting to conduct a "
+         f"verification for session '#{session_id}'."))
     return await session_services.handle_verification_request(
         session_id=ObjId(session_id),
         user=access_info)
@@ -139,11 +140,11 @@ async def request_session_hold(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
 
     _user: str = Header(default=None, alias="user"),
-    access_info: UserModel = Depends(require_auth),
+    access_info: User = Depends(require_auth),
 ):
     """Handle request to pause a locker session"""
     logger.info(
-        (f"User '{access_info.id}' is trying to "
+        (f"User '#{access_info.id}' is trying to "
          f"hold session '#{session_id}'."))
     return await session_services.handle_hold_request(
         session_id=ObjId(session_id),
@@ -160,11 +161,11 @@ async def request_session_payment(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
 
     _user: str = Header(default=None, alias="user"),
-    access_info: UserModel = Depends(require_auth),
+    access_info: User = Depends(require_auth),
 ):
     """Handle request to enter the payment phase of a session"""
     logger.info(
-        (f"User '{access_info.id}' is requesting to "
+        (f"User '#{access_info.id}' is requesting to "
          f"conduct a payment for session '#{session_id}'."))
     return await session_services.handle_payment_request(
         session_id=ObjId(session_id),
@@ -180,7 +181,7 @@ async def request_session_payment(
 async def get_session_history(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
     _user: str = Header(default=None, alias="user"),
-    access_info: UserModel = Depends(require_auth),
+    access_info: User = Depends(require_auth),
 ):
     """Handle request to obtain a list of all actions from a session."""
     return await session_services.get_session_history(
