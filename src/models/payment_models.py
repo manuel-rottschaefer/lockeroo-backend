@@ -42,7 +42,7 @@ class PricingModel(BaseModel):
     rate_minute: float = Field(
         description="Charge for every started minue (cent)")
 
-    @dataclass
+    @ dataclass
     class Config:  # pylint: disable=missing-class-docstring
         json_schema_extra = {
             "name": "Standard",
@@ -90,11 +90,11 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
 
         await self.doc.save_changes()
 
-    @dataclass
+    @ dataclass
     class Settings:  # pylint: disable=missing-class-docstring
         name = "payments"
 
-    @dataclass
+    @ dataclass
     class Config:  # pylint: disable=missing-class-docstring
         json_schema_extra = {
             "assigned_station": "60d5ec49f1d2b2a5d8f8b8b8",

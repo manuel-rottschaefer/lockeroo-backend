@@ -52,7 +52,7 @@ class MaintenanceModel(Document):  # pylint: disable=too-many-ancestors
     class Settings:  # pylint: disable=missing-class-docstring, too-few-public-methods
         name = "maintenance"
 
-    @dataclass
+    @ dataclass
     class Config:  # pylint: disable=missing-class-docstring
         json_schema_extra = {
             "assigned_station": "60d5ec49f1d2b2a5d8f8b8b8",
@@ -88,7 +88,7 @@ class MaintenanceView(View):  # pylint: disable=too-many-ancestors
     assigned_staff: str = Field(
         None, description="The person assigned with this task")
 
-    @dataclass
+    @ dataclass
     class Config:  # pylint: disable=missing-class-docstring
         json_schema_extra = {
             "id": "60d5ec49f1d2b2a5d8f8b8b8",

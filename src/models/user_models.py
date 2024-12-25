@@ -51,12 +51,12 @@ class UserModel(Document):  # pylint: disable=too-many-ancestors
     total_session_duration: float = Field(
         0, description="Total amount of all sessions in seconds.")
 
-    @dataclass
-    class Settings:  # pylint: disable=missing-class-docstring
+    @ dataclass
+    class Settings:
         name = "users"
 
-    @dataclass
-    class Config:  # pylint: disable=missing-class-docstring
+    @ dataclass
+    class Config:
         json_schema_extra = {
             "fief_id": "12345678-1234-5678-1234-567812345678",
             "first_name": "John",
@@ -77,11 +77,12 @@ class UserSummary(View):
     total_sessions: int = 0
     total_session_duration: int = 0
 
-    class Settings:  # pylint: disable=missing-class-docstring, too-few-public-methods
+    @ dataclass
+    class Settings:
         source = UserModel
 
-    @dataclass
-    class Config:  # pylint: disable=missing-class-docstring
+    @ dataclass
+    class Config:
         json_schema_extra = {
             "id": "60d5ec49f1d2b2a5d8f8b8b8",
             "first_name": "John",

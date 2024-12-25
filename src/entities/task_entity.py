@@ -22,7 +22,6 @@ from src.models.session_models import (
 # Models
 from src.models.station_models import TerminalState
 from src.models.locker_models import LockerState
-from src.models.station_models import StationModel
 from src.models.task_models import TaskItemModel, TaskState, TaskType, TaskTarget
 # Services
 from src.services.mqtt_services import fast_mqtt
@@ -197,7 +196,7 @@ class Task(Entity):
             await locker.instruct_state(LockerState.UNLOCKED)
 
         # 5: Restart the expiration manager
-        await restart_expiration_manager()
+        restart_expiration_manager()
 
     async def complete(self) -> None:
         """Complete a task item.
@@ -216,7 +215,7 @@ class Task(Entity):
             AssertionError: If the task is not pending or should have expired already
         """
         await self.doc.sync()
-        assert (self.doc.task_state == TaskState.PENDING
+        assert (self.doc.task_state in [TaskState.PENDING, TaskState.QUEUED]  # TODO: All tasks should be activated by the time they are completed
                 ), f"Cannot complete Task '#{self.doc.id}' as it is in {self.doc.task_state}."
 
         assert (datetime.now() < self.doc.expires_at
@@ -241,6 +240,8 @@ class Task(Entity):
                     f"Task completed, Task '#{next_task.id}' is next at station.")
                 await next_task.activate()
 
+        restart_expiration_manager()
+
     async def handle_expiration(self) -> None:
         """Handle the expiration of a task item."""
         # 1: Refresh task document
@@ -263,7 +264,7 @@ class Task(Entity):
         await session.save_changes()
 
         # 4: Restart the expiration manager
-        await restart_expiration_manager()
+        restart_expiration_manager()
 
         # 5: End the queue flow here if the session has timed out or no additional timeout states
         if (session.session_state not in ACTIVE_SESSION_STATES
@@ -305,13 +306,13 @@ async def expiration_manager_loop() -> None:
         await Task(next_expiring_task).handle_expiration()
 
 
-async def restart_expiration_manager() -> None:
+def restart_expiration_manager() -> None:
     """Restart the expiration manager."""
     EXPIRATION_MANAGER.cancel()
-    await start_expiration_manager()
+    start_expiration_manager()
 
 
-async def start_expiration_manager() -> None:
+def start_expiration_manager() -> None:
     """Start the expiration manager."""
     global EXPIRATION_MANAGER  # pylint: disable=global-statement
     EXPIRATION_MANAGER = create_task(expiration_manager_loop())

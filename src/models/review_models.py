@@ -41,11 +41,11 @@ class ReviewModel(Document):  # pylint: disable=too-many-ancestors
     def handle_review_creation(self):
         self.submitted_at = datetime.now()
 
-    @dataclass
+    @ dataclass
     class Settings:  # pylint: disable=missing-class-docstring
         name = "reviews"
 
-    @dataclass
+    @ dataclass
     class Config:  # pylint: disable=missing-class-docstring
         json_schema_extra = {
             "assigned_session": "60d5ec49f1d2b2a5d8f8b8b8",
@@ -58,7 +58,7 @@ class ReviewModel(Document):  # pylint: disable=too-many-ancestors
 class ReviewView(View):  # pylint: disable=too-many-ancestors
     """View of the Review Model"""
     # Identification
-    id: ObjId = Field(None, alias="_id")
+    id: ObjId = Field(None)
     assigned_session: ObjId
 
     submitted_at: datetime
@@ -73,7 +73,7 @@ class ReviewView(View):  # pylint: disable=too-many-ancestors
         description="Written feedback on the session. Should not be made public."
     )
 
-    @dataclass
+    @ dataclass
     class Config:  # pylint: disable=missing-class-docstring
         json_schema_extra = {
             "id": "60d5ec49f1d2b2a5d8f8b8b8",

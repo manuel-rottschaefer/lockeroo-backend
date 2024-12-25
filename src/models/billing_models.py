@@ -39,7 +39,7 @@ class BillModel(Document):  # pylint: disable=too-many-ancestors
         None, description="The timestamp at which the bill was requested."
     )
 
-    @dataclass
+    @ dataclass
     class Config:  # pylint: disable=missing-class-docstring
         json_schema_extra = {
             "payment_method": "paypal",

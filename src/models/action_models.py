@@ -47,11 +47,11 @@ class ActionModel(Document):  # pylint: disable=too-many-ancestors
     action_type: ActionType = Field(
         None, description="The type of action expressed as a session state name")
 
-    @dataclass
+    @ dataclass
     class Settings:  # pylint: disable=missing-class-docstring
         name = "actions"
 
-    @dataclass
+    @ dataclass
     class Config:  # pylint: disable=missing-class-docstring
         json_schema_extra = {
             "assigned_session": "60d5ec49f1d2b2a5d8f8b8b8",
@@ -75,7 +75,7 @@ class ActionView(View):  # pylint: disable=too-many-ancestors
         None, description="The type of action that has been registered."
     )
 
-    @dataclass
+    @ dataclass
     class Config:  # pylint: disable=missing-class-docstring
         json_schema_extra = {
             "id": "60d5ec49f1d2b2a5d8f8b8b8",

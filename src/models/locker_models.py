@@ -77,12 +77,12 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
         logger.debug(f"Locker '#{self.callsign}' has been registered as {
                      self.reported_state}.")
 
-    @dataclass
+    @ dataclass
     class Settings:  # pylint: disable=missing-class-docstring
         name = "lockers"
         use_state_management = True
 
-    @dataclass
+    @ dataclass
     class Config:  # pylint: disable=missing-class-docstring
         json_schema_extra = {
             "station": "60d5ec49f1d2b2a5d8f8b8b8",
@@ -118,7 +118,7 @@ class LockerView(View):
             "station_index": "$station_index"
         }
 
-    @dataclass
+    @ dataclass
     class Config:  # pylint: disable=missing-class-docstring
         json_schema_extra = {
             "id": "60d5ec49f1d2b2a5d8f8b8b8",

@@ -109,13 +109,13 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
         logger.debug(f"Task '#{self.id}' for {self.target} of {
                      self.task_type} set to {self.task_state}.")
 
-    @dataclass
-    class Settings:  # pylint: disable=missing-class-docstring
+    @ dataclass
+    class Settings:
         name = "tasks"
         use_state_management = True
 
-    @dataclass
-    class Config:  # pylint: disable=missing-class-docstring
+    @ dataclass
+    class Config:
         json_schema_extra = {
             "task_type": "report",
             "target": "user",

@@ -13,7 +13,7 @@ from fastapi import Response, status
 from src.entities.station_entity import Station
 from src.entities.locker_entity import Locker
 from src.entities.session_entity import Session
-from src.entities.task_entity import Task
+from src.entities.task_entity import Task, restart_expiration_manager
 # Models
 from src.exceptions.station_exceptions import (
     InvalidTerminalStateException,
@@ -253,7 +253,9 @@ async def handle_terminal_report(
         assigned_session=session.doc,
         timeout_states=[SessionState.ABORTED],
         moves_session=False,
-    ).insert()).move_in_queue()
+    ).insert()).activate()
+
+    restart_expiration_manager()
 
 
 async def handle_terminal_state_confirmation(
@@ -284,7 +286,7 @@ async def handle_terminal_state_confirmation(
         TaskItemModel.assigned_station.id == station.id,  # pylint: disable=no-member
         TaskItemModel.target == TaskTarget.TERMINAL,
         TaskItemModel.task_type == TaskType.CONFIRMATION,
-        In(TaskItemModel.task_state, [TaskState.QUEUED, TaskState.PENDING]),
+        In(TaskItemModel.task_state, [TaskState.PENDING, TaskState.QUEUED]),
     ).sort((
         TaskItemModel.created_at, SortDirection.DESCENDING
     )).first_or_none())
@@ -300,7 +302,7 @@ async def handle_terminal_state_confirmation(
 
     if confirmed_state == TerminalState.IDLE:
         next_task: Task = await Task.get_next_in_queue(station_id=station.id)
-        if next_task.exists:
+        if next_task.exists and next_task.doc.task_state == TaskState.QUEUED:
             await next_task.activate()
 
     # 6: Create next task according to the session context
@@ -348,3 +350,5 @@ async def handle_terminal_state_confirmation(
     await pending_task.complete()
     if new_task is not None:
         await new_task.move_in_queue()
+
+    restart_expiration_manager()

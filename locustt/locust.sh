@@ -1,1 +1,1 @@
-locust -f locustt/locustfile.py --host=http://localhost:8080 -u 10 --run-time 1200
+locust -f locustt/locustfile.py --host=http://localhost:8080 -u 10 --run-time 600s

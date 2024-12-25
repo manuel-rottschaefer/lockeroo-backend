@@ -175,7 +175,7 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
         use_revision = False
         use_cache = False
 
-    @dataclass
+    @ dataclass
     class Config:  # pylint: disable=missing-class-docstring
         json_schema_extra = {
             "assigned_station": "60d5ec49f1d2b2a5d8f8b8b8",
@@ -191,8 +191,8 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
 class SessionView(View):
     """Used for serving information about an active session"""
     # Identification
-    id: ObjId = Field(None, alias='_id')
-    assigned_station: str = Field(
+    id: ObjId = Field(None)
+    assigned_station: ObjId = Field(
         description="Station at which the session takes place")
 
     user: UUID = Field(

@@ -30,7 +30,7 @@ async def _lifespan(_fastapi_app: FastAPI):
     load_dotenv('environments/.env')
     await database.setup()
     await fast_mqtt.mqtt_startup()
-    await start_expiration_manager()
+    start_expiration_manager()
     # Wait until server shutdown
     yield
     await fast_mqtt.mqtt_shutdown()

@@ -105,7 +105,7 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
         # cache_expiration_time = timedelta(seconds=10)
         # cache_capacity = 5
 
-    @dataclass
+    @ dataclass
     class Config:  # pylint: disable=missing-class-docstring
         json_schema_extra = {
             "full_name": "Central Station",
@@ -132,7 +132,7 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
 class StationView(View):
     """Public representation of a station"""
     # Identification
-    id: ObjId = Field(None, alias="_id")
+    id: ObjId = Field(None)
     full_name: str
     callsign: str
 
@@ -157,7 +157,7 @@ class StationView(View):
     class Settings:  # pylint: disable=missing-class-docstring, too-few-public-methods
         source = StationModel
 
-    @dataclass
+    @ dataclass
     class Config:  # pylint: disable=missing-class-docstring
         json_schema_extra = {
             "id": "60d5ec49f1d2b2a5d8f8b8b8",
