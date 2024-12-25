@@ -1,4 +1,6 @@
 """This module provides exception classes for station management."""
+# Types
+from typing import List
 # Log level
 from logging import INFO, WARNING
 # Beanie
@@ -63,11 +65,11 @@ class InvalidTerminalStateException(Exception):
 
     def __init__(self,
                  station_callsign: str,
-                 expected_state: TerminalState,
+                 expected_states: List[TerminalState],
                  actual_state: TerminalState,
                  raise_http: bool = True):
         self.station_callsign = station_callsign
-        self.expected_state = expected_state
+        self.expected_states = expected_states
         self.actual_state = actual_state
 
         if raise_http:
@@ -75,4 +77,4 @@ class InvalidTerminalStateException(Exception):
 
     def __str__(self):
         return (f"Invalid terminal state at station '#{self.station_callsign}'."
-                f" Expected '{self.expected_state}', got '{self.actual_state}'.")
+                f" Expected '{[state for state in self.expected_states]}', got '{self.actual_state}'.")

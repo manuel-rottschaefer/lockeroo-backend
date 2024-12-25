@@ -4,7 +4,7 @@ from typing import Optional
 # Beanie
 from beanie import PydanticObjectId as ObjId
 # Models
-from src.models.locker_models import LockerStates, LockerTypes
+from src.models.locker_models import LockerState, LockerTypes
 # Exceptions
 from fastapi import HTTPException
 
@@ -15,11 +15,11 @@ class LockerNotFoundException(Exception):
     def __init__(self,
                  locker_id: ObjId = None,
                  station: ObjId = None,
-                 locker_index: int = None,
+                 station_index: int = None,
                  raise_http: bool = True):
         self.locker_id = locker_id
         self.station = station
-        self.locker_index = locker_index
+        self.station_index = station_index
 
         if raise_http:
             raise HTTPException(status_code=500, detail=self.__str__())
@@ -27,10 +27,10 @@ class LockerNotFoundException(Exception):
     def __str__(self):
         if self.locker_id:
             return f"Locker '#{self.locker_id}' not found in database."
-        elif self.station and self.locker_index:
+        elif self.station and self.station_index:
             return (
                 (f"Locker at station '#{self.station}' with index '"
-                 f"{self.locker_index}' not found in database."))
+                 f"{self.station_index}' not found in database."))
 
 
 class LockerNotAvailableException(Exception):
@@ -65,8 +65,8 @@ class InvalidLockerStateException(Exception):
     """Exception raised when a session session is in a state that is not expected by the backend."""
 
     def __init__(self, locker_id: ObjId,
-                 expected_state: LockerStates,
-                 actual_state: LockerStates,
+                 expected_state: LockerState,
+                 actual_state: LockerState,
                  raise_http: bool = True):
         self.locker_id = locker_id
         self.expected_state = expected_state
@@ -85,10 +85,10 @@ class InvalidLockerReportException(Exception):
 
     def __init__(self,
                  locker_id:  Optional[ObjId] = None,
-                 locker_index: Optional[int] = None,
+                 station_index: Optional[int] = None,
                  raise_http: bool = True):
         self.locker_id = locker_id
-        self.locker_index = locker_index
+        self.station_index = station_index
 
         if raise_http:
             raise HTTPException(status_code=400, detail=self.__str__())
@@ -96,5 +96,5 @@ class InvalidLockerReportException(Exception):
     def __str__(self):
         if self.locker_id:
             return f"Invalid locker report for locker '#{self.locker_id}'."
-        elif self.locker_index:
-            return f"Invalid locker report for locker index '{self.locker_index}'."
+        elif self.station_index:
+            return f"Invalid locker report for locker index '{self.station_index}'."

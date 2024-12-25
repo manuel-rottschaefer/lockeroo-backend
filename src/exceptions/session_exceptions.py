@@ -15,6 +15,7 @@ class SessionNotFoundException(Exception):
     """Exception raised when a station cannot be found by a given query."""
 
     def __init__(self, session_id: ObjId = None, raise_http: bool = True):
+        # TODO: The passed session_id may be useless for troubleshooting
         self.session = session_id
         self.log_level = INFO
 
