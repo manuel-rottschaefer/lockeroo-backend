@@ -195,15 +195,15 @@ class LocustSession:
     def station_report_locker_open(self):
         self.mqtt_client.publish((
             f"stations/{self.station_callsign}/locker/"
-            f"{self.session.locker_index}/report'"), 'UNLOCKED', qos=2)
+            f"{self.session.station_index}/report'"), 'UNLOCKED', qos=2)
         self.logger.info((
-            f"Locker {self.session.locker_index} opened "
+            f"Locker {self.session.station_index} opened "
             f"at station '{self.station_callsign}'."))
 
     def station_report_locker_close(self):
         self.mqtt_client.publish((
             f"stations/{self.station_callsign}/locker/"
-            f"{self.session.locker_index}/report"), 'LOCKED', qos=2)
+            f"{self.session.station_index}/report"), 'LOCKED', qos=2)
         self.logger.info((
-            f"Locker {self.session.locker_index} closed "
+            f"Locker {self.session.station_index} closed "
             f"at station '{self.station_callsign}'."))

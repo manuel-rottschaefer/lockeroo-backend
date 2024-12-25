@@ -1,22 +1,16 @@
 """Main backend file"""
-
 # Standard imports
 from contextlib import asynccontextmanager
-
 # API services
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
 # Environments
 from dotenv import load_dotenv
-
 # Services
 from src.services.mqtt_services import fast_mqtt
-
 # Entities
 from src.entities.task_entity import start_expiration_manager
-
 # Database
 import src.services.database_services as database
 
@@ -40,6 +34,7 @@ async def _lifespan(_fastapi_app: FastAPI):
     # Wait until server shutdown
     yield
     await fast_mqtt.mqtt_shutdown()
+
 
 # Create app
 app = FastAPI(
@@ -76,6 +71,7 @@ app.include_router(auth_router, prefix='/auth', tags=['Authentification'])
 app.include_router(review_router, prefix='/review', tags=['Reviews'])
 app.include_router(admin_router, prefix='/admin', tags=['Admin'])
 app.include_router(dashboard_router, prefix='/dashboard', tags=['Dashboard'])
+
 
 if __name__ == "__main__":
     # os.system('clear')
