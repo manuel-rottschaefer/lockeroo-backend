@@ -10,12 +10,11 @@ from dotenv import load_dotenv
 # Services
 from src.services.mqtt_services import fast_mqtt
 # Entities
-from src.entities.task_entity import start_expiration_manager
+from src.entities.task_entity import task_expiration_manager
 # Database
 import src.services.database_services as database
 
 # Routers
-# from src.routers.user_router import user_router
 from src.routers.session_router import session_router
 from src.routers.station_router import station_router
 from src.routers.auth_router import auth_router
@@ -30,7 +29,7 @@ async def _lifespan(_fastapi_app: FastAPI):
     load_dotenv('environments/.env')
     await database.setup()
     await fast_mqtt.mqtt_startup()
-    start_expiration_manager()
+    task_expiration_manager.restart()
     # Wait until server shutdown
     yield
     await fast_mqtt.mqtt_shutdown()

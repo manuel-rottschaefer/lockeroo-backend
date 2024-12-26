@@ -13,16 +13,17 @@ from fastapi import Response, status
 from src.entities.station_entity import Station
 from src.entities.locker_entity import Locker
 from src.entities.session_entity import Session
-from src.entities.task_entity import Task, restart_expiration_manager
+from src.entities.task_entity import Task
 # Models
 from src.exceptions.station_exceptions import (
     InvalidTerminalStateException,
     StationNotFoundException)
-from src.models.locker_models import LockerModel
+from src.models.locker_models import (
+    LockerModel, LockerAvailability, LOCKER_TYPES,
+    LockerTypeAvailability)
 from src.models.session_models import (
     SessionModel, SessionState, ACTIVE_SESSION_STATES)
 from src.models.station_models import (
-    StationLockerAvailabilities,
     StationModel, StationStates,
     StationType, StationView,
     TerminalState)
@@ -127,32 +128,34 @@ async def get_locker_by_index(
 
 
 async def get_locker_overview(
-        callsign: str, response: Response, ) -> Optional[StationLockerAvailabilities]:
+        callsign: str, response: Response, ) -> List[LockerTypeAvailability]:
     """Determine for each locker type if it is available at the given station."""
-
     # 1: Check whether the station exists
     station: Station = Station(await StationModel.find(
         StationModel.callsign == callsign).first_or_none()
     )
-
     if not station.exists:
         response.status_code = status.HTTP_404_NOT_FOUND
         raise StationNotFoundException(callsign=callsign)
 
     # 2: Create a list of locker availabilities
-    # TODO: Rework this part with dynamic locker types
-    availability = StationLockerAvailabilities()
-    locker_types = ['small', 'medium', 'large']
-    for locker_type in locker_types:
-        locker_data = await LockerModel.find(
+    locker_type_availabilities: List[LockerTypeAvailability] = []
+    for locker_type in LOCKER_TYPES:
+        type_available_count = await LockerModel.find(
             LockerModel.station == callsign.callsign,
-            LockerModel.lockerType.name == locker_type,
-            # LockerModel.state == LockerStates.operational,
-        ).to_list()
+            LockerModel.lockerType.name == locker_type.name,
+            LockerModel.state == LockerAvailability.OPERATIONAL
+        ).count()
 
-        availability[locker_type] = len(locker_data) != 0
-
-    return availability
+        locker_type_availabilities.append(
+            LockerTypeAvailability(
+                locker_type=locker_type.name,
+                station=callsign,
+                total_count=type_available_count,
+                is_available=type_available_count > 0
+            )
+        )
+    return locker_type_availabilities
 
 
 async def set_station_state(callsign: str, station_state: StationStates) -> StationView:
@@ -242,10 +245,7 @@ async def handle_terminal_report(
             actual_state=session.session_state,
             raise_http=False)
 
-    # 6: Update the session state
-    await task.complete()
-
-    # 7: Await terminal to confirm idle
+    # 6: Await terminal to confirm idle
     await Task(await TaskItemModel(
         target=TaskTarget.TERMINAL,
         task_type=TaskType.CONFIRMATION,
@@ -255,7 +255,9 @@ async def handle_terminal_report(
         moves_session=False,
     ).insert()).activate()
 
-    restart_expiration_manager()
+    # 7: Update the session state
+    # This must come after the task creation, otherwise the new task will not be started
+    await task.complete()
 
 
 async def handle_terminal_state_confirmation(
@@ -350,5 +352,3 @@ async def handle_terminal_state_confirmation(
     await pending_task.complete()
     if new_task is not None:
         await new_task.move_in_queue()
-
-    restart_expiration_manager()

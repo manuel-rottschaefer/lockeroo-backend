@@ -47,7 +47,8 @@ class LocustSession:
 
     def subscribe_to_updates(self):
         """Subscribe to a session update stream and handle awaited states."""
-        ws_url = self.ws_endpoint + f'/sessions/{self.session.id}/subscribe'
+        ws_url = (f'{self.ws_endpoint}/sessions/{self.session.id}/subscribe?'
+                  f'user_id={self.user_id}&session_token={self.session.websocket_token}')
 
         def monitor():
             with sync_websockets.connect(ws_url) as ws:

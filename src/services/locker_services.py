@@ -1,7 +1,4 @@
 """Provides utility functions for the locker management backend."""
-# Types
-from typing import Dict
-import yaml
 # Beanie
 from beanie import SortDirection
 # Entities
@@ -10,38 +7,15 @@ from src.entities.session_entity import Session
 from src.entities.locker_entity import Locker, LockerState
 # Models
 from src.models.session_models import SessionState
-from src.models.locker_models import LockerTypes
 from src.models.action_models import ActionModel, ActionType
 from src.models.task_models import TaskItemModel, TaskState, TaskType, TaskTarget
 # Services
 from src.services.logging_services import logger
 # Exceptions
-from src.exceptions.session_exceptions import SessionNotFoundException
 from src.exceptions.task_exceptions import TaskNotFoundException
 from src.exceptions.locker_exceptions import (
     InvalidLockerStateException,
     InvalidLockerReportException)
-
-# Singleton for pricing models
-LOCKER_TYPES: Dict[str, LockerTypes] = None
-
-CONFIG_PATH = 'src/config/locker_types.yml'
-
-if LOCKER_TYPES is None:
-    try:
-        with open(CONFIG_PATH, 'r', encoding='utf-8') as cfg:
-            type_dicts = yaml.safe_load(cfg)
-            LOCKER_TYPES = {name: LockerTypes(name=name, **details)
-                            for name, details in type_dicts.items()}
-    except FileNotFoundError:
-        logger.warning(f"Configuration file not found: {CONFIG_PATH}.")
-        LOCKER_TYPES = {}
-    except yaml.YAMLError as e:
-        logger.warning(f"Error parsing YAML configuration: {e}")
-        LOCKER_TYPES = {}
-    except TypeError as e:
-        logger.warning(f"Data structure mismatch: {e}")
-        LOCKER_TYPES = {}
 
 
 async def handle_unlock_confirmation(
@@ -82,18 +56,16 @@ async def handle_unlock_confirmation(
             ), f"Locker '#{locker.doc.id}' is not locked."
 
     # 5: Find the assigned session
+    assert task.assigned_session, f"Task '#{task.id}' has no assigned session."
     session: Session = Session(task.assigned_session)
-    if not session.exists:
-        raise SessionNotFoundException(
-            session_id=task.assigned_session.id,
-            raise_http=False)
 
-    assert (session.doc.session_state in [
+    expected_states = [
         SessionState.VERIFICATION,
         SessionState.PAYMENT,
         SessionState.HOLD]
-    ), (f"Session '#{session.id}' is in {session.session_state}, expected "
-        f"{[state for state in [SessionState.VERIFICATION, SessionState.PAYMENT, SessionState.HOLD]]}.")
+    assert (session.doc.session_state in expected_states
+            ), (f"Session '#{session.id}' is in {session.session_state}, expected "
+                f"{expected_states}.")
 
     # 6: If those checks pass, update the locker and create an action
     await locker.register_state(LockerState.UNLOCKED)
@@ -155,19 +127,14 @@ async def handle_lock_report(
             raise_http=False)
 
     # 5: Find the assigned session
+    assert task.assigned_session, f"Task '#{task.id}' has no assigned session."
     session: Session = Session(task.assigned_session)
-    if not session.exists:
-        raise SessionNotFoundException(
-            session_id=task.assigned_session.id,
-            raise_http=False)
 
     assert (session.doc.session_state in [
         SessionState.STASHING,
-        # TODO: This should not be required
-        # SessionState.ACTIVE,
         SessionState.RETRIEVAL]
     ), (f"Session '#{session.id}' is in {session.session_state}, expected "
-        f"{[state for state in [SessionState.STASHING, SessionState.ACTIVE, SessionState.RETRIEVAL]]}.")
+        f"{[SessionState.STASHING, SessionState.ACTIVE, SessionState.RETRIEVAL]}.")
 
     # 6: If those checks pass, update the locker and create an action
     await locker.register_state(LockerState.LOCKED)

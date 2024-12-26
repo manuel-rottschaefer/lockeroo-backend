@@ -1,3 +1,4 @@
+"""Validator for all models in the models folder"""
 from pydantic import ValidationError
 
 from src.models.action_models import ActionModel, ActionView
@@ -25,9 +26,10 @@ models = [ActionModel, ActionView,
 
 
 def test_model(model_class):
+    """Test the validation of a model"""
     try:
         example_data = model_class.Config.json_schema_extra
-        model_instance = model_class(**example_data)
+        _model_instance = model_class(**example_data)
         print(f"{model_class.__name__} is valid")
     except ValidationError as e:
         print(f"{model_class.__name__} validation error: {e}")

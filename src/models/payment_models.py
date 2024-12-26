@@ -12,8 +12,6 @@ from beanie import SaveChanges, after_event
 from pydantic import BaseModel, Field
 
 # Entities
-from src.entities.session_entity import Session
-from src.entities.station_entity import Station
 from src.models.session_models import SessionModel
 # Models
 from src.models.station_models import StationModel
@@ -43,7 +41,7 @@ class PricingModel(BaseModel):
         description="Charge for every started minue (cent)")
 
     @ dataclass
-    class Config:  # pylint: disable=missing-class-docstring
+    class Config:
         json_schema_extra = {
             "name": "Standard",
             "base_fee": 100,
@@ -76,26 +74,24 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
     @ after_event(SaveChanges)
     async def check_pending(self):
         """Check if this payment is now pending."""
+        self.assigned_station: StationModel
         # 1: Update the timestamp
         self.doc.last_updated = datetime.now()
 
         # 2: Check if the payment is now pending
-        # TODO: Properly implement this
         if self.state == PaymentStates.PENDING:
-            session: Session = Session(self.assigned_session)
-            await session.doc.fetch_all_links()
-            station: Station = await Station(session.assigned_station)
+            await self.fetch_link(SessionModel.assigned_station)
             fast_mqtt.publish(
-                f'/stations/{station.callsign}/payment/{self.price}')
+                f'/stations/{self.assigned_station.callsign}/payment/{self.price}')
 
         await self.doc.save_changes()
 
     @ dataclass
-    class Settings:  # pylint: disable=missing-class-docstring
+    class Settings:
         name = "payments"
 
     @ dataclass
-    class Config:  # pylint: disable=missing-class-docstring
+    class Config:
         json_schema_extra = {
             "assigned_station": "60d5ec49f1d2b2a5d8f8b8b8",
             "assigned_session": "60d5ec49f1d2b2a5d8f8b8b8",

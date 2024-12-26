@@ -42,11 +42,11 @@ class ReviewModel(Document):  # pylint: disable=too-many-ancestors
         self.submitted_at = datetime.now()
 
     @ dataclass
-    class Settings:  # pylint: disable=missing-class-docstring
+    class Settings:
         name = "reviews"
 
     @ dataclass
-    class Config:  # pylint: disable=missing-class-docstring
+    class Config:
         json_schema_extra = {
             "assigned_session": "60d5ec49f1d2b2a5d8f8b8b8",
             "experience_rating": 5,
@@ -74,7 +74,7 @@ class ReviewView(View):  # pylint: disable=too-many-ancestors
     )
 
     @ dataclass
-    class Config:  # pylint: disable=missing-class-docstring
+    class Config:
         json_schema_extra = {
             "id": "60d5ec49f1d2b2a5d8f8b8b8",
             "assigned_session": "60d5ec49f1d2b2a5d8f8b8b8",

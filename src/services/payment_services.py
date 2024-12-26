@@ -14,6 +14,7 @@ from src.services.logging_services import logger
 # Singleton for pricing models
 PRICING_MODELS: Dict[str, PricingModel] = None
 
+# TODO: Convert this to a function
 CONFIG_PATH = 'src/config/pricing_models.yml'
 
 if PRICING_MODELS is None:

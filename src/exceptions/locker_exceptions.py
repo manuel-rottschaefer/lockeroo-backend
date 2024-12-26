@@ -4,7 +4,7 @@ from typing import Optional
 # Beanie
 from beanie import PydanticObjectId as ObjId
 # Models
-from src.models.locker_models import LockerState, LockerTypes
+from src.models.locker_models import LockerState, LockerType
 # Exceptions
 from fastapi import HTTPException
 
@@ -50,7 +50,7 @@ class InvalidLockerTypeException(Exception):
     """Exception raised when a locker type is not found in the configuration."""
 
     def __init__(self,
-                 locker_type: LockerTypes,
+                 locker_type: LockerType,
                  raise_http: bool = True):
         self.locker_type = locker_type
 

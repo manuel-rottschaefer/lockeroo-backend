@@ -1,18 +1,19 @@
 """Provides utility functions for the websocket backend."""
-
+# Basics
+import secrets
 # Types
 from typing import Dict, Optional
-
 # FastAPI
 from fastapi import WebSocket
-
 # Beanie
 from beanie import PydanticObjectId as ObjId
 
-# Logging
-from src.services.logging_services import logger
-
 active_connections: Dict[ObjId, WebSocket] = {}
+
+
+def generate_token() -> str:
+    """Generate a random token."""
+    return secrets.token_urlsafe(32)
 
 
 def register_connection(session_id: ObjId, socket: WebSocket) -> None:

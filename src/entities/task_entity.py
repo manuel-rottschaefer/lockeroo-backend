@@ -1,15 +1,12 @@
 """This module provides utilities for  database for tasks."""
-
 # Basics
 from typing import Optional
+from asyncio import create_task, sleep
 from datetime import datetime, timedelta
-from asyncio import sleep, create_task
-import os
-
+from os import getenv
 # Beanie
 from beanie import SortDirection, Link
 from beanie.operators import In
-
 # Entities
 from src.entities.entity_utils import Entity
 from src.entities.session_entity import Session
@@ -53,11 +50,25 @@ class Task(Entity):
             return cls(task_item)
 
     async def is_next_in_queue(self) -> bool:
-        """Get the next task in queue at a station and check if this task is next in queue."""
+        """Get the next task item in the queue
+
+        Check if the station terminal is not occupied, then
+        fetch the next task from the database, then check if it is the current task.
+
+        Args:
+            self (Task): The own task entity
+
+        Returns:
+            bool: Whether the current task is next in queue
+
+        Raises:
+            AssertionError
+        """
         # 1: Check if the station is still occupied
         await self.doc.fetch_link(TaskItemModel.assigned_station)
-        await self.assigned_station.sync()  # TODO: Is this required here?
+        # await self.assigned_station.sync()  # TODO: Is this required here?
         if (self.assigned_station.terminal_state != TerminalState.IDLE
+                # Check if the this may be removed by altering the order of method calls.
                 and self.doc.task_type != TaskType.REPORT):
             logger.info(
                 f"Not proceeding with queue activation, Station "
@@ -111,7 +122,7 @@ class Task(Entity):
                 self.doc.assigned_session.session_state]
 
         elif self.target == TaskTarget.TERMINAL:
-            timeout_window = int(os.getenv("STATION_EXPIRATION", '10'))
+            timeout_window = int(getenv("STATION_EXPIRATION", '10'))
 
         assert (timeout_window is not None
                 ), f"No timeout window found for task '#{self.doc.id}'."
@@ -195,9 +206,6 @@ class Task(Entity):
                     ), f"Locker {locker.doc.id} is not locked."
             await locker.instruct_state(LockerState.UNLOCKED)
 
-        # 5: Restart the expiration manager
-        restart_expiration_manager()
-
     async def complete(self) -> None:
         """Complete a task item.
 
@@ -215,10 +223,10 @@ class Task(Entity):
             AssertionError: If the task is not pending or should have expired already
         """
         await self.doc.sync()
-        assert (self.doc.task_state in [TaskState.PENDING, TaskState.QUEUED]  # TODO: All tasks should be activated by the time they are completed
+        assert (self.doc.task_state in [TaskState.PENDING, TaskState.QUEUED]
                 ), f"Cannot complete Task '#{self.doc.id}' as it is in {self.doc.task_state}."
 
-        assert (datetime.now() < self.doc.expires_at
+        assert (datetime.now() < self.doc.expires_at + timedelta(seconds=1)
                 ), f"Cannot complete Task '#{self.doc.id}' as it should already have timed out."
 
         # 1: Set the task state to completed
@@ -240,7 +248,8 @@ class Task(Entity):
                     f"Task completed, Task '#{next_task.id}' is next at station.")
                 await next_task.activate()
 
-        restart_expiration_manager()
+        # 3: Restart the expiration manager
+        task_expiration_manager.restart()
 
     async def handle_expiration(self) -> None:
         """Handle the expiration of a task item."""
@@ -264,7 +273,7 @@ class Task(Entity):
         await session.save_changes()
 
         # 4: Restart the expiration manager
-        restart_expiration_manager()
+        task_expiration_manager.restart()
 
         # 5: End the queue flow here if the session has timed out or no additional timeout states
         if (session.session_state not in ACTIVE_SESSION_STATES
@@ -306,16 +315,17 @@ async def expiration_manager_loop() -> None:
         await Task(next_expiring_task).handle_expiration()
 
 
-def restart_expiration_manager() -> None:
-    """Restart the expiration manager."""
-    EXPIRATION_MANAGER.cancel()
-    start_expiration_manager()
+class TaskExpirationManager:
+    """Task expiration manager."""
+
+    def __init__(self) -> None:
+        self.task: Optional[Task] = None
+
+    def restart(self) -> None:
+        """Restart the task expiration manager."""
+        if self.task:
+            self.task.cancel()
+        self.task = create_task(expiration_manager_loop())
 
 
-def start_expiration_manager() -> None:
-    """Start the expiration manager."""
-    global EXPIRATION_MANAGER  # pylint: disable=global-statement
-    EXPIRATION_MANAGER = create_task(expiration_manager_loop())
-
-
-EXPIRATION_MANAGER = None
+task_expiration_manager = TaskExpirationManager()

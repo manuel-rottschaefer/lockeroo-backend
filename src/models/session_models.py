@@ -151,9 +151,14 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
         None, description=("Total duration between session creation and completion.",
                            "This value is only being calculated on demand and can be None."))
 
+    ### Security ###
+    websocket_token: Optional[str] = Field(
+        None, description="Token for websocket communication.")
+
     @ before_event(Insert)
     async def set_creation_data(self):
         self.created_at = datetime.now()
+        self.websocket_token = websocket_services.generate_token()
 
     @ after_event(Insert)
     async def log_creation(self):
@@ -169,14 +174,14 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
             f"Session '#{self.id}' moved to {self.session_state}.")
 
     @ dataclass
-    class Settings:  # pylint: disable=missing-class-docstring
+    class Settings:
         name = "sessions"
         use_state_management = True
         use_revision = False
         use_cache = False
 
     @ dataclass
-    class Config:  # pylint: disable=missing-class-docstring
+    class Config:
         json_schema_extra = {
             "assigned_station": "60d5ec49f1d2b2a5d8f8b8b8",
             "assigned_locker": "60d5ec49f1d2b2a5d8f8b8b8",
@@ -198,7 +203,7 @@ class SessionView(View):
     user: UUID = Field(
         None, description="The assigned user to this session.")
 
-    station_index: Optional[int] = Field(
+    station_index: int = Field(
         default=None, description="Local index of the locker at its station")
 
     session_type: SessionTypes = Field(
@@ -207,12 +212,15 @@ class SessionView(View):
     session_state: SessionState = Field(
         None, description="Current state of the session")
 
+    websocket_token: str = Field(
+        None, description="Token for websocket communication.")
+
     # These timestamps are only gathered from session actions when a
     # session view isrequested to avoid duplicate data entries
     # TODO: Implement a timestamping mechanism
 
     @ dataclass
-    class Config:  # pylint: disable=missing-class-docstring
+    class Config:
         from_attributes = True
         json_schema_extra = {
             "id": "60d5ec49f1d2b2a5d8f8b8b8",
@@ -220,19 +228,21 @@ class SessionView(View):
             "user": "12345678-1234-5678-1234-567812345678",
             "station_index": 1,
             "session_type": "personal",
-            "session_state": "created"
+            "session_state": "created",
+            "websocket_token": "12345678-1234-5678-1234-567812345678"
         }
 
     @ dataclass
-    class Settings:  # pylint: disable=missing-class-docstring
+    class Settings:
         source = SessionModel
         projection = {
-            "id": "$_id",
+            "id": "$fief_id",
             "user": "$user",
             "session_state": "$session_state.name",
             "session_type": "$session_type",
             "assigned_station": "$assigned_station._id",
-            "station_index": "$assigned_locker.station_index"
+            "station_index": "$assigned_locker.station_index",
+            "websocket_token": "$websocket_token"
         }
 
 
@@ -250,5 +260,5 @@ class CompletedSession(View):
     activeDuration: Optional[float] = None
 
     @ dataclass
-    class Config:  # pylint: disable=missing-class-docstring
+    class Config:
         from_attributes = True

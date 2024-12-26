@@ -23,14 +23,16 @@ class Session(Entity):
 
     @property
     async def view(self) -> SessionView:
-        await self.doc.fetch_all_links()
+        # await self.doc.fetch_all_links()
+        # TODO: Improve this
         return SessionView(
-            id=self.id,
-            assigned_station=self.assigned_station.id,
-            user=self.user.fief_id,
-            station_index=self.assigned_locker.station_index if self.assigned_locker else None,
-            session_type=self.session_type,
-            session_state=self.session_state
+            id=self.doc.id,
+            assigned_station=self.doc.assigned_station.id,
+            user=self.doc.user.fief_id,
+            station_index=self.doc.assigned_locker.station_index if self.assigned_locker else None,
+            session_type=self.doc.session_type,
+            session_state=self.doc.session_state,
+            websocket_token=self.doc.websocket_token,
         )
 
     ### Calculated Properties ###

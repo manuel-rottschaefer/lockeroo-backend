@@ -46,7 +46,7 @@ async def get_session_details(
                 session_id}'.")
     return await session_services.get_details(
         session_id=ObjId(session_id),
-        _user=access_info
+        user=access_info
     )
 
 
@@ -199,7 +199,14 @@ async def get_session_history(
 
 
 @session_router.websocket('/{session_id}/subscribe')
-async def subscribe_to_session(socket: WebSocket, session_id: str) -> None:
+async def subscribe_to_session(
+        socket: WebSocket,
+        user_id: str,
+        session_token: str,
+        session_id: str) -> None:
     """Handle subscription to a session update flow."""
     await session_services.handle_update_subscription_request(
-        session_id=session_id, socket=socket)
+        session_id=session_id,
+        session_token=session_token,
+        user_id=user_id,
+        socket=socket)

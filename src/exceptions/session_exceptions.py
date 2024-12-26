@@ -1,12 +1,11 @@
 """This module provides exception classes for session management."""
 # Types
 from typing import List
+from logging import INFO, WARNING
 # Beanie
 from beanie import PydanticObjectId as ObjId
 # Exceptions
 from fastapi import HTTPException
-# Log level
-from logging import INFO, WARNING
 # Models
 from src.models.session_models import SessionState
 
@@ -14,16 +13,15 @@ from src.models.session_models import SessionState
 class SessionNotFoundException(Exception):
     """Exception raised when a station cannot be found by a given query."""
 
-    def __init__(self, session_id: ObjId = None, raise_http: bool = True):
-        # TODO: The passed session_id may be useless for troubleshooting
-        self.session = session_id
+    def __init__(self, user_id: ObjId = None, raise_http: bool = True):
+        self.user_id = user_id
         self.log_level = INFO
 
         if raise_http:
             raise HTTPException(status_code=404, detail=self.__str__())
 
     def __str__(self):
-        return f"Session '#{self.session}' not found in database.)"
+        return f"Cannot find session for user '#{self.user_id}' in the database.)"
 
 
 class InvalidSessionStateException(Exception):

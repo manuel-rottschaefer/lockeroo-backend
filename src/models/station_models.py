@@ -1,20 +1,17 @@
 """This module provides the Models for Station management."""
 # Types
+from typing import List, Dict, Optional, Annotated
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, Optional, Annotated
-
 # Beanie
 from pymongo import TEXT
 from beanie import Document, Indexed
 from beanie import PydanticObjectId as ObjId
 from beanie import SaveChanges, View, after_event
 from pydantic import BaseModel, Field
-
 # Services
 from src.services.mqtt_services import fast_mqtt
-from src.services.logging_services import logger
 
 
 class StationStates(str, Enum):
@@ -32,6 +29,17 @@ class TerminalState(str, Enum):
     VERIFICATION = "verification"  # Terminal is in verification mode
     PAYMENT = "payment"  # Terminal is in payment mode
     OUTOFSERVICE = "outOfService"  # Terminal is offline or awaiting repair
+
+
+class LockerLayout(BaseModel):
+    """Representation of the layout of a station."""
+    locker_count: int = Field(description="Total amount of lockers.")
+
+    column_count: int = Field(description="Amount of columns of lockers.")
+    max_row_count: int = Field(description="Amount of rows of lockers.")
+
+    # Name of locker types from top to bottom, left to right
+    layout: List[List[str]]
 
 
 class StationType(BaseModel):
@@ -69,6 +77,9 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     installed_at: datetime
     installed_lockers: int
 
+    # Layout
+    locker_layout: LockerLayout
+
     # Operation state
     station_state: StationStates = Field(default=StationStates.AVAILABLE)
     terminal_state: TerminalState = Field(default=TerminalState.IDLE)
@@ -97,7 +108,7 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
             f"stations/{self.callsign}/state", self.station_state)
 
     @ dataclass
-    class Settings:  # pylint: disable=missing-class-docstring
+    class Settings:
         name = "stations"
         use_state_management = True
         use_revision = False
@@ -106,7 +117,7 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
         # cache_capacity = 5
 
     @ dataclass
-    class Config:  # pylint: disable=missing-class-docstring
+    class Config:
         json_schema_extra = {
             "full_name": "Central Station",
             "callsign": "CENTRAL",
@@ -154,11 +165,12 @@ class StationView(View):
     location: Dict
     nearby_public_transit: Optional[str]
 
-    class Settings:  # pylint: disable=missing-class-docstring, too-few-public-methods
+    @ dataclass
+    class Settings:  # pylint: disable=too-few-public-methods
         source = StationModel
 
     @ dataclass
-    class Config:  # pylint: disable=missing-class-docstring
+    class Config:
         json_schema_extra = {
             "id": "60d5ec49f1d2b2a5d8f8b8b8",
             "full_name": "Central Station",
@@ -173,10 +185,3 @@ class StationView(View):
             "location": {"lat": 40.7128, "lon": -74.0060},
             "nearby_public_transit": "Subway"
         }
-
-
-class StationLockerAvailabilities(View):
-    """Availability of each locker type at a station"""
-    small: bool
-    medium: bool
-    large: bool

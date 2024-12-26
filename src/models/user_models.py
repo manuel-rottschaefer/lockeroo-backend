@@ -29,7 +29,7 @@ class UserModel(Document):  # pylint: disable=too-many-ancestors
 
     # Identification
     id: ObjId = Field(None, alias="_id")
-    fief_id: UUID
+    fief_id: UUID = Field(None, description="Unique identifier of user.")
     first_name: Optional[str] = Field(None, description="First name of user.")
     last_name: Optional[str] = Field(None, description="Last name of user.")
     email: Optional[str] = Field(

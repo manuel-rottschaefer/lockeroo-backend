@@ -5,7 +5,7 @@ from beanie.operators import In, NotIn
 
 # Entities
 from src.entities.entity_utils import Entity
-from src.models.locker_models import LockerModel, LockerState, LockerTypes
+from src.models.locker_models import LockerModel, LockerState, LockerType
 from src.models.session_models import SessionModel, SessionState, ACTIVE_SESSION_STATES
 # Models
 from src.models.station_models import StationModel
@@ -19,7 +19,7 @@ class Locker(Entity):
     doc: LockerModel
 
     @classmethod
-    async def find_available(cls, station: StationModel, locker_type: LockerTypes):
+    async def find_available(cls, station: StationModel, locker_type: LockerType):
         """Find an available locker at this station."""
         instance = cls()
 
@@ -43,14 +43,13 @@ class Locker(Entity):
         ).sort((SessionModel.created_at, SortDirection.ASCENDING)).to_list()
         active_lockers = [
             session.assigned_locker.id for session in active_sessions]
-        # TODO: Create a station locker count key, it is useful for such tasks
-        assert len(
-            active_lockers) < 30, "Found more active lockers than exist at station."
+        assert (station.locker_layout.locker_count < 30
+                ), "Found more active lockers than exist at station."
 
         # 3: Find a locker at this station that matches the type and does not belong to such a session
         available_locker: LockerModel = await LockerModel.find(
             # LockerModel.station.id == station.id,  # pylint: disable=no-member
-            LockerModel.locker_type == locker_type.name,
+            LockerModel.locker_type.name == locker_type.name,
             NotIn(LockerModel.id,  active_lockers),
             fetch_links=True
         ).sort((LockerModel.total_session_count, SortDirection.ASCENDING)).first_or_none()

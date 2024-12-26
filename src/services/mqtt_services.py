@@ -66,5 +66,5 @@ def connect(client: MQTTClient, _flags: int, _rc: int, _properties: Any):
 
 
 @fast_mqtt.on_disconnect()
-def disconnect(client: MQTTClient, _packet, _exc=None):
-    logger.debug(f"Disconnected from MQTT Broker.")
+def disconnect(_client: MQTTClient, _packet, _exc=None):
+    logger.debug("Disconnected from MQTT Broker.")

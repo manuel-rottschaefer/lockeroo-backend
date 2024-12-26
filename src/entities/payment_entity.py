@@ -44,7 +44,8 @@ class Payment(Entity):
         # 2: Get the locker assigned to this session
         locker: Locker = Locker(session.assigned_locker)
 
-        pricing_model: PricingModel = PRICING_MODELS[locker.pricing_model]
+        pricing_model: PricingModel = PRICING_MODELS[
+            locker.locker_type.pricing_model]
 
         # 4:Calculate the total cost
         active_duration: timedelta = await session.active_duration

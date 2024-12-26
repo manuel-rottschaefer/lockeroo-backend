@@ -43,16 +43,16 @@ class ActionModel(Document):  # pylint: disable=too-many-ancestors
     timestamp: datetime = Field(
         None, description="The timestamp of when this action was registered."
     )
-    # TODO: For now this is expressed as a session state
+
     action_type: ActionType = Field(
         None, description="The type of action expressed as a session state name")
 
     @ dataclass
-    class Settings:  # pylint: disable=missing-class-docstring
+    class Settings:
         name = "actions"
 
     @ dataclass
-    class Config:  # pylint: disable=missing-class-docstring
+    class Config:
         json_schema_extra = {
             "assigned_session": "60d5ec49f1d2b2a5d8f8b8b8",
             "timestamp": "2023-10-10T10:00:00",
@@ -76,7 +76,7 @@ class ActionView(View):  # pylint: disable=too-many-ancestors
     )
 
     @ dataclass
-    class Config:  # pylint: disable=missing-class-docstring
+    class Config:
         json_schema_extra = {
             "id": "60d5ec49f1d2b2a5d8f8b8b8",
             "assigned_session": "60d5ec49f1d2b2a5d8f8b8b8",

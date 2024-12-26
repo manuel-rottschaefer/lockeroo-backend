@@ -7,6 +7,18 @@
     "sw_version": "1.0.0",
     "installed_at": "2024-09-01T00:00:00Z",
     "installed_lockers": 18,
+    "locker_layout": {
+      "locker_count": 18,
+      "column_count": 6,
+      "max_row_count": 4,
+      "layout":[
+      ["medium", "medium", "medium"],
+      ["medium", "medium", "medium"],
+      ["small", "small", "small", "small"],
+      ["small", "small", "small", "small"],
+      ["large", "large"],
+      ["large", "large"]
+    ]},
     "station_state": "available",
     "terminal_state": "idle",
     "next_service_date": "2024-12-01T00:00:00Z",

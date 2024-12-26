@@ -6,7 +6,7 @@ mini:
     - 20
     - 10
     - 40
-  payment_model: phones-wallets
+  pricing_model: phones-wallets
   has_outlet: true
   maintenance_interval: 45
 
@@ -18,11 +18,10 @@ small:
     - 20
     - 10
     - 40
-  payment_model: storage-small
+  pricing_model: storage-small
   has_outlet: False
   maintenance_interval: 45
   
-
 medium:
   description: Bags and small luggage.
   stations:
@@ -31,7 +30,7 @@ medium:
     - 20
     - 20
     - 40
-  payment_model: storage-small
+  pricing_model: storage-small
   has_outlet: true
   maintenance_interval: 30
 
@@ -43,6 +42,6 @@ large:
     - 40
     - 40
     - 40
-  payment_model: storage-medium
+  pricing_model: storage-medium
   has_outlet: false
   maintenance_interval: 30

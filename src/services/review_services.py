@@ -29,7 +29,7 @@ async def handle_review_submission(session_id: ObjId,
         SessionModel.user == user
     )
     if not session.exists:
-        raise SessionNotFoundException(session_id=session_id)
+        raise SessionNotFoundException(user_id=user.id)
 
     # 2: Check if the session has already been completed
     if session.session_state != SessionState.COMPLETED:
