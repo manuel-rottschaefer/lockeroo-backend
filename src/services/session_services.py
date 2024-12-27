@@ -141,7 +141,7 @@ async def handle_creation_request(
     await ActionModel(
         assigned_session=session.doc, action_type=ActionType.CREATE).insert()
 
-    return CreatedSessionView.model_validate(session.doc)
+    return session.created_view
 
 
 async def handle_payment_selection(

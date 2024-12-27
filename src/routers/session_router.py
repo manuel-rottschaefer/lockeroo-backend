@@ -14,7 +14,10 @@ from src.entities.user_entity import User
 from src.models.action_models import ActionView
 # from fief_client import FiefAccessTokenInfo
 # Models
-from src.models.session_models import PaymentTypes, SessionView
+from src.models.session_models import (
+    SessionView,
+    CreatedSessionView,
+    PaymentTypes)
 # Services
 from src.services import session_services
 from src.services.auth_services import require_auth
@@ -53,7 +56,7 @@ async def get_session_details(
 
 @session_router.post(
     '/create',
-    response_model=Optional[SessionView],
+    response_model=Optional[CreatedSessionView],
     status_code=status.HTTP_201_CREATED,
     description='Request a new session at a given station')
 async def request_new_session(
@@ -62,7 +65,7 @@ async def request_new_session(
 
     _user: str = Header(default=None, alias="user"),
     access_info: User = Depends(require_auth),
-):
+) -> Optional[CreatedSessionView]:
     """Handle request to create a new session"""
     logger.info((f"User '#{access_info.fief_id}' is requesting a "
                 f"new session at station '{station_callsign}'."))

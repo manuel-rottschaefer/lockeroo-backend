@@ -202,11 +202,12 @@ class SessionView(View):
     """Used for serving information about an active session"""
     # Identification
     id: str = Field(description="Unique identifier of the session.")
-    assigned_station: ObjId = Field(
-        description="Station at which the session takes place")
 
     user: UUID = Field(
         None, description="The assigned user to this session.")
+
+    assigned_station: str = Field(
+        description="Station at which the session takes place")
 
     station_index: int = Field(
         default=None, description="Local index of the locker at its station")
@@ -239,13 +240,12 @@ class SessionView(View):
         source = SessionModel
         is_root = True
         projection = {
-            "id": "$fief_id",
-            "user": "$user",
-            "session_state": "$session_state.name",
-            "session_type": "$session_type",
-            "assigned_station": "$assigned_station._id",
+            "id": {"$toString": "$_id"},
+            "user": "$user.fief_id",
+            "assigned_station": {"$toString": "$assigned_station._id"},
             "station_index": "$assigned_locker.station_index",
-            "websocket_token": "$websocket_token"
+            "session_type": "$session_type",
+            "session_state": "$session_state.name",
         }
 
 

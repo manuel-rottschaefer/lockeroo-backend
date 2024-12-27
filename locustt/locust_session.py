@@ -10,7 +10,10 @@ from locust import HttpUser, TaskSet
 
 from locustt.locust_logger import LocustLogger
 from locustt.user_pool import UserPool
-from src.models.session_models import SessionState, SessionView
+from src.models.session_models import (
+    SessionState,
+    SessionView,
+    CreatedSessionView)
 from src.models.locker_models import LockerTypeAvailability
 
 # Initialize the user pool
@@ -37,7 +40,7 @@ class LocustSession:
         self.payment_method = 'terminal'
         self.endpoint: str = getenv('API_BASE_URL')
         self.ws_endpoint: str = getenv('API_WS_URL')
-        self.session: SessionView
+        self.session: Union[CreatedSessionView, SessionView]
         self.user_id: Optional[str] = None
         self.headers: dict
 
@@ -110,7 +113,6 @@ class LocustSession:
         if not avail_locker_types:
             self.terminate_session()
             return None
-        print(avail_locker_types)
         return choice([locker_type.locker_type for locker_type in avail_locker_types])
 
     def user_request_session(self):
@@ -134,7 +136,8 @@ class LocustSession:
             return None
         res.raise_for_status()
         # Check if the session state matches the expected state
-        session = SessionView(**res.json())
+        session = CreatedSessionView(**res.json())
+        print(session)
         if session.session_state != SessionState.CREATED:
             self.log_unexpected_state(session, SessionState.CREATED)
         # Return obtained session

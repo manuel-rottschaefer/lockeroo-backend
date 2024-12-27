@@ -8,8 +8,12 @@ from typing import List
 from src.entities.entity_utils import Entity
 from src.models.action_models import ActionModel
 from src.models.locker_models import LockerModel
-from src.models.session_models import (FOLLOW_UP_STATES, SessionModel,
-                                       SessionState, SessionView)
+from src.models.session_models import (
+    FOLLOW_UP_STATES,
+    SessionModel,
+    SessionState,
+    SessionView,
+    CreatedSessionView)
 # Models
 from src.models.station_models import StationModel
 from src.models.user_models import UserModel
@@ -24,10 +28,23 @@ class Session(Entity):
         # await self.doc.fetch_all_links()
         # TODO: Improve this
         return SessionView(
-            id=self.doc.id,
-            assigned_station=self.doc.assigned_station.id,
+            id=str(self.doc.id),
+            assigned_station=str(self.doc.assigned_station.id),
             user=self.doc.user.fief_id,
             station_index=self.doc.assigned_locker.station_index if self.assigned_locker else None,
+            session_type=self.doc.session_type,
+            session_state=self.doc.session_state,
+            websocket_token=self.doc.websocket_token,
+        )
+
+    @property
+    def created_view(self) -> CreatedSessionView:
+        """Return a view of the session that is suitable for creation."""
+        return CreatedSessionView(
+            id=str(self.doc.id),
+            user=self.doc.user.fief_id,
+            assigned_station=str(self.doc.assigned_station.id),
+            station_index=self.doc.assigned_locker.station_index,
             session_type=self.doc.session_type,
             session_state=self.doc.session_state,
             websocket_token=self.doc.websocket_token,
