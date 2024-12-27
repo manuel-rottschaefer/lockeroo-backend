@@ -2,7 +2,7 @@ import threading
 from os import getenv
 from random import choice, uniform
 from time import sleep
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 import paho.mqtt.client as mqttc
 import websockets.sync.client as sync_websockets
@@ -11,6 +11,7 @@ from locust import HttpUser, TaskSet
 from locustt.locust_logger import LocustLogger
 from locustt.user_pool import UserPool
 from src.models.session_models import SessionState, SessionView
+from src.models.locker_models import LockerTypeAvailability
 
 # Initialize the user pool
 user_pool = UserPool()
@@ -23,8 +24,6 @@ mqtt_client.loop_start()
 # Initialize the logger once
 locust_logger = LocustLogger().logger
 
-LOCKER_TYPES = ['small', 'medium', 'large']
-
 
 class LocustSession:
     """A session object for locust users."""
@@ -35,7 +34,6 @@ class LocustSession:
         self.client: HttpUser = user.client
         self.mqtt_client: mqttc.Client = mqtt_client
         self.station_callsign = "MUCODE"
-        self.locker_type = choice(LOCKER_TYPES)
         self.payment_method = 'terminal'
         self.endpoint: str = getenv('API_BASE_URL')
         self.ws_endpoint: str = getenv('API_WS_URL')
@@ -96,6 +94,25 @@ class LocustSession:
     ###   USER ACTIONS   ###
     ########################
 
+    def find_available_locker(self) -> Optional[str]:
+        """Try to find an available locker at the locker station."""
+        # Make the request
+        res = self.client.get(
+            self.endpoint + f'/stations/{self.station_callsign}/lockers', timeout=3)
+        # Check for server errors
+        if res.status_code == 400:
+            self.terminate_session()
+            return None
+        res.raise_for_status()
+        # Check if the session state matches the expected state
+        avail_locker_types: List[LockerTypeAvailability] = [
+            LockerTypeAvailability(**i) for i in res.json() if i['is_available']]
+        if not avail_locker_types:
+            self.terminate_session()
+            return None
+        print(avail_locker_types)
+        return choice([locker_type.locker_type for locker_type in avail_locker_types])
+
     def user_request_session(self):
         """Try to request a new session at the locker station."""
         # Make the request
@@ -104,10 +121,11 @@ class LocustSession:
             self.terminate_session()
             return None
         self.headers: dict = {"user": self.user_id}
+        locker_type = self.find_available_locker()
         res = self.client.post(
             self.endpoint + '/sessions/create', params={
                 'station_callsign': self.station_callsign,
-                'locker_type': self.locker_type
+                'locker_type': locker_type
             }, headers=self.headers, timeout=3)
         # Check for server errors
         if res.status_code == 400:

@@ -22,6 +22,7 @@
       "has_outlet": true,
       "maintenance_interval": 30
     },
+    "availability": "operational",
     "reported_state": "locked",
     "last_service_at": "2024-08-01T00:00:00Z",
     "total_session_count": 0,
@@ -50,6 +51,7 @@
       "has_outlet": true,
       "maintenance_interval": 30
     },
+    "availability": "operational",
     "reported_state": "locked",
     "last_service_at": "2024-08-01T00:00:00Z",
     "total_session_count": 0,
@@ -78,6 +80,7 @@
       "has_outlet": false,
       "maintenance_interval": 45
     },
+    "availability": "operational",
     "reported_state": "locked",
     "last_service_at": "2024-08-01T00:00:00Z",
     "total_session_count": 0,
@@ -106,6 +109,7 @@
       "has_outlet": false,
       "maintenance_interval": 45
     },
+    "availability": "operational",
     "reported_state": "locked",
     "last_service_at": "2024-08-01T00:00:00Z",
     "total_session_count": 0,
@@ -134,6 +138,7 @@
       "has_outlet": false,
       "maintenance_interval": 30
     },
+    "availability": "operational",
     "reported_state": "locked",
     "last_service_at": "2024-08-01T00:00:00Z",
     "total_session_count": 0,
@@ -162,6 +167,7 @@
       "has_outlet": false,
       "maintenance_interval": 30
     },
+    "availability": "operational",
     "reported_state": "locked",
     "last_service_at": "2024-08-01T00:00:00Z",
     "total_session_count": 0,
@@ -190,6 +196,7 @@
       "has_outlet": true,
       "maintenance_interval": 30
     },
+    "availability": "operational",
     "reported_state": "locked",
     "last_service_at": "2024-08-01T00:00:00Z",
     "total_session_count": 0,
@@ -218,6 +225,7 @@
       "has_outlet": true,
       "maintenance_interval": 30
     },
+    "availability": "operational",
     "reported_state": "locked",
     "last_service_at": "2024-08-01T00:00:00Z",
     "total_session_count": 0,
@@ -246,6 +254,7 @@
       "has_outlet": false,
       "maintenance_interval": 45
     },
+    "availability": "operational",
     "reported_state": "locked",
     "last_service_at": "2024-08-01T00:00:00Z",
     "total_session_count": 0,
@@ -274,6 +283,7 @@
       "has_outlet": false,
       "maintenance_interval": 45
     },
+    "availability": "operational",
     "reported_state": "locked",
     "last_service_at": "2024-08-01T00:00:00Z",
     "total_session_count": 0,
@@ -302,6 +312,7 @@
       "has_outlet": false,
       "maintenance_interval": 45
     },
+    "availability": "operational",
     "reported_state": "locked",
     "last_service_at": "2024-08-01T00:00:00Z",
     "total_session_count": 0,
@@ -330,6 +341,7 @@
       "has_outlet": false,
       "maintenance_interval": 45
     },
+    "availability": "operational",
     "reported_state": "locked",
     "last_service_at": "2024-08-01T00:00:00Z",
     "total_session_count": 0,
@@ -358,6 +370,7 @@
       "has_outlet": false,
       "maintenance_interval": 30
     },
+    "availability": "operational",
     "reported_state": "locked",
     "last_service_at": "2024-08-01T00:00:00Z",
     "total_session_count": 0,
@@ -386,6 +399,7 @@
       "has_outlet": false,
       "maintenance_interval": 30
     },
+    "availability": "operational",
     "reported_state": "locked",
     "last_service_at": "2024-08-01T00:00:00Z",
     "total_session_count": 0,
@@ -414,6 +428,7 @@
       "has_outlet": true,
       "maintenance_interval": 30
     },
+    "availability": "operational",
     "reported_state": "locked",
     "last_service_at": "2024-08-01T00:00:00Z",
     "total_session_count": 0,
@@ -442,6 +457,7 @@
       "has_outlet": true,
       "maintenance_interval": 30
     },
+    "availability": "operational",
     "reported_state": "locked",
     "last_service_at": "2024-08-01T00:00:00Z",
     "total_session_count": 0,
@@ -470,6 +486,7 @@
       "has_outlet": false,
       "maintenance_interval": 45
     },
+    "availability": "operational",
     "reported_state": "locked",
     "last_service_at": "2024-08-01T00:00:00Z",
     "total_session_count": 0,
@@ -498,6 +515,7 @@
       "has_outlet": false,
       "maintenance_interval": 45
     },
+    "availability": "operational",
     "reported_state": "locked",
     "last_service_at": "2024-08-01T00:00:00Z",
     "total_session_count": 0,
