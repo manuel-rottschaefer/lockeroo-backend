@@ -3,26 +3,24 @@ This module contains the station router which handles all station related reques
 """
 
 # Basics
-from typing import Annotated, List, Optional, Any
+from typing import Annotated, Any, List, Optional
 
 from beanie import PydanticObjectId as ObjId
 # FastAPI & Beanie
 from fastapi import APIRouter, Path, Response
 
-from src.models.locker_models import LockerView, LockerState
-from src.models.session_models import SessionState, SessionView
+# Exceptions
+from src.exceptions.locker_exceptions import InvalidLockerReportException
+from src.models.locker_models import (LockerState, LockerTypeAvailability,
+                                      LockerView)
+from src.models.session_models import SessionState
 # Models
-from src.models.station_models import (
-    StationStates,
-    StationView,
-    TerminalState)
+from src.models.station_models import StationStates, StationView, TerminalState
 # Services
 from src.services import locker_services, station_services
 from src.services.exception_services import handle_exceptions
 from src.services.logging_services import logger
 from src.services.mqtt_services import fast_mqtt, validate_mqtt_topic
-# Exceptions
-from src.exceptions.locker_exceptions import InvalidLockerReportException
 
 # Create the router
 station_router = APIRouter()
@@ -78,6 +76,18 @@ async def get_active_session_count(
 
 
 @station_router.get(
+    '/{callsign}/lockers',
+    response_model=List[LockerTypeAvailability])
+# @ handle_exceptions(logger)
+async def get_locker_overview(
+        callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')]
+) -> List[LockerTypeAvailability]:
+    """Get the availability of lockers at the station"""
+    return await station_services.get_locker_overview(
+        callsign=callsign, response=Response)
+
+
+@station_router.get(
     '/{callsign}/lockers/{station_index}',
     response_model=LockerView)
 @ handle_exceptions(logger)
@@ -91,17 +101,6 @@ async def get_locker_by_index(
         station_index=station_index,
         response=response
     )
-
-
-@station_router.get(
-    '/{callsign}/lockers/overview',
-    response_model=SessionView)
-@ handle_exceptions(logger)
-async def get_locker_overview(
-        callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')]) -> SessionView:
-    """Get the availability of lockers at the station"""
-    return await station_services.get_locker_overview(
-        callsign=callsign, response=Response)
 
 
 @station_router.put(

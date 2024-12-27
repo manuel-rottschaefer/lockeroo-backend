@@ -1,14 +1,14 @@
 """This module provides exception classes for maintenance management."""
 # Beanie
+# Log levels
+from logging import INFO, WARNING
+
 from beanie import PydanticObjectId as ObjId
+# Exceptions
+from fastapi import HTTPException
 
 # Models
 from src.models.maintenance_models import MaintenanceStates
-
-# Log levels
-from logging import INFO, WARNING
-# Exceptions
-from fastapi import HTTPException
 
 
 class MaintenanceNotFoundException(Exception):

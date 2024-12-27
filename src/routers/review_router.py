@@ -7,17 +7,16 @@ from typing import Annotated
 # Database utils
 from beanie import PydanticObjectId as ObjId
 # FastAPI
-from fastapi import APIRouter, Path, Query, Depends, Header
+from fastapi import APIRouter, Depends, Header, Path, Query
 
 # Models
 from src.models.review_models import ReviewView
 from src.models.user_models import UserModel
-
+from src.services import review_services
+from src.services.auth_services import require_auth
 # Services
 from src.services.exception_services import handle_exceptions
 from src.services.logging_services import logger
-from src.services.auth_services import require_auth
-from src.services import review_services
 
 # Create the router
 review_router = APIRouter()

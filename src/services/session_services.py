@@ -1,44 +1,45 @@
 """Provides utility functions for the sesssion management backend."""
 # Types
-from typing import List, Optional
 from datetime import timedelta
+from typing import List, Optional
 from uuid import UUID
+
+# Beanie
+from beanie import PydanticObjectId as ObjId
+from beanie import SortDirection
 # FastAPI
 from fastapi.websockets import WebSocket, WebSocketDisconnect
-# Beanie
-from beanie import PydanticObjectId as ObjId, SortDirection
+
 # Entities
 from src.entities.locker_entity import Locker
+from src.entities.payment_entity import Payment
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
-from src.entities.payment_entity import Payment
+from src.entities.task_entity import Task, TaskState, TaskTarget, TaskType
 from src.entities.user_entity import User
-from src.entities.task_entity import (
-    Task, TaskState, TaskType, TaskTarget)
+from src.exceptions.locker_exceptions import (InvalidLockerTypeException,
+                                              LockerNotAvailableException,
+                                              LockerNotFoundException)
+from src.exceptions.payment_exceptions import InvalidPaymentMethodException
+# Exceptions
+from src.exceptions.session_exceptions import (InvalidSessionStateException,
+                                               SessionNotFoundException)
+from src.exceptions.station_exceptions import (StationNotAvailableException,
+                                               StationNotFoundException)
+from src.exceptions.task_exceptions import TaskNotFoundException
+from src.exceptions.user_exceptions import (UserHasActiveSessionException,
+                                            UserNotAuthorizedException)
+from src.models.action_models import ActionModel, ActionType
+from src.models.locker_models import LOCKER_TYPES
+from src.models.session_models import (ACTIVE_SESSION_STATES,
+                                       CreatedSessionView, PaymentTypes,
+                                       SessionModel, SessionState, SessionView)
+from src.models.station_models import StationModel
 # Models
 from src.models.task_models import TaskItemModel
-from src.models.station_models import StationModel
-from src.models.locker_models import LOCKER_TYPES
-from src.models.action_models import ActionModel, ActionType
-from src.models.session_models import (
-    SessionModel, PaymentTypes,
-    SessionState, SessionView,
-    ACTIVE_SESSION_STATES)
+from src.services import websocket_services
 # Services
 from src.services.logging_services import logger
-from src.services import websocket_services
-# Exceptions
-from src.exceptions.session_exceptions import (
-    SessionNotFoundException, InvalidSessionStateException)
-from src.exceptions.station_exceptions import (
-    StationNotFoundException, StationNotAvailableException)
-from src.exceptions.locker_exceptions import (
-    LockerNotFoundException, LockerNotAvailableException,
-    InvalidLockerTypeException)
-from src.exceptions.user_exceptions import (
-    UserNotAuthorizedException, UserHasActiveSessionException)
-from src.exceptions.payment_exceptions import InvalidPaymentMethodException
-from src.exceptions.task_exceptions import TaskNotFoundException
 
 
 async def get_details(session_id: ObjId, user: User) -> Optional[SessionView]:
@@ -70,7 +71,7 @@ async def handle_creation_request(
     user: User,
     callsign: str,
     locker_type: str
-) -> Optional[SessionView]:
+) -> Optional[CreatedSessionView]:
     """Handles a request to create a new session submitted by a user.
 
     Finds the station at which the user wants to create a session.
@@ -140,7 +141,7 @@ async def handle_creation_request(
     await ActionModel(
         assigned_session=session.doc, action_type=ActionType.CREATE).insert()
 
-    return await session.view
+    return CreatedSessionView.model_validate(session.doc)
 
 
 async def handle_payment_selection(

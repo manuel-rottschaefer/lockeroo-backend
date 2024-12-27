@@ -1,18 +1,18 @@
 """User Models."""
 # Types
 from dataclasses import dataclass
-
 # Basics
 from datetime import datetime
 from enum import Enum
 from typing import Optional
 from uuid import UUID
-from pydantic import Field
 
 # Beanie
 from beanie import Document
 from beanie import PydanticObjectId as ObjId
 from beanie import View
+from pydantic import Field, PydanticUserError
+
 # from fastapi_users_db_beanie import BeanieBaseUser
 
 
@@ -69,10 +69,16 @@ class UserModel(Document):  # pylint: disable=too-many-ancestors
         }
 
 
+try:
+    UserModel.model_json_schema()
+except PydanticUserError as exc_info:
+    assert exc_info.code == 'invalid-for-json-schema'
+
+
 class UserSummary(View):
     """Summary of a user entity."""
     # Identification
-    id: ObjId = Field(None, alias="_id")
+    id: str = Field(description="Unique identifier of the user.")
     first_name: str
     total_sessions: int = 0
     total_session_duration: int = 0

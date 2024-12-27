@@ -1,12 +1,14 @@
 """This module provides exception classes for locker management."""
 # Types
 from typing import Optional
+
 # Beanie
 from beanie import PydanticObjectId as ObjId
-# Models
-from src.models.locker_models import LockerState, LockerType
 # Exceptions
 from fastapi import HTTPException
+
+# Models
+from src.models.locker_models import LockerState, LockerType
 
 
 class LockerNotFoundException(Exception):

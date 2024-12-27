@@ -2,16 +2,15 @@
     This module contains the FastAPI router for handling reviews.
 """
 
+# Beanie
+from beanie.operators import In
 # FastAPI
 from fastapi import APIRouter
 # Auth
 from fief_client import FiefAccessTokenInfo
 
-# Beanie
-from beanie.operators import In
-
 # Models
-from src.models.session_models import SessionModel, ACTIVE_SESSION_STATES
+from src.models.session_models import ACTIVE_SESSION_STATES, SessionModel
 # Services
 from src.services.exception_services import handle_exceptions
 from src.services.logging_services import logger

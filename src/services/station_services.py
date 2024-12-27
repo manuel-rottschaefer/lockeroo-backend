@@ -1,41 +1,37 @@
 """Provides utility functions for the station management backend."""
 
 # Basics
-from typing import Dict, List, Optional
 from datetime import datetime
+from typing import Dict, List, Optional
+
 import yaml
 # Beanie
 from beanie import SortDirection
 from beanie.operators import In, Near, Set
 # API services
 from fastapi import Response, status
-# Entities
-from src.entities.station_entity import Station
+
 from src.entities.locker_entity import Locker
 from src.entities.session_entity import Session
+# Entities
+from src.entities.station_entity import Station
 from src.entities.task_entity import Task
+from src.exceptions.locker_exceptions import LockerNotFoundException
+from src.exceptions.session_exceptions import InvalidSessionStateException
 # Models
-from src.exceptions.station_exceptions import (
-    InvalidTerminalStateException,
-    StationNotFoundException)
-from src.models.locker_models import (
-    LockerModel, LockerAvailability, LOCKER_TYPES,
-    LockerTypeAvailability)
-from src.models.session_models import (
-    SessionModel, SessionState, ACTIVE_SESSION_STATES)
-from src.models.station_models import (
-    StationModel, StationStates,
-    StationType, StationView,
-    TerminalState)
-from src.models.task_models import (
-    TaskItemModel, TaskState, TaskType, TaskTarget
-)
+from src.exceptions.station_exceptions import (InvalidTerminalStateException,
+                                               StationNotFoundException)
+from src.exceptions.task_exceptions import TaskNotFoundException
+from src.models.locker_models import (LOCKER_TYPES, LockerAvailability,
+                                      LockerModel, LockerTypeAvailability)
+from src.models.session_models import (ACTIVE_SESSION_STATES, SessionModel,
+                                       SessionState)
+from src.models.station_models import (StationModel, StationStates,
+                                       StationType, StationView, TerminalState)
+from src.models.task_models import (TaskItemModel, TaskState, TaskTarget,
+                                    TaskType)
 # Services
 from src.services.logging_services import logger
-from src.exceptions.task_exceptions import TaskNotFoundException
-from src.exceptions.session_exceptions import (
-    InvalidSessionStateException)
-from src.exceptions.locker_exceptions import LockerNotFoundException
 
 # Singleton for pricing models
 STATION_TYPES: Dict[str, StationType] = None
@@ -142,16 +138,17 @@ async def get_locker_overview(
     locker_type_availabilities: List[LockerTypeAvailability] = []
     for locker_type in LOCKER_TYPES:
         type_available_count = await LockerModel.find(
-            LockerModel.station == callsign.callsign,
-            LockerModel.lockerType.name == locker_type.name,
-            LockerModel.state == LockerAvailability.OPERATIONAL
+            LockerModel.station.callsign == callsign,  # pylint: disable=no-member
+            LockerModel.locker_type.name == locker_type.name,  # pylint: disable=no-member
+            LockerModel.availability == LockerAvailability.OPERATIONAL,
+            fetch_links=True
         ).count()
 
         locker_type_availabilities.append(
             LockerTypeAvailability(
                 locker_type=locker_type.name,
                 station=callsign,
-                total_count=type_available_count,
+                installed_count=type_available_count,
                 is_available=type_available_count > 0
             )
         )

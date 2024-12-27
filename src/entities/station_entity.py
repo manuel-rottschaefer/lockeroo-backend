@@ -5,10 +5,8 @@ from src.entities.locker_entity import Locker
 from src.models.locker_models import LockerModel
 # Models
 from src.models.session_models import SessionModel, SessionState
-from src.models.station_models import (
-    StationModel,
-    StationStates,
-    TerminalState)
+from src.models.station_models import (StationModel, StationStates,
+                                       TerminalState)
 # Logging
 from src.services.logging_services import logger
 # Services

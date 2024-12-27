@@ -12,6 +12,8 @@ from fief_client import FiefAccessTokenInfo
 # Entities
 from src.entities.maintenance_entity import Maintenance
 from src.entities.station_entity import Station
+# Exceptions
+from src.exceptions.station_exceptions import StationNotFoundException
 # Models
 from src.models.maintenance_models import MaintenanceView
 from src.models.station_models import StationModel
@@ -20,8 +22,6 @@ from src.services.auth_services import require_auth
 # Services
 from src.services.exception_services import handle_exceptions
 from src.services.logging_services import logger
-# Exceptions
-from src.exceptions.station_exceptions import StationNotFoundException
 
 # Create the router
 maintenance_router = APIRouter()

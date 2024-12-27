@@ -4,16 +4,18 @@ as well as other Enums and configurations.
 """
 # Types
 from dataclasses import dataclass
-from typing import Optional, List
 from datetime import datetime, timedelta
 from enum import Enum
+from typing import List, Optional
+
 # Config
 import yaml
 # Beanie
 from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
 from beanie import SaveChanges, View, after_event
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PydanticUserError
+
 # Models
 from src.models.station_models import StationModel
 # Services
@@ -64,6 +66,8 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
         ..., description='Index of the locker in the station (Also printed on the doors).')
 
     ### States ###
+    availability: LockerAvailability = Field(
+        LockerAvailability.OPERATIONAL, description='Availability of the locker.')
     reported_state: LockerState = Field(
         LockerState.LOCKED, description='State of the locker as reported by the station.')
 
@@ -108,12 +112,17 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
         }
 
 
+try:
+    LockerModel.model_json_schema()
+except PydanticUserError as exc_info:
+    assert exc_info.code == 'invalid-for-json-schema'
+
+
 class LockerView(View):
     """A public view of the locker model."""
-    id: ObjId = Field(
-        None, alias="_id", description='ObjectID in the database.')
-    station: str = Field(None,
-                         description='Station callsign this locker belongs to.')
+    id: str = Field(description="Unique identifier of the locker.")
+    station: str = Field(
+        None, description='Station callsign this locker belongs to.')
 
     #### Locker Properties ###
     locker_type: str
@@ -141,9 +150,11 @@ class LockerView(View):
 
 class LockerTypeAvailability(BaseModel):
     """Representation of the availability of a locker type at a station."""
+    issued_at: datetime = Field(
+        datetime.now(), description="Timestamp of the availability check.")
     locker_type: str = Field(description="Name of the locker type.")
     station: str = Field(description="Name of the station.")
-    total_count: int = Field(description="Total number of lockers.")
+    installed_count: int = Field(description="Total number of lockers.")
     is_available: bool = Field(
         description="Whether the locker type is currently available at the station.")
 

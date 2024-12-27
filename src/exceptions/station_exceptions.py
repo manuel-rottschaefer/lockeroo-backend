@@ -1,12 +1,14 @@
 """This module provides exception classes for station management."""
 # Types
-from typing import List
 # Log level
 from logging import INFO, WARNING
+from typing import List
+
 # Beanie
 from beanie import PydanticObjectId as ObjId
 # Exceptions
 from fastapi import HTTPException
+
 # Models
 from src.models.station_models import TerminalState
 

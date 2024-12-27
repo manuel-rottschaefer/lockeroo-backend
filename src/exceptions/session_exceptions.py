@@ -1,11 +1,13 @@
 """This module provides exception classes for session management."""
 # Types
-from typing import List
 from logging import INFO, WARNING
+from typing import List
+
 # Beanie
 from beanie import PydanticObjectId as ObjId
 # Exceptions
 from fastapi import HTTPException
+
 # Models
 from src.models.session_models import SessionState
 

@@ -3,18 +3,19 @@
 # Basics
 from datetime import datetime
 from typing import Optional
+
 # Beanie
 from beanie import PydanticObjectId as ObjId
+
+from src.exceptions.review_exceptions import ReviewNotFoundException
+# Exceptions
+from src.exceptions.session_exceptions import (InvalidSessionStateException,
+                                               SessionNotFoundException)
+from src.exceptions.user_exceptions import UserNotAuthorizedException
 # Nodels
 from src.models.review_models import ReviewModel
 from src.models.session_models import SessionModel, SessionState
 from src.models.user_models import UserModel
-# Exceptions
-from src.exceptions.session_exceptions import (
-    SessionNotFoundException,
-    InvalidSessionStateException)
-from src.exceptions.review_exceptions import ReviewNotFoundException
-from src.exceptions.user_exceptions import UserNotAuthorizedException
 
 
 async def handle_review_submission(session_id: ObjId,

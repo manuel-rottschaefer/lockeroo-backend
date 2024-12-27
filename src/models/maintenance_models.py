@@ -1,14 +1,15 @@
 """This module provides the Models for Station Maintenance events."""
 # Types
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Optional
-from dataclasses import dataclass
 
 # Beanie
-from beanie import Document, View, Link
+from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
-from pydantic import Field
+from beanie import View
+from pydantic import Field, PydanticUserError
 
 # Models
 from src.models.station_models import StationModel
@@ -64,9 +65,15 @@ class MaintenanceModel(Document):  # pylint: disable=too-many-ancestors
         }
 
 
+try:
+    MaintenanceModel.model_json_schema()
+except PydanticUserError as exc_info:
+    assert exc_info.code == 'invalid-for-json-schema'
+
+
 class MaintenanceView(View):  # pylint: disable=too-many-ancestors
     """Entity of a station maintenance event"""
-    id: ObjId = Field(None, alias="_id")
+    id: str = Field(description="Unique identifier of the maintenance event.")
 
     assigned_station: str = Field(
         None, description="Station to which this maintenance is assigned to.")

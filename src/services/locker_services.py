@@ -1,21 +1,22 @@
 """Provides utility functions for the locker management backend."""
 # Beanie
 from beanie import SortDirection
+
+from src.entities.locker_entity import Locker, LockerState
+from src.entities.session_entity import Session
 # Entities
 from src.entities.task_entity import Task
-from src.entities.session_entity import Session
-from src.entities.locker_entity import Locker, LockerState
-# Models
-from src.models.session_models import SessionState
-from src.models.action_models import ActionModel, ActionType
-from src.models.task_models import TaskItemModel, TaskState, TaskType, TaskTarget
-# Services
-from src.services.logging_services import logger
+from src.exceptions.locker_exceptions import (InvalidLockerReportException,
+                                              InvalidLockerStateException)
 # Exceptions
 from src.exceptions.task_exceptions import TaskNotFoundException
-from src.exceptions.locker_exceptions import (
-    InvalidLockerStateException,
-    InvalidLockerReportException)
+from src.models.action_models import ActionModel, ActionType
+# Models
+from src.models.session_models import SessionState
+from src.models.task_models import (TaskItemModel, TaskState, TaskTarget,
+                                    TaskType)
+# Services
+from src.services.logging_services import logger
 
 
 async def handle_unlock_confirmation(

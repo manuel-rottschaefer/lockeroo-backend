@@ -3,18 +3,16 @@
 from datetime import datetime, timedelta
 # Types
 from typing import List
+
 # Entities
 from src.entities.entity_utils import Entity
-# Models
-from src.models.station_models import StationModel
 from src.models.action_models import ActionModel
 from src.models.locker_models import LockerModel
+from src.models.session_models import (FOLLOW_UP_STATES, SessionModel,
+                                       SessionState, SessionView)
+# Models
+from src.models.station_models import StationModel
 from src.models.user_models import UserModel
-from src.models.session_models import (
-    SessionModel,
-    SessionView,
-    SessionState,
-    FOLLOW_UP_STATES)
 
 
 class Session(Entity):

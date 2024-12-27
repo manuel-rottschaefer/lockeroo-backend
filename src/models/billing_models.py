@@ -14,7 +14,7 @@ from enum import Enum
 from beanie import Document
 from beanie import PydanticObjectId as ObjId
 # Types
-from pydantic import Field
+from pydantic import Field, PydanticUserError
 
 
 class BillPaymentMethod(str, Enum):
@@ -45,3 +45,9 @@ class BillModel(Document):  # pylint: disable=too-many-ancestors
             "payment_method": "paypal",
             "issued_at": "2023-10-10T10:00:00"
         }
+
+
+try:
+    BillModel.model_json_schema()
+except PydanticUserError as exc_info:
+    assert exc_info.code == 'invalid-for-json-schema'

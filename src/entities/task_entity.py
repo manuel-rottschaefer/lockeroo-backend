@@ -1,28 +1,29 @@
 """This module provides utilities for  database for tasks."""
 # Basics
-from typing import Optional
 from asyncio import create_task, sleep
 from datetime import datetime, timedelta
 from os import getenv
+from typing import Optional
+
 # Beanie
-from beanie import SortDirection, Link
+from beanie import Link, SortDirection
 from beanie.operators import In
+
 # Entities
 from src.entities.entity_utils import Entity
-from src.entities.session_entity import Session
 from src.entities.locker_entity import Locker
-from src.models.session_models import (
-    SessionModel, SessionState,
-    FOLLOW_UP_STATES,
-    SESSION_TIMEOUTS,
-    ACTIVE_SESSION_STATES)
+from src.entities.session_entity import Session
+from src.models.locker_models import LockerState
+from src.models.session_models import (ACTIVE_SESSION_STATES, FOLLOW_UP_STATES,
+                                       SESSION_TIMEOUTS, SessionModel,
+                                       SessionState)
 # Models
 from src.models.station_models import TerminalState
-from src.models.locker_models import LockerState
-from src.models.task_models import TaskItemModel, TaskState, TaskType, TaskTarget
+from src.models.task_models import (TaskItemModel, TaskState, TaskTarget,
+                                    TaskType)
+from src.services.logging_services import logger
 # Services
 from src.services.mqtt_services import fast_mqtt
-from src.services.logging_services import logger
 
 
 class Task(Entity):
@@ -223,7 +224,8 @@ class Task(Entity):
             AssertionError: If the task is not pending or should have expired already
         """
         await self.doc.sync()
-        assert (self.doc.task_state in [TaskState.PENDING, TaskState.QUEUED]
+        # TODO: This is sketchy, should be refactored
+        assert (self.doc.task_state in [TaskState.PENDING]  # , TaskState.QUEUED]
                 ), f"Cannot complete Task '#{self.doc.id}' as it is in {self.doc.task_state}."
 
         assert (datetime.now() < self.doc.expires_at + timedelta(seconds=1)

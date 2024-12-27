@@ -4,26 +4,24 @@
 import json
 import os
 
-from beanie import init_beanie
-from bson import ObjectId
+from beanie import PydanticObjectId, init_beanie
 from dotenv import load_dotenv
 # Database utilities
 from motor.motor_asyncio import AsyncIOMotorClient
 
-# Services
-from src.services.logging_services import logger
-
 # Models
 from src.models.action_models import ActionModel
+from src.models.billing_models import BillModel
 from src.models.locker_models import LockerModel
 from src.models.maintenance_models import MaintenanceModel
 from src.models.payment_models import PaymentModel
+from src.models.review_models import ReviewModel
 from src.models.session_models import SessionModel
 from src.models.station_models import StationModel
 from src.models.task_models import TaskItemModel
 from src.models.user_models import UserModel
-from src.models.review_models import ReviewModel
-from src.models.billing_models import BillModel
+# Services
+from src.services.logging_services import logger
 
 
 async def setup():

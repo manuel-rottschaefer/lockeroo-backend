@@ -4,12 +4,13 @@
 # and http exceptions if the user requested weird shit.
 #########
 
+import traceback
 # Basics
 from functools import wraps
-import traceback
 
 # Exceptions
 from fastapi import HTTPException
+
 from src.exceptions.station_exceptions import InvalidTerminalStateException
 
 

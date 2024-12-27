@@ -9,7 +9,7 @@ from enum import Enum
 from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
 from beanie import SaveChanges, after_event
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PydanticUserError
 
 # Entities
 from src.models.session_models import SessionModel
@@ -98,3 +98,9 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
             "state": "scheduled",
             "price": 1000
         }
+
+
+try:
+    PaymentModel.model_json_schema()
+except PydanticUserError as exc_info:
+    assert exc_info.code == 'invalid-for-json-schema'

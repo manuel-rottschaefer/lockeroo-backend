@@ -1,25 +1,23 @@
 """This module provides the Models for Station Maintenance events."""
 # Types
 from dataclasses import dataclass
-from typing import List, Optional
 from datetime import datetime
 from enum import Enum
+from typing import List, Optional
 
 # Beanie
-from beanie import Document, Link
+from beanie import Document, Insert, Link
 from beanie import PydanticObjectId as ObjId
-from beanie import SaveChanges, Insert, before_event, after_event
+from beanie import SaveChanges, after_event, before_event
 from dotenv import load_dotenv
-from pydantic import Field
+from pydantic import Field, PydanticUserError
 
+from src.models.locker_models import LockerModel
 # Models
 from src.models.session_models import SessionModel, SessionState
 from src.models.station_models import StationModel
-from src.models.locker_models import LockerModel
-
 # Services
 from src.services.logging_services import logger
-
 
 load_dotenv('environments/.env')
 
@@ -122,3 +120,9 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
             "task_state": "queued",
             "expiration_window": 3600
         }
+
+
+try:
+    TaskItemModel.model_json_schema()
+except PydanticUserError as exc_info:
+    assert exc_info.code == 'invalid-for-json-schema'

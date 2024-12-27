@@ -3,13 +3,17 @@
 # Types
 from datetime import datetime, timedelta
 from uuid import UUID
-# Beanie
-from beanie import PydanticObjectId as ObjId, SortDirection
+
+from beanie import PydanticObjectId as ObjId
 from beanie.operators import In
-# Models
-from src.models.session_models import SessionModel, SessionState, ACTIVE_SESSION_STATES
+
 # Exceptions
 from src.exceptions.user_exceptions import UserHasActiveSessionException
+# Beanie
+from src.models.objectid import SortDirection
+# Models
+from src.models.session_models import (ACTIVE_SESSION_STATES, SessionModel,
+                                       SessionState)
 
 
 async def has_active_session(user_id: UUID) -> bool:

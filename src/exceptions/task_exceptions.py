@@ -1,10 +1,12 @@
 """This module provides exception classes for task management."""
 # Types
 from typing import Union
+
 # Beanie
 from beanie import PydanticObjectId as ObjId
 # Exceptions
 from fastapi import HTTPException
+
 # Models
 from src.models.task_models import TaskType
 

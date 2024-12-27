@@ -1,8 +1,8 @@
 """This module provides exception classes for task management."""
 
 # Beanie
-from beanie import PydanticObjectId as ObjId
 # Exceptions
+from beanie import PydanticObjectId as ObjId
 from fastapi import HTTPException
 
 

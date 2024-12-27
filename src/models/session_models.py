@@ -4,19 +4,18 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import List, Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 from uuid import UUID
 
 # Beanie
-from beanie import Document, Link
+from beanie import Document, Insert, Link
 from beanie import PydanticObjectId as ObjId
-from beanie import (
-    SaveChanges, Insert, View, before_event, after_event)
-from pydantic import Field
+from beanie import SaveChanges, View, after_event, before_event
+from pydantic import Field, PydanticUserError
 
+from src.models.locker_models import LockerModel
 # Models
 from src.models.station_models import StationModel
-from src.models.locker_models import LockerModel
 from src.models.user_models import UserModel
 # Services
 from src.services import websocket_services
@@ -193,10 +192,16 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
         }
 
 
+try:
+    SessionModel.model_json_schema()
+except PydanticUserError as exc_info:
+    assert exc_info.code == 'invalid-for-json-schema'
+
+
 class SessionView(View):
     """Used for serving information about an active session"""
     # Identification
-    id: ObjId = Field(None)
+    id: str = Field(description="Unique identifier of the session.")
     assigned_station: ObjId = Field(
         description="Station at which the session takes place")
 
@@ -211,9 +216,6 @@ class SessionView(View):
 
     session_state: SessionState = Field(
         None, description="Current state of the session")
-
-    websocket_token: str = Field(
-        None, description="Token for websocket communication.")
 
     # These timestamps are only gathered from session actions when a
     # session view isrequested to avoid duplicate data entries
@@ -235,6 +237,7 @@ class SessionView(View):
     @ dataclass
     class Settings:
         source = SessionModel
+        is_root = True
         projection = {
             "id": "$fief_id",
             "user": "$user",
@@ -246,9 +249,14 @@ class SessionView(View):
         }
 
 
+class CreatedSessionView(SessionView):
+    websocket_token: str = Field(
+        None, description="Token for websocket communication.")
+
+
 class CompletedSession(View):
     """Used for serving information about a completed session"""
-    id: ObjId = Field(alias="_id")
+    id: str = Field(description="Unique identifier of the session.")
     station: ObjId
     locker: Optional[int] = None
     serviceType: SessionTypes

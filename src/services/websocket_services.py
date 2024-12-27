@@ -3,10 +3,11 @@
 import secrets
 # Types
 from typing import Dict, Optional
-# FastAPI
-from fastapi import WebSocket
+
 # Beanie
 from beanie import PydanticObjectId as ObjId
+# FastAPI
+from fastapi import WebSocket
 
 active_connections: Dict[ObjId, WebSocket] = {}
 

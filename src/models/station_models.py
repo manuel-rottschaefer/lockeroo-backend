@@ -1,15 +1,17 @@
 """This module provides the Models for Station management."""
 # Types
-from typing import List, Dict, Optional, Annotated
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-# Beanie
-from pymongo import TEXT
+from typing import Annotated, Dict, List, Optional
+
 from beanie import Document, Indexed
 from beanie import PydanticObjectId as ObjId
 from beanie import SaveChanges, View, after_event
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PydanticUserError
+# Beanie
+from pymongo import TEXT
+
 # Services
 from src.services.mqtt_services import fast_mqtt
 
@@ -140,10 +142,16 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
         }
 
 
+try:
+    StationModel.model_json_schema()
+except PydanticUserError as exc_info:
+    assert exc_info.code == 'invalid-for-json-schema'
+
+
 class StationView(View):
     """Public representation of a station"""
     # Identification
-    id: ObjId = Field(None)
+    id: str = Field(description="Unique identifier of the station.")
     full_name: str
     callsign: str
 

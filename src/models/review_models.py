@@ -1,15 +1,15 @@
 """This module provides the Models for review management."""
 # Types
 from dataclasses import dataclass
-from typing import Optional
 # Basics
 from datetime import datetime
+from typing import Optional
 
 # Beanie
-from beanie import Document, Link
+from beanie import Document, Insert, Link
 from beanie import PydanticObjectId as ObjId
-from beanie import View, Insert, after_event
-from pydantic import Field
+from beanie import View, after_event
+from pydantic import Field, PydanticUserError
 
 # Models
 from src.models.session_models import SessionModel
@@ -17,9 +17,9 @@ from src.models.session_models import SessionModel
 
 class ReviewModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a review in the database"""
-
     # Identification
     id: ObjId = Field(None, alias="_id")
+
     assigned_session: Link[SessionModel] = Field(
         description="The session to which the review refers to.")
 
@@ -55,10 +55,16 @@ class ReviewModel(Document):  # pylint: disable=too-many-ancestors
         }
 
 
+try:
+    ReviewModel.model_json_schema()
+except PydanticUserError as exc_info:
+    assert exc_info.code == 'invalid-for-json-schema'
+
+
 class ReviewView(View):  # pylint: disable=too-many-ancestors
     """View of the Review Model"""
     # Identification
-    id: ObjId = Field(None)
+    id: str = Field(description="Unique identifier of the review.")
     assigned_session: ObjId
 
     submitted_at: datetime

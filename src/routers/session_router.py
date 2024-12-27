@@ -7,18 +7,19 @@ from typing import Annotated, List, Optional
 # Database utils
 from beanie import PydanticObjectId as ObjId
 # FastAPI
-from fastapi import APIRouter, Path, WebSocket, status, Query, Header, Depends
+from fastapi import APIRouter, Depends, Header, Path, Query, WebSocket, status
+
+# Entities
+from src.entities.user_entity import User
+from src.models.action_models import ActionView
 # from fief_client import FiefAccessTokenInfo
 # Models
 from src.models.session_models import PaymentTypes, SessionView
-from src.models.action_models import ActionView
 # Services
 from src.services import session_services
 from src.services.auth_services import require_auth
 from src.services.exception_services import handle_exceptions
 from src.services.logging_services import logger
-# Entities
-from src.entities.user_entity import User
 
 # Create the router
 session_router = APIRouter()

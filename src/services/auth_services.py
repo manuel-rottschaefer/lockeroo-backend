@@ -2,19 +2,21 @@
 
 # Basics
 import os
+from typing import Annotated
 # Types
 from uuid import UUID
-from typing import Annotated
+
 # FastAPI
 from fastapi import Header
 from fastapi.security import OAuth2AuthorizationCodeBearer
 # Fief
 from fief_client import FiefAsync  # , FiefAccessTokenInfo
 from fief_client.integrations.fastapi import FiefAuth
-# Models
-from src.models.user_models import UserModel
+
 # Entities
 from src.entities.user_entity import User
+# Models
+from src.models.user_models import UserModel
 
 
 async def require_auth(user: Annotated[str | None, Header()] = None):

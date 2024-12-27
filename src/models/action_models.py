@@ -3,16 +3,16 @@ This module describes the database model for actions, which are representations
 of events related to a sessionthat are seperately to provide
 detailed session history data and better understand special cases.
 """
+from dataclasses import dataclass
 # Types
 from datetime import datetime
-from dataclasses import dataclass
 from enum import Enum
 
 # Beanie
 from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
 from beanie import View
-from pydantic import Field
+from pydantic import Field, PydanticUserError
 
 # Models
 from src.models.session_models import SessionModel
@@ -60,9 +60,15 @@ class ActionModel(Document):  # pylint: disable=too-many-ancestors
         }
 
 
+try:
+    ActionModel.model_json_schema()
+except PydanticUserError as exc_info:
+    assert exc_info.code == 'invalid-for-json-schema'
+
+
 class ActionView(View):  # pylint: disable=too-many-ancestors
     """Database representation of a action"""
-    id: ObjId = Field(None, alias="_id",)
+    id: str = Field(description="Unique identifier of the action.")
     assigned_session: ObjId = Field(
         description="The assigned session to this action."
     )
