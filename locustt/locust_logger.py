@@ -1,6 +1,6 @@
 """Logger for locust"""
-from datetime import datetime
 import logging
+from datetime import datetime
 
 
 class LocustLogger():

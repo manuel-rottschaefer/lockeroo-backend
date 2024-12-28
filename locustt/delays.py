@@ -1,8 +1,9 @@
-from src.models.session_models import SessionState
-from typing import Dict, List
-from dotenv import load_dotenv
 from os import getenv
+from typing import Dict, List
 
+from dotenv import load_dotenv
+
+from src.models.session_models import SessionState
 
 load_dotenv('locustt/environments/quick.env')
 

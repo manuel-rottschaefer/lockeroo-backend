@@ -1,8 +1,9 @@
+import json
 import threading
 from os import getenv
 from random import choice, uniform
 from time import sleep
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 
 import paho.mqtt.client as mqttc
 import websockets.sync.client as sync_websockets
@@ -10,11 +11,9 @@ from locust import HttpUser, TaskSet
 
 from locustt.locust_logger import LocustLogger
 from locustt.user_pool import UserPool
-from src.models.session_models import (
-    SessionState,
-    SessionView,
-    CreatedSessionView)
 from src.models.locker_models import LockerTypeAvailability
+from src.models.session_models import (CreatedSessionView, SessionState,
+                                       SessionView, WebsocketUpdate)
 
 # Initialize the user pool
 user_pool = UserPool()
@@ -54,8 +53,11 @@ class LocustSession:
         def monitor():
             with sync_websockets.connect(ws_url) as ws:
                 while True:
-                    message = ws.recv()
-                    self.session.session_state = message.lower()
+                    msg = ws.recv()
+                    update: WebsocketUpdate = WebsocketUpdate(
+                        **json.loads(msg))
+                    print(update.session_state)
+                    self.session.session_state = update.session_state
 
         thread = threading.Thread(target=monitor, daemon=True)
         thread.start()
@@ -63,8 +65,8 @@ class LocustSession:
     def await_session_state(self, state: SessionState) -> None:
         """Wait for the next state to be reached."""
         try:
-            while self.session.session_state != state.lower():
-                sleep(0.1)
+            while self.session.session_state != state:
+                sleep(0.2)
             self.logger.info(
                 f"Session '#{self.session.id}' reached state '{state}'.")
         except KeyboardInterrupt:
@@ -88,6 +90,7 @@ class LocustSession:
                 f"Session '#{self.session.id}' is in state '{
                     self.session.session_state}', "
                 f"expected '{expected_state}'.")
+            self.terminate_session()
 
     def terminate_session(self):
         user_pool.return_user(self.user_id)
@@ -137,7 +140,6 @@ class LocustSession:
         res.raise_for_status()
         # Check if the session state matches the expected state
         session = CreatedSessionView(**res.json())
-        print(session)
         if session.session_state != SessionState.CREATED:
             self.log_unexpected_state(session, SessionState.CREATED)
         # Return obtained session

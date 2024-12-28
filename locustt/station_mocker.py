@@ -1,7 +1,8 @@
 """ Emulate a station """
+import asyncio
 import os
 import re
-import asyncio
+
 import paho.mqtt.client as mqtt
 
 
@@ -49,12 +50,12 @@ async def on_message(_client, _userdata, msg: mqtt.MQTTMessage):
               topic[3]} at station {topic[1]}.")
         await asyncio.sleep(0.1)  # Non-blocking delay
 
-    elif is_action_report(msg.topic):
-        await asyncio.sleep(0.1)  # Non-blocking delay
-        mqttc.publish(
-            topic=f"stations/{topic[1]}/terminal/confirm",
-            payload="IDLE",
-            qos=2)
+    # elif is_action_report(msg.topic):
+    #    await asyncio.sleep(0.1)  # Non-blocking delay
+    #    mqttc.publish(
+    #        topic=f"stations/{topic[1]}/terminal/confirm",
+    #        payload="IDLE",
+    #        qos=2)
 
 
 # Set up MQTT client

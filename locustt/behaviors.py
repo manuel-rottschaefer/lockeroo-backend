@@ -1,7 +1,7 @@
 
-from locustt.locust_session import LocustSession
 from locustt.delays import ACTION_DELAYS
-from src.models.session_models import SessionState, SESSION_TIMEOUTS
+from locustt.locust_session import LocustSession
+from src.models.session_models import SESSION_TIMEOUTS, SessionState
 
 
 class RegularSession(LocustSession):
@@ -45,7 +45,7 @@ class AbandonAfterCreate(LocustSession):
 
     def run(self):  # pylint: disable=missing-function-docstring
         self.session = self.user_request_session()
-        self.delay_session(SESSION_TIMEOUTS[SessionState.CREATED])
+        self.delay_session(SESSION_TIMEOUTS[SessionState.CREATED] + 1)
         self.verify_session_state(SessionState.EXPIRED)
         self.terminate_session()
 
@@ -55,34 +55,37 @@ class AbandonAfterPaymentSelection(LocustSession):
 
     def run(self):  # pylint: disable=missing-function-docstring
         self.session = self.user_request_session()
+        # Delay until selection of payment method
         self.delay_session(ACTION_DELAYS[SessionState.CREATED])
-
         self.session = self.user_select_payment_method()
-        self.delay_session(SESSION_TIMEOUTS[SessionState.PAYMENT_SELECTED])
+
+        self.delay_session(SESSION_TIMEOUTS[SessionState.PAYMENT_SELECTED] + 1)
         self.verify_session_state(SessionState.EXPIRED)
         self.terminate_session()
 
 
-class AbandonDuring1stVerification(LocustSession):
+class Abandon1stVerificationThenNormal(LocustSession):
     """Miss the first verification window, but then continue as normal."""
 
     def run(self):  # pylint: disable=missing-function-docstring
         self.session = self.user_request_session()
         self.delay_session(ACTION_DELAYS[SessionState.CREATED])
         self.subscribe_to_updates()
-
+        # Pause until selection of payment method
         self.session = self.user_select_payment_method()
         self.delay_session(ACTION_DELAYS[SessionState.PAYMENT_SELECTED])
-
+        # Request verification, then await verification
         self.session = self.user_request_verification()
         self.await_session_state(SessionState.VERIFICATION)
-        self.delay_session(SESSION_TIMEOUTS[SessionState.VERIFICATION])
+        # Delay until verification window expires
+        self.delay_session(SESSION_TIMEOUTS[SessionState.VERIFICATION] + 1)
         self.verify_session_state(SessionState.PAYMENT_SELECTED)
-
+        # Request verification again, then await verification
+        self.delay_session(ACTION_DELAYS[SessionState.PAYMENT_SELECTED])
         self.session = self.user_request_verification()
         self.await_session_state(SessionState.VERIFICATION)
         self.delay_session(ACTION_DELAYS[SessionState.VERIFICATION])
-
+        # Continue with the session
         self.station_report_verification()
         self.await_session_state(SessionState.STASHING)
         self.delay_session(ACTION_DELAYS[SessionState.STASHING])
@@ -111,17 +114,20 @@ class AbandonDuringBothVerifications(LocustSession):
         self.session = self.user_request_session()
         self.delay_session(ACTION_DELAYS[SessionState.CREATED])
         self.subscribe_to_updates()
-
+        # Pause until selection of payment method
         self.session = self.user_select_payment_method()
         self.delay_session(ACTION_DELAYS[SessionState.PAYMENT_SELECTED])
-
+        # Request verification, then await verification
         self.session = self.user_request_verification()
         self.await_session_state(SessionState.VERIFICATION)
-        self.delay_session(SESSION_TIMEOUTS[SessionState.VERIFICATION])
-
+        # Delay until verification window expires
+        self.delay_session(SESSION_TIMEOUTS[SessionState.VERIFICATION] + 1)
+        self.verify_session_state(SessionState.PAYMENT_SELECTED)
+        self.delay_session(ACTION_DELAYS[SessionState.PAYMENT_SELECTED])
+        # Request verification again, then await verification
         self.session = self.user_request_verification()
         self.await_session_state(SessionState.VERIFICATION)
-        self.delay_session(SESSION_TIMEOUTS[SessionState.VERIFICATION])
-
+        # Delay until verification window expires again
+        self.delay_session(SESSION_TIMEOUTS[SessionState.VERIFICATION] + 1)
         self.verify_session_state(SessionState.EXPIRED)
         self.terminate_session()
