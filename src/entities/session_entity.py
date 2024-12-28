@@ -13,10 +13,14 @@ from src.models.session_models import (
     SessionModel,
     SessionState,
     SessionView,
-    CreatedSessionView)
+    CreatedSessionView,
+    WebsocketUpdate)
 # Models
 from src.models.station_models import StationModel
 from src.models.user_models import UserModel
+# Services
+from src.services import websocket_services
+from src.services.logging_services import logger
 
 
 class Session(Entity):
@@ -102,12 +106,24 @@ class Session(Entity):
         """Return the next logical state of the session."""
         return FOLLOW_UP_STATES[self.session_state]
 
+    async def broadcast_update(self) -> None:
+        """Send a websocket update to the client."""
+        await websocket_services.send_dict(
+            self.doc.id, WebsocketUpdate(**self.doc.model_dump()).model_dump())
+
+    def set_state(self, state: SessionState) -> None:
+        """Set the state of the session."""
+        self.doc.session_state = state
+        logger.debug(
+            f"Session '#{self.doc.id}' set to {self.doc.session_state}.")
+
     async def handle_conclude(self) -> None:
         """Calculate and store statistical data when session completes/expires/aborts."""
         total_duration: timedelta = await self.total_duration
 
         # Update session state
-        self.doc.session_state = SessionState.COMPLETED
+        self.set_state(SessionState.COMPLETED)
+        await self.broadcast_update()
         self.doc.total_duration = total_duration
         await self.doc.save_changes()
 

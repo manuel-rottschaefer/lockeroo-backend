@@ -219,8 +219,9 @@ async def handle_payment_selection(
         (f"Payment method '{payment_method.upper()}' "
          f"assigned to session '#{session.id}'.")
     )
-    session.doc.session_state = SessionState.PAYMENT_SELECTED
+    session.set_state(SessionState.PAYMENT_SELECTED)
     await session.doc.save_changes()
+    await session.broadcast_update()
 
     # 6: Await the user to request payment
     await Task(await TaskItemModel(
@@ -493,12 +494,13 @@ async def handle_cancel_request(session_id: ObjId, user: User) -> Optional[Sessi
             actual_state=session.session_state)
 
     # 6. If all checks passed, set session to canceled
-    session.doc.session_state = SessionState.CANCELLED
+    session.set_state(SessionState.CANCELLED)
     await ActionModel(
         assigned_session=session.doc, action_type=ActionType.REQUEST_CANCEL).insert()
 
     # 7. Save changes
     await session.doc.save_changes()
+    await session.broadcast_update()
 
     return session.view
 
@@ -563,7 +565,6 @@ async def handle_update_subscription_request(
     # logger.debug(
     #    ("Subscription has been ACTIVATED for "
     #     f"session '#{session.id}'."))
-    await session.doc.send_update()
 
     try:
         while True:

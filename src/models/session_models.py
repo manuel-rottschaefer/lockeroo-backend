@@ -10,7 +10,7 @@ from uuid import UUID
 # Beanie
 from beanie import Document, Insert, Link
 from beanie import PydanticObjectId as ObjId
-from beanie import SaveChanges, View, after_event, before_event
+from beanie import View, after_event, before_event
 from pydantic import Field, PydanticUserError
 
 from src.models.locker_models import LockerModel
@@ -76,14 +76,14 @@ ACTIVE_SESSION_STATES: List[SessionState] = [
 ]
 
 SESSION_TIMEOUTS: Dict[SessionState, int] = {
-    SessionState.CREATED: 60,
-    SessionState.PAYMENT_SELECTED: 120,
-    SessionState.VERIFICATION: 60,
-    SessionState.STASHING: 90,
+    SessionState.CREATED: 30,
+    SessionState.PAYMENT_SELECTED: 60,
+    SessionState.VERIFICATION: 10,  # 30
+    SessionState.STASHING: 45,
     SessionState.ACTIVE: 86400,
-    SessionState.HOLD: 300,
-    SessionState.PAYMENT: 60,
-    SessionState.RETRIEVAL: 90,
+    SessionState.HOLD: 120,
+    SessionState.PAYMENT: 30,
+    SessionState.RETRIEVAL: 45,
     SessionState.COMPLETED: 0,
     SessionState.CANCELLED: 0,
     SessionState.STALE: 0,
@@ -143,6 +143,9 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     queue_position: Optional[int] = Field(
         None, description="Position in the queue for the locker.")
 
+    timeout_count: int = Field(
+        0, description="Number of times the session has timed out.")
+
     ### Required Timestamps ###
     created_at: datetime = Field(
         None, description="Timestamp of session creation."
@@ -169,21 +172,11 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
              f"'#{self.user.id}' at locker "  # pylint: disable=no-member
              f"'#{self.assigned_locker.callsign}'."))  # pylint: disable=no-member
 
-    @ after_event(SaveChanges)
-    async def send_update(self):
-        """Send an update message regarding the session and queue state to the mqtt broker."""
-        await websocket_services.send_dict(
-            self.id, WebsocketUpdate(**self.model_dump()).model_dump())
-
-    @ after_event(SaveChanges)
-    async def log_state_change(self):
-        logger.debug(
-            f"Session '#{self.id}' moved to {self.session_state}.")
-
     @ dataclass
     class Settings:
         name = "sessions"
         use_state_management = True
+        state_management_save_previous = False
         use_revision = False
         use_cache = False
 

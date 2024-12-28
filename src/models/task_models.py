@@ -75,6 +75,9 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
         description="List of states the assigned session takes on after expiring, \
         each list item is a next try for this task.")
 
+    from_expired: bool = Field(
+        False, description="Whether the task is being requeued from an expired state.")
+
     expiration_window: int = Field(
         0, description="The time in seconds until the task expires.")
 
@@ -104,8 +107,8 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     @ after_event(SaveChanges)
     async def log_state(self) -> None:
         """Log database operation."""
-        logger.debug(f"Task '#{self.id}' for {self.target} of {
-                     self.task_type} set to {self.task_state}.")
+        logger.debug((f"Task '#{self.id}' for {self.target} of "
+                      f"{self.task_type} set to {self.task_state}."))
 
     @ dataclass
     class Settings:
