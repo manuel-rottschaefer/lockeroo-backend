@@ -83,7 +83,7 @@ async def handle_unlock_confirmation(
         assigned_locker=locker.doc,
         timeout_states=[SessionState.STALE],
         moves_session=True,
-    ).insert()).move_in_queue()
+    ).insert()).activate()
 
 
 async def handle_lock_report(
@@ -163,4 +163,4 @@ async def handle_lock_report(
         assigned_locker=locker.doc,
         timeout_states=[SessionState.STALE],
         moves_session=True,
-    ).insert()).move_in_queue()
+    ).insert()).activate()

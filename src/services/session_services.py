@@ -135,7 +135,7 @@ async def handle_creation_request(
         timeout_states=[SessionState.EXPIRED],
         moves_session=False
     ).insert())
-    await task.move_in_queue()
+    await task.activate()
 
     # 8: Log the action
     await ActionModel(
@@ -230,7 +230,7 @@ async def handle_payment_selection(
         assigned_station=session.assigned_station,
         timeout_states=[SessionState.EXPIRED],
         moves_session=False
-    ).insert()).move_in_queue()
+    ).insert()).activate()
 
     return await session.view
 
@@ -301,7 +301,7 @@ async def handle_verification_request(
         assigned_station=session.assigned_station,
         timeout_states=[SessionState.ABORTED],
         moves_session=False
-    ).insert()).move_in_queue()
+    ).insert()).evaluate_queue_state()
 
     await ActionModel(
         assigned_session=session.doc, action_type=ActionType.REQUEST_VERIFICATION).insert()
@@ -364,7 +364,7 @@ async def handle_hold_request(
         assigned_locker=locker.doc,
         timeout_states=[SessionState.ACTIVE, SessionState.ABORTED],
         moves_session=False
-    ).insert()).move_in_queue()
+    ).insert()).activate()
 
     await ActionModel(
         assigned_session=session.doc, action_type=ActionType.REQUEST_HOLD).insert()
@@ -443,7 +443,7 @@ async def handle_payment_request(session_id: ObjId, user: User) -> Optional[Sess
         timeout_states=[session.session_state,
                         SessionState.EXPIRED],
         moves_session=False,
-    ).insert()).move_in_queue()
+    ).insert()).evaluate_queue_state()
 
     # 6: Log the request
     await ActionModel(
@@ -563,7 +563,8 @@ async def handle_update_subscription_request(
     # logger.debug(
     #    ("Subscription has been ACTIVATED for "
     #     f"session '#{session.id}'."))
-    await socket.send_text(session.session_state)
+    await session.doc.send_update()
+
     try:
         while True:
             await socket.receive_bytes()

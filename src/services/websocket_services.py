@@ -36,10 +36,8 @@ def get_connection(session_id: ObjId) -> Optional[WebSocket]:
     return None
 
 
-async def send_text(session_id: ObjId, text: str) -> None:
-    """Send text through a websocket connection."""
+async def send_dict(session_id: ObjId, data: dict) -> None:
+    """Send JSON through a websocket connection."""
     socket: WebSocket = get_connection(session_id=session_id)
     if socket:
-        # logger.debug(
-        #    f"Sending update for session '#{session_id}' over websocket channel.")
-        await socket.send_text(text)
+        await socket.send_json(data)

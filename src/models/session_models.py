@@ -140,6 +140,9 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     session_state: SessionState = Field(
         default=SessionState.CREATED, description="The current, internal set session state.")
 
+    queue_position: Optional[int] = Field(
+        None, description="Position in the queue for the locker.")
+
     ### Required Timestamps ###
     created_at: datetime = Field(
         None, description="Timestamp of session creation."
@@ -163,12 +166,17 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     async def log_creation(self):
         logger.debug(
             (f"Created session '#{self.id}' for user "
-             f"'#{self.user.id}' at locker '#{self.assigned_locker.callsign}'."))  # pylint: disable=no-member
+             f"'#{self.user.id}' at locker "  # pylint: disable=no-member
+             f"'#{self.assigned_locker.callsign}'."))  # pylint: disable=no-member
 
     @ after_event(SaveChanges)
-    async def handle_update(self):
-        """Send an update message regarding the session state to the mqtt broker."""
-        await websocket_services.send_text(session_id=self.id, text=self.session_state)
+    async def send_update(self):
+        """Send an update message regarding the session and queue state to the mqtt broker."""
+        await websocket_services.send_dict(
+            self.id, WebsocketUpdate(**self.model_dump()).model_dump())
+
+    @ after_event(SaveChanges)
+    async def log_state_change(self):
         logger.debug(
             f"Session '#{self.id}' moved to {self.session_state}.")
 
@@ -252,6 +260,27 @@ class SessionView(View):
 class CreatedSessionView(SessionView):
     websocket_token: str = Field(
         None, description="Token for websocket communication.")
+
+
+class WebsocketUpdate(View):
+    """Used for serving information about an active session"""
+    # Identification
+    id: str = Field(description="Unique identifier of the session.")
+
+    session_state: SessionState = Field(
+        None, description="Current state of the session")
+
+    queue_position: Optional[int] = Field(
+        None, description="Position in the queue for the locker.")
+
+    @ dataclass
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "id": "60d5ec49f1d2b2a5d8f8b8b8",
+            "session_state": "created",
+            "queue_position": 1
+        }
 
 
 class CompletedSession(View):

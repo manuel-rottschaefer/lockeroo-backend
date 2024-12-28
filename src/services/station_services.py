@@ -285,7 +285,8 @@ async def handle_terminal_state_confirmation(
         TaskItemModel.assigned_station.id == station.id,  # pylint: disable=no-member
         TaskItemModel.target == TaskTarget.TERMINAL,
         TaskItemModel.task_type == TaskType.CONFIRMATION,
-        In(TaskItemModel.task_state, [TaskState.PENDING, TaskState.QUEUED]),
+        TaskItemModel.task_state == TaskState.PENDING
+        # In(TaskItemModel.task_state, [TaskState.PENDING, TaskState.QUEUED]),
     ).sort((
         TaskItemModel.created_at, SortDirection.DESCENDING
     )).first_or_none())
@@ -300,13 +301,13 @@ async def handle_terminal_state_confirmation(
     session: Session = Session(pending_task.doc.assigned_session)
 
     if confirmed_state == TerminalState.IDLE:
-        next_task: Task = await Task.get_next_in_queue(station_id=station.id)
-        if next_task.exists and next_task.doc.task_state == TaskState.QUEUED:
+        next_task: Task = await Task.from_next_queued(station_id=station.id)
+        if next_task.exists:
             await next_task.activate()
 
     # 6: Create next task according to the session context
     if confirmed_state == TerminalState.VERIFICATION:
-        new_task: Task = Task(await TaskItemModel(
+        await Task(await TaskItemModel(
             target=TaskTarget.TERMINAL,
             task_type=TaskType.REPORT,
             assigned_station=station.doc,
@@ -314,10 +315,10 @@ async def handle_terminal_state_confirmation(
             timeout_states=[SessionState.PAYMENT_SELECTED,
                             SessionState.EXPIRED],
             moves_session=True,
-        ).insert())
+        ).insert()).activate()
 
     elif confirmed_state == TerminalState.PAYMENT:
-        new_task: Task = Task(await TaskItemModel(
+        await Task(await TaskItemModel(
             target=TaskTarget.TERMINAL,
             task_type=TaskType.REPORT,
             assigned_station=station.doc,
@@ -325,10 +326,10 @@ async def handle_terminal_state_confirmation(
             timeout_states=[session.doc.session_state,
                             SessionState.EXPIRED],
             moves_session=True,
-        ).insert())
+        ).insert()).activate()
 
     elif confirmed_state == TerminalState.IDLE:
-        new_task: Task = Task(await TaskItemModel(
+        await Task(await TaskItemModel(
             target=TaskTarget.LOCKER,
             task_type=TaskType.CONFIRMATION,
             assigned_station=station.doc,
@@ -336,7 +337,7 @@ async def handle_terminal_state_confirmation(
             assigned_locker=session.assigned_locker,
             timeout_states=[SessionState.ABORTED],
             moves_session=False,
-        ).insert())
+        ).insert()).activate()
 
     else:
         raise InvalidTerminalStateException(
@@ -347,5 +348,5 @@ async def handle_terminal_state_confirmation(
 
     # 7: Complete previous task and restart task expiration manager
     await pending_task.complete()
-    if new_task is not None:
-        await new_task.move_in_queue()
+   # if new_task is not None:
+    #   await new_task.evaluate_queue_state()
