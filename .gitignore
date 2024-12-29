@@ -11,6 +11,7 @@ __pycache__/
 # Ignore other common files and directories
 *.log
 *.csv
+*.zip
 
 # Ignore IDE configurations
 .vscode
@@ -21,6 +22,7 @@ dep/*
 tools/*
 testing/*
 Obsidian/*
+snapshots/*
 kanpilot.toml
 docs/*
 
