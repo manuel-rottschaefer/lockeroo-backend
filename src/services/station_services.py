@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 import yaml
 # Beanie
 from beanie import SortDirection
-from beanie.operators import In, Near, Set
+from beanie.operators import In, NotIn, Near, Set
 # API services
 from fastapi import Response, status
 
@@ -19,17 +19,22 @@ from src.entities.task_entity import Task
 from src.exceptions.locker_exceptions import LockerNotFoundException
 from src.exceptions.session_exceptions import InvalidSessionStateException
 # Models
-from src.exceptions.station_exceptions import (InvalidTerminalStateException,
-                                               StationNotFoundException)
+from src.exceptions.station_exceptions import (
+    InvalidTerminalStateException,
+    StationNotFoundException)
 from src.exceptions.task_exceptions import TaskNotFoundException
-from src.models.locker_models import (LOCKER_TYPES, LockerAvailability,
-                                      LockerModel, LockerTypeAvailability)
-from src.models.session_models import (ACTIVE_SESSION_STATES, SessionModel,
-                                       SessionState)
-from src.models.station_models import (StationModel, StationStates,
-                                       StationType, StationView, TerminalState)
-from src.models.task_models import (TaskItemModel, TaskState, TaskTarget,
-                                    TaskType)
+from src.models.locker_models import (
+    LOCKER_TYPES, LockerAvailability,
+    LockerModel, LockerTypeAvailability)
+from src.models.session_models import (
+    ACTIVE_SESSION_STATES, SessionModel,
+    SessionState)
+from src.models.station_models import (
+    StationModel, StationStates,
+    StationType, StationView, TerminalState)
+from src.models.task_models import (
+    TaskItemModel, TaskState, TaskTarget,
+    TaskType)
 # Services
 from src.services.logging_services import logger
 
@@ -133,6 +138,19 @@ async def get_locker_overview(
     if not station.exists:
         response.status_code = status.HTTP_404_NOT_FOUND
         raise StationNotFoundException(callsign=callsign)
+    await station.doc.fetch_all_links()
+
+    # 2. Find all active sessions at this station
+    # TODO: Create a method for this in the Station entity
+    active_sessions = await SessionModel.find(
+        SessionModel.assigned_station.id == station.id,  # pylint: disable=no-member
+        In(SessionModel.session_state, ACTIVE_SESSION_STATES),
+        fetch_links=True
+    ).sort((SessionModel.created_at, SortDirection.ASCENDING)).to_list()
+    active_lockers = [
+        session.assigned_locker.id for session in active_sessions]
+    assert (station.locker_layout.locker_count <= station.doc.locker_layout.locker_count
+            ), "Found more active lockers than exist at station."
 
     # 2: Create a list of locker availabilities
     locker_type_availabilities: List[LockerTypeAvailability] = []
@@ -141,6 +159,7 @@ async def get_locker_overview(
             LockerModel.station.callsign == callsign,  # pylint: disable=no-member
             LockerModel.locker_type.name == locker_type.name,  # pylint: disable=no-member
             LockerModel.availability == LockerAvailability.OPERATIONAL,
+            NotIn(LockerModel.id, active_lockers),
             fetch_links=True
         ).count()
 
@@ -252,8 +271,6 @@ async def handle_terminal_report(
         moves_session=False,
     ).insert()).activate()
 
-    # 7: Update the session state
-    # This must come after the task creation, otherwise the new task will not be started
     await task.complete()
 
 
@@ -286,7 +303,8 @@ async def handle_terminal_state_confirmation(
         TaskItemModel.assigned_station.id == station.id,  # pylint: disable=no-member
         TaskItemModel.target == TaskTarget.TERMINAL,
         TaskItemModel.task_type == TaskType.CONFIRMATION,
-        TaskItemModel.task_state == TaskState.PENDING
+        TaskItemModel.task_state == TaskState.PENDING,
+        fetch_links=True
     ).sort((
         TaskItemModel.created_at, SortDirection.DESCENDING
     )).first_or_none())
@@ -301,9 +319,8 @@ async def handle_terminal_state_confirmation(
     session: Session = Session(pending_task.doc.assigned_session)
 
     if confirmed_state == TerminalState.IDLE:
-        next_task: Task = await Task.from_next_queued(station_id=station.id)
-        if next_task.exists:
-            await next_task.activate()
+        # Evaluate the next task
+        await pending_task.evaluate_next()
 
     # 6: Complete previous task
     await pending_task.complete()

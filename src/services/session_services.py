@@ -5,8 +5,8 @@ from typing import List, Optional
 from uuid import UUID
 
 # Beanie
-from beanie import PydanticObjectId as ObjId
-from beanie import SortDirection
+from beanie import PydanticObjectId as ObjId, SortDirection
+from beanie.operators import In, Set
 # FastAPI
 from fastapi.websockets import WebSocket, WebSocketDisconnect
 
@@ -15,25 +15,36 @@ from src.entities.locker_entity import Locker
 from src.entities.payment_entity import Payment
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
-from src.entities.task_entity import Task, TaskState, TaskTarget, TaskType
+from src.entities.task_entity import (
+    Task, TaskState, TaskTarget, TaskType)
 from src.entities.user_entity import User
-from src.exceptions.locker_exceptions import (InvalidLockerTypeException,
-                                              LockerNotAvailableException,
-                                              LockerNotFoundException)
+from src.exceptions.locker_exceptions import (
+    InvalidLockerTypeException,
+    LockerNotAvailableException,
+    LockerNotFoundException)
 from src.exceptions.payment_exceptions import InvalidPaymentMethodException
 # Exceptions
-from src.exceptions.session_exceptions import (InvalidSessionStateException,
-                                               SessionNotFoundException)
-from src.exceptions.station_exceptions import (StationNotAvailableException,
-                                               StationNotFoundException)
+from src.exceptions.session_exceptions import (
+    InvalidSessionStateException,
+    SessionNotFoundException)
+from src.exceptions.station_exceptions import (
+    StationNotAvailableException,
+    StationNotFoundException)
 from src.exceptions.task_exceptions import TaskNotFoundException
-from src.exceptions.user_exceptions import (UserHasActiveSessionException,
-                                            UserNotAuthorizedException)
+from src.exceptions.user_exceptions import (
+    UserHasActiveSessionException,
+    UserNotAuthorizedException)
 from src.models.action_models import ActionModel, ActionType
-from src.models.locker_models import LOCKER_TYPES
-from src.models.session_models import (ACTIVE_SESSION_STATES,
-                                       CreatedSessionView, PaymentTypes,
-                                       SessionModel, SessionState, SessionView)
+from src.models.locker_models import LockerState, LOCKER_TYPES
+from src.models.session_models import (
+    ACTIVE_SESSION_STATES,
+    SessionView,
+    ConcludedSessionView,
+    CreatedSessionView,
+    ActiveSessionView,
+    PaymentTypes,
+    SessionModel,
+    SessionState)
 from src.models.station_models import StationModel
 # Models
 from src.models.task_models import TaskItemModel
@@ -51,7 +62,17 @@ async def get_details(session_id: ObjId, user: User) -> Optional[SessionView]:
     await session.doc.fetch_link(SessionModel.user)
     if session.doc.user.id != user.id:
         raise UserNotAuthorizedException(user_id=user.id)
-    return await session.view
+
+    # Get queued task
+    task: Task = Task(await TaskItemModel.find(
+        TaskItemModel.assigned_session.id == session_id,  # pylint: disable=no-member
+        TaskItemModel.task_state == TaskState.QUEUED
+    ).first_or_none())
+
+    return ActiveSessionView(
+        **session.doc.model_dump(),
+        queue_position=task.queue_position if task.exists else None
+    )
 
 
 async def get_session_history(session_id: ObjId, user: User) -> Optional[List[ActionModel]]:
@@ -103,6 +124,8 @@ async def handle_creation_request(
 
     # 2: Check whether the user exists and is authorized to create a session
     if await user.has_active_session:
+        logger.warning(
+            f"User '{user.id}' already has an active session.")
         raise UserHasActiveSessionException(user_id=user.id)
     if await user.get_expired_session_count(timedelta(days=1)) > 2:
         raise UserNotAuthorizedException(user_id=user.id)
@@ -117,6 +140,8 @@ async def handle_creation_request(
     locker: Locker = await Locker().find_available(
         station=station, locker_type=locker_type)
     if not locker.exists:
+        logger.warning(
+            f"No available locker of type '{locker_type.name}' at station '{callsign}'.")
         raise LockerNotAvailableException(station_callsign=callsign)
 
     # 7: Create a new session
@@ -221,7 +246,6 @@ async def handle_payment_selection(
     )
     session.set_state(SessionState.PAYMENT_SELECTED)
     await session.doc.save_changes()
-    await session.broadcast_update()
 
     # 6: Await the user to request payment
     await Task(await TaskItemModel(
@@ -233,7 +257,15 @@ async def handle_payment_selection(
         moves_session=False
     ).insert()).activate()
 
-    return await session.view
+    return ActiveSessionView(
+        id=str(session.doc.id),
+        user=session.doc.user.fief_id,
+        station=session.doc.assigned_station.callsign,
+        locker_index=session.doc.assigned_locker.station_index,
+        service_type=session.doc.session_type,
+        session_state=session.doc.session_state,
+        queue_position=0
+    )
 
 
 async def handle_verification_request(
@@ -365,7 +397,7 @@ async def handle_hold_request(
         assigned_locker=locker.doc,
         timeout_states=[SessionState.ACTIVE, SessionState.ABORTED],
         moves_session=False
-    ).insert()).activate()
+    ).insert()).evaluate_queue_state()
 
     await ActionModel(
         assigned_session=session.doc, action_type=ActionType.REQUEST_HOLD).insert()
@@ -453,7 +485,8 @@ async def handle_payment_request(session_id: ObjId, user: User) -> Optional[Sess
     return await session.view
 
 
-async def handle_cancel_request(session_id: ObjId, user: User) -> Optional[SessionView]:
+async def handle_cancel_request(session_id: ObjId, user: User
+                                ) -> Optional[ConcludedSessionView]:
     """Handles a cancelation request submitted by a user.
 
     Finds the session that should be canceled.
@@ -465,7 +498,7 @@ async def handle_cancel_request(session_id: ObjId, user: User) -> Optional[Sessi
         user (User): The user that is submitting the request
 
     Returns:
-        A SessionView dict if the session exists.
+        A ConcludedSessionView dict if the session exists.
 
     Raises:
         SessionNotFoundException: If the session is not found
@@ -477,7 +510,7 @@ async def handle_cancel_request(session_id: ObjId, user: User) -> Optional[Sessi
         raise SessionNotFoundException(user_id=user.id)
 
     await session.doc.fetch_link(SessionModel.user)
-    if str(session.user) != user.id:
+    if session.user.id != user.id:
         raise UserNotAuthorizedException(user_id=user.id)
 
     # 2: Check if session is in correct state
@@ -493,16 +526,47 @@ async def handle_cancel_request(session_id: ObjId, user: User) -> Optional[Sessi
             expected_states=accepted_states,
             actual_state=session.session_state)
 
-    # 6. If all checks passed, set session to canceled
-    session.set_state(SessionState.CANCELLED)
+    # 3: Check if there are any queued or pending tasks assigned to the session
+    tasks = await TaskItemModel.find(
+        TaskItemModel.assigned_session.id == session_id,  # pylint: disable=no-member
+        In(TaskItemModel.task_state, [TaskState.QUEUED, TaskState.PENDING]),
+        fetch_links=True
+    ).to_list()
+
+    for task in tasks:
+        task.task_state = TaskState.CANCELED
+        await task.save_changes()
+
+    # 4: If the locker is open, create a task to close it
+    await session.doc.fetch_link(SessionModel.assigned_locker)
+    if session.doc.assigned_locker.reported_state == LockerState.UNLOCKED:
+        await Task(await TaskItemModel(
+            target=TaskTarget.LOCKER,
+            task_type=TaskType.REPORT,
+            assigned_session=session.doc,
+            assigned_station=session.assigned_station,
+            assigned_locker=session.assigned_locker,
+            timeout_states=[SessionState.STALE],
+            moves_session=False
+        ).insert()).activate()
+
+    # 5. Update session state and log the action
+    session.set_state(SessionState.CANCELED)
+    session.doc.total_duration = await session.total_duration
+    await session.doc.save_changes()
+    await session.broadcast_update()
+    await session.handle_conclude()
     await ActionModel(
         assigned_session=session.doc, action_type=ActionType.REQUEST_CANCEL).insert()
 
-    # 7. Save changes
-    await session.doc.save_changes()
-    await session.broadcast_update()
-
-    return session.view
+    return ConcludedSessionView(
+        id=str(session.id),
+        station=session.assigned_station.callsign,
+        locker_index=session.assigned_locker.station_index,
+        service_type=session.session_type,
+        session_state=session.session_state,
+        total_duration=session.doc.total_duration.total_seconds(),
+    )
 
 
 async def handle_update_subscription_request(

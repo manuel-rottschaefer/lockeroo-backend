@@ -63,9 +63,18 @@ class Station(Entity):
         return Locker(await
                       LockerModel.find_one(
                           LockerModel.station == self.id,
-                          LockerModel.station_index == index,
+                          LockerModel.station_index == index,)
                       )
-                      )
+
+    async def get_available_lockers(self) -> list[Locker]:
+        """Find all available lockers at a station."""
+        # TODO: Implement and apply this method
+        # 1: Find all lockers
+        lockers = await LockerModel.find(
+            LockerModel.station == self.id,
+            LockerModel.is_available == True
+        ).to_list()
+        return [Locker(locker) for locker in lockers]
     ### Terminal setters ###
 
     async def register_station_state(

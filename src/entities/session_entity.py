@@ -6,7 +6,7 @@ from typing import List
 
 # Entities
 from src.entities.entity_utils import Entity
-from src.models.action_models import ActionModel
+from src.models.action_models import ActionModel, ActionType
 from src.models.locker_models import LockerModel
 from src.models.session_models import (
     FOLLOW_UP_STATES,
@@ -18,6 +18,7 @@ from src.models.session_models import (
 # Models
 from src.models.station_models import StationModel
 from src.models.user_models import UserModel
+from src.models.task_models import TaskQueueView
 # Services
 from src.services import websocket_services
 from src.services.logging_services import logger
@@ -33,10 +34,10 @@ class Session(Entity):
         # TODO: Improve this
         return SessionView(
             id=str(self.doc.id),
-            assigned_station=str(self.doc.assigned_station.id),
+            station=str(self.doc.assigned_station.id),
             user=self.doc.user.fief_id,
-            station_index=self.doc.assigned_locker.station_index if self.assigned_locker else None,
-            session_type=self.doc.session_type,
+            locker_index=self.doc.assigned_locker.station_index if self.assigned_locker else None,
+            service_type=self.doc.session_type,
             session_state=self.doc.session_state,
             websocket_token=self.doc.websocket_token,
         )
@@ -47,9 +48,9 @@ class Session(Entity):
         return CreatedSessionView(
             id=str(self.doc.id),
             user=self.doc.user.fief_id,
-            assigned_station=str(self.doc.assigned_station.id),
-            station_index=self.doc.assigned_locker.station_index,
-            session_type=self.doc.session_type,
+            station=str(self.doc.assigned_station.id),
+            locker_index=self.doc.assigned_locker.station_index,
+            service_type=self.doc.session_type,
             session_state=self.doc.session_state,
             websocket_token=self.doc.websocket_token,
         )
@@ -71,7 +72,7 @@ class Session(Entity):
         # Otherwise, return the seconds between creation and completion
         completed_action: ActionModel = await ActionModel.find_one(
             ActionModel.assigned_session.id == self.id,  # pylint: disable=no-member
-            ActionModel.action_type == SessionState.COMPLETED.name,
+            ActionModel.action_type == ActionType.COMPLETE,
             fetch_links=True
         )
 
@@ -106,10 +107,15 @@ class Session(Entity):
         """Return the next logical state of the session."""
         return FOLLOW_UP_STATES[self.session_state]
 
-    async def broadcast_update(self) -> None:
+    async def broadcast_update(self, task: TaskQueueView = None) -> None:
         """Send a websocket update to the client."""
+        update_view = {
+            "id": str(self.doc.id),
+            "session_state": self.doc.session_state.value,
+            "queue_position": task.queue_position if task else 0,
+        }
         await websocket_services.send_dict(
-            self.doc.id, WebsocketUpdate(**self.doc.model_dump()).model_dump())
+            self.doc.id, WebsocketUpdate(**update_view).model_dump())
 
     def set_state(self, state: SessionState) -> None:
         """Set the state of the session."""
@@ -119,23 +125,20 @@ class Session(Entity):
 
     async def handle_conclude(self) -> None:
         """Calculate and store statistical data when session completes/expires/aborts."""
-        total_duration: timedelta = await self.total_duration
-
-        # Update session state
-        self.set_state(SessionState.COMPLETED)
-        await self.broadcast_update()
-        self.doc.total_duration = total_duration
-        await self.doc.save_changes()
-
+        self.doc.total_duration = await self.total_duration
+        await self.doc.fetch_all_links()
+        # TODO: List these categories only for completed sessions?
         # Update station statistics
         await self.assigned_station.inc(
             {StationModel.total_session_count: 1,
-             StationModel.total_session_duration: total_duration})
+             StationModel.total_session_duration: self.doc.total_duration})
         # Update locker statistics
         await self.assigned_locker.inc(
             {LockerModel.total_session_count: 1,
-             LockerModel.total_session_duration: total_duration})
+             LockerModel.total_session_duration: self.doc.total_duration})
         # Update user statistics
         await self.doc.user.inc({
             UserModel.total_session_count: 1,
-            UserModel.total_session_duration: total_duration})
+            UserModel.total_session_duration: self.doc.total_duration})
+
+        await self.doc.save_changes()

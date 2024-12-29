@@ -55,7 +55,7 @@ class SessionState(str, Enum):
     # Session has been completed (paid for, locker closed)
     COMPLETED = "completed"
     # Session has been canceled, no active time, no payment
-    CANCELLED = "cancelled"
+    CANCELED = "canceled"
     # Session has expired but locker remained open
     STALE = "stale"
     # Session has expired because user exceeded a time window
@@ -85,7 +85,7 @@ SESSION_TIMEOUTS: Dict[SessionState, int] = {
     SessionState.PAYMENT: 30,
     SessionState.RETRIEVAL: 45,
     SessionState.COMPLETED: 0,
-    SessionState.CANCELLED: 0,
+    SessionState.CANCELED: 0,
     SessionState.STALE: 0,
     SessionState.EXPIRED: 0,
     SessionState.ABORTED: 0
@@ -101,7 +101,7 @@ FOLLOW_UP_STATES: Dict[SessionState, Union[SessionState, None]] = {
     SessionState.PAYMENT: SessionState.RETRIEVAL,
     SessionState.RETRIEVAL: SessionState.COMPLETED,
     SessionState.COMPLETED: None,
-    SessionState.CANCELLED: None,
+    SessionState.CANCELED: None,
     SessionState.STALE: None,
     SessionState.EXPIRED: None,
     SessionState.ABORTED: None
@@ -139,9 +139,6 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     ### State management ###
     session_state: SessionState = Field(
         default=SessionState.CREATED, description="The current, internal set session state.")
-
-    queue_position: Optional[int] = Field(
-        None, description="Position in the queue for the locker.")
 
     timeout_count: int = Field(
         0, description="Number of times the session has timed out.")
@@ -207,13 +204,13 @@ class SessionView(View):
     user: UUID = Field(
         None, description="The assigned user to this session.")
 
-    assigned_station: str = Field(
+    station: str = Field(
         description="Station at which the session takes place")
 
-    station_index: int = Field(
+    locker_index: int = Field(
         default=None, description="Local index of the locker at its station")
 
-    session_type: SessionTypes = Field(
+    service_type: SessionTypes = Field(
         None, description="Type of session")
 
     session_state: SessionState = Field(
@@ -232,8 +229,7 @@ class SessionView(View):
             "user": "12345678-1234-5678-1234-567812345678",
             "station_index": 1,
             "session_type": "personal",
-            "session_state": "created",
-            "websocket_token": "12345678-1234-5678-1234-567812345678"
+            "session_state": "created"
         }
 
     @ dataclass
@@ -254,13 +250,33 @@ class CreatedSessionView(SessionView):
     websocket_token: str = Field(
         None, description="Token for websocket communication.")
 
+    @ dataclass
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "websocket_token": "60d5ec49f1d2b2a5d8f8b8b8"
+        }
+
+
+class ActiveSessionView(SessionView):
+    """Used for serving information about an active session"""
+    queue_position: Optional[int] = Field(
+        None, description="Position in the queue for the locker.")
+
+    @ dataclass
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "queue_position": 1
+        }
+
 
 class WebsocketUpdate(View):
     """Used for serving information about an active session"""
     # Identification
     id: str = Field(description="Unique identifier of the session.")
 
-    session_state: SessionState = Field(
+    session_state: str = Field(
         None, description="Current state of the session")
 
     queue_position: Optional[int] = Field(
@@ -271,24 +287,22 @@ class WebsocketUpdate(View):
         from_attributes = True
         json_schema_extra = {
             "id": "60d5ec49f1d2b2a5d8f8b8b8",
-            "session_state": "created",
-            "queue_position": 1
+            "session_state": "created"
         }
 
 
-class CompletedSession(View):
+class ConcludedSessionView(View):
     """Used for serving information about a completed session"""
     id: str = Field(description="Unique identifier of the session.")
-    station: ObjId
-    locker: Optional[int] = None
-    serviceType: SessionTypes
-    state: SessionState
+    station: str = Field(
+        description="Station callsign at which the session took place")
+    locker_index: int = Field(
+        description="Local index of the locker at its station")
+    service_type: SessionTypes = Field(description="Type of session")
+    session_state: SessionState = Field(
+        description="Current state of the session")
 
     # These values can be calculated with the createSummary method
-    finalPrice: Optional[float] = None
-    totalDuration: Optional[float] = None
-    activeDuration: Optional[float] = None
-
-    @ dataclass
-    class Config:
-        from_attributes = True
+    # finalPrice: Optional[float] = None
+    total_duration: float = Field(description="Total duration of the session")
+    # activeDuration: Optional[float] = None

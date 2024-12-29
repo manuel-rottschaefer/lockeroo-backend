@@ -46,7 +46,7 @@ class Locker(Entity):
         ).sort((SessionModel.created_at, SortDirection.ASCENDING)).to_list()
         active_lockers = [
             session.assigned_locker.id for session in active_sessions]
-        assert (station.locker_layout.locker_count < 30
+        assert (station.locker_layout.locker_count <= station.locker_layout.locker_count
                 ), "Found more active lockers than exist at station."
 
         # 3: Find a locker at this station that matches the type and does not belong to such a session

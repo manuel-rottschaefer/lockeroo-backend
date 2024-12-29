@@ -6,7 +6,7 @@ from enum import Enum
 from typing import List, Optional
 
 # Beanie
-from beanie import Document, Insert, Link
+from beanie import Document, View, Link, Insert
 from beanie import PydanticObjectId as ObjId
 from beanie import SaveChanges, after_event, before_event
 from dotenv import load_dotenv
@@ -24,23 +24,24 @@ load_dotenv('environments/.env')
 
 class TaskState(str, Enum):
     """Possible states for Tasks."""
-    QUEUED = "queued"               # Session is queued for verification/payment
-    PENDING = "pending"             # Session is awaiting verification/payment
-    COMPLETED = "completed"         # Session has been verified/paid
-    EXPIRED = "expired"             # Session has expired
+    QUEUED = "queued"
+    PENDING = "pending"
+    COMPLETED = "completed"
+    EXPIRED = "expired"
+    CANCELED = "canceled"
 
 
 class TaskTarget(str, Enum):
     """Target of the queued actions."""
-    USER = "user"  # Awaits user actions
-    TERMINAL = "terminal"  # Awaits terminal actions
-    LOCKER = "locker"  # Awaits locker actions
+    USER = "user"           # Awaits user actions
+    TERMINAL = "terminal"   # Awaits terminal actions
+    LOCKER = "locker"       # Awaits locker actions
 
 
 class TaskType(str, Enum):
     """Type of the queued actions."""
-    REPORT = "report"  # Awaits an action report
-    CONFIRMATION = "confirmation"  # Awaits an action confirmation
+    REPORT = "report"
+    CONFIRMATION = "confirmation"
 
 
 class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
@@ -66,6 +67,9 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     task_state: TaskState = Field(
         TaskState.QUEUED,
         description='State of the task item. Not related to the session state.')
+
+    queue_position: int = Field(
+        0, description="The position of the task in the queue.")
 
     moves_session: bool = Field(
         False, description="Whether the session moves to the next state on task activation.")
@@ -107,8 +111,9 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     @ after_event(SaveChanges)
     async def log_state(self) -> None:
         """Log database operation."""
-        logger.debug((f"Task '#{self.id}' for {self.target} of "
-                      f"{self.task_type} set to {self.task_state}."))
+        if self.task_state != TaskState.QUEUED:
+            logger.debug((f"Task '#{self.id}' for {self.target} of "
+                          f"{self.task_type} set to {self.task_state}."))
 
     @ dataclass
     class Settings:
@@ -123,6 +128,13 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
             "task_state": "queued",
             "expiration_window": 3600
         }
+
+
+class TaskQueueView(View):
+    id: ObjId = Field(None, alias="_id")
+
+    assigned_session: ObjId = Field(
+        None, description="The session which this task handles.")
 
 
 try:

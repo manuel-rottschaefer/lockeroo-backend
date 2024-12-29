@@ -152,6 +152,11 @@ async def handle_lock_report(
     # 8: Catch completed sessions
     next_state: SessionState = await session.next_state
     if next_state == SessionState.COMPLETED:
+        # Update session state
+        session.set_state(SessionState.COMPLETED)
+        await session.broadcast_update()
+        await ActionModel(
+            assigned_session=session.doc, action_type=ActionType.COMPLETE).insert()
         return await session.handle_conclude()
 
     # 9: Await user to return to the locker to pick up his stuff.

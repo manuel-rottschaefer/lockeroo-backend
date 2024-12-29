@@ -9,9 +9,8 @@ from datetime import datetime
 from enum import Enum
 
 # Beanie
-from beanie import Document, Link
+from beanie import Document, View, Link, before_event, Insert
 from beanie import PydanticObjectId as ObjId
-from beanie import View
 from pydantic import Field, PydanticUserError
 
 # Models
@@ -28,6 +27,7 @@ class ActionType(str, Enum):
     REQUEST_PAYMENT = "requestPayment"
     LOCK_AFTER_RETRIEVAL = "lockerAfterRetrieval"
     REQUEST_CANCEL = "requestCancel"
+    COMPLETE = "complete"
 
 
 class ActionModel(Document):  # pylint: disable=too-many-ancestors
@@ -46,6 +46,11 @@ class ActionModel(Document):  # pylint: disable=too-many-ancestors
 
     action_type: ActionType = Field(
         None, description="The type of action expressed as a session state name")
+
+    @ before_event(Insert)
+    def add_timestamp(self):
+        """Add the timestamp to the document before it is inserted."""
+        self.timestamp = datetime.now()
 
     @ dataclass
     class Settings:

@@ -22,8 +22,11 @@ from src.models.session_models import (
     SessionState)
 # Models
 from src.models.station_models import TerminalState
-from src.models.task_models import (TaskItemModel, TaskState, TaskTarget,
-                                    TaskType)
+from src.models.task_models import (
+    TaskItemModel,
+    TaskState,
+    TaskTarget,
+    TaskType)
 from src.services.logging_services import logger
 # Services
 from src.services.mqtt_services import fast_mqtt
@@ -61,8 +64,7 @@ class Task(Entity):
         return self.doc is not None
 
     ### Class methods ###
-    @classmethod
-    async def from_next_queued(cls, station_id: str) -> Optional['Task']:
+    async def evaluate_next(self):
         """Get the next task in queue.
         Find the next task in queue at a specified station, if any.
         If the task is not already pending, return it.
@@ -75,27 +77,28 @@ class Task(Entity):
         """
         # 1: Check if there is a pending task at the station
         if await TaskItemModel.find(
-            TaskItemModel.assigned_station.id == station_id,  # pylint: disable=no-member
+            TaskItemModel.assigned_station.id == self.doc.assigned_station.id,  # pylint: disable=no-member
             TaskItemModel.target == TaskTarget.TERMINAL,
             TaskItemModel.task_state == TaskState.PENDING,
             fetch_links=True
         ).count() > 0:
+            task_expiration_manager.restart()
             return Task()
 
         # 2: Get the next task in queue
-        task_item = await TaskItemModel.find(
-            TaskItemModel.assigned_station.id == station_id,  # pylint: disable=no-member
+        next_task = Task(await TaskItemModel.find(
+            TaskItemModel.assigned_station.id == self.doc.assigned_station.id,  # pylint: disable=no-member
             TaskItemModel.target == TaskTarget.TERMINAL,
             TaskItemModel.task_state == TaskState.QUEUED,
             fetch_links=True
         ).sort(
             (TaskItemModel.created_at, SortDirection.ASCENDING)
-        ).first_or_none()
-
-        return cls(task_item)
+        ).first_or_none())
+        if next_task.exists:
+            await next_task.evaluate_queue_state()
 
     ### Queue utilities###
-    async def evaluate_queue_state(self) -> int:
+    async def evaluate_queue_state(self) -> None:
         """ Evaluate the position of this task in the station queue.
         First, check if the task is a terminal task, then get the position of the task in the queue.
         If the task is not a terminal task, or next in queue, activate it immediately.
@@ -107,28 +110,32 @@ class Task(Entity):
         Returns:
             int: The position of the task in the queue
         """
-
-        # Get the position of the task in the queue
+        # Get the complete queue at the station
         await self.doc.fetch_link(TaskItemModel.assigned_station)
-        queue_pos = await TaskItemModel.find(
+        tasks = await TaskItemModel.find(
             TaskItemModel.assigned_station.id == self.doc.assigned_station.id,  # pylint: disable=no-member
             TaskItemModel.target == TaskTarget.TERMINAL,
             In(TaskItemModel.task_state, [
                TaskState.QUEUED, TaskState.PENDING]),
-            TaskItemModel.created_at < self.doc.created_at
-        ).count() + 1
-        # logger.debug(
-        #    (f"Task '#{self.doc.id}' is #{queue_pos} in the queue at station "
-        #     f"'{self.doc.assigned_station.callsign}'."))
+            fetch_links=True
+        ).sort(
+            (TaskItemModel.created_at, SortDirection.ASCENDING)
+        ).to_list()
 
-        self.doc.assigned_session.queue_position = queue_pos
-        await self.doc.save_changes()
-
-        # Tasks that are not terminal tasks are activated immediately
-        if self.target != TaskTarget.TERMINAL or queue_pos == 1:
+        # If the task is not targeting a termial, or is the next in queue,
+        # move the whole queue, then activate it
+        self_is_next = tasks[0].id == self.doc.id
+        self_is_not_pending = self.doc.task_state != TaskState.PENDING
+        if self.target != TaskTarget.TERMINAL or (self_is_next and self_is_not_pending):
+            # Evaluate queue position for each task
+            for pos, task in enumerate(tasks):
+                task.queue_position = pos
+                session = Session(task.assigned_session)
+                # TODO: This creates redundant broadcasts
+                if not task.moves_session:
+                    await session.broadcast_update(task)
+                await task.save_changes()
             await self.activate()
-
-        return queue_pos
 
     async def instruct_terminal_state(self, session_state: SessionState) -> None:
         """Apply a session state to the terminal.
@@ -137,14 +144,14 @@ class Task(Entity):
         # Check if assigned station is not a link anymore
         if not isinstance(self.assigned_session, Link):
             await self.doc.fetch_link(TaskItemModel.assigned_station)
-        # TODO: Check which keys are required
+        # TODO: Check which keys are required, move to own enum
         STATE_MAP = {  # pylint: disable=invalid-name
             SessionState.PAYMENT_SELECTED: TerminalState.IDLE,
             SessionState.VERIFICATION: TerminalState.VERIFICATION,
+            SessionState.STASHING: TerminalState.IDLE,
             SessionState.PAYMENT: TerminalState.PAYMENT,
             SessionState.RETRIEVAL: TerminalState.IDLE,
             SessionState.EXPIRED: TerminalState.IDLE,
-            SessionState.STASHING: TerminalState.IDLE,
         }
         if session_state in STATE_MAP:
             logger.debug(
@@ -187,7 +194,7 @@ class Task(Entity):
         # 2: If the task awaits a user report, advance the session state
         if self.doc.task_type == TaskType.REPORT and self.doc.moves_session:
             session.set_state(FOLLOW_UP_STATES[session.session_state])
-            await session.broadcast_update()
+            await session.broadcast_update(self.doc)
 
         # If the task awaits a state confirmation from a station terminal, send a state instruction.
         elif (self.doc.task_type == TaskType.CONFIRMATION and
@@ -265,10 +272,7 @@ class Task(Entity):
             return
 
         # 5: Else, start the next task
-        next_task: Task = await Task.from_next_queued(
-            station_id=self.doc.assigned_station.id)
-        if next_task.exists:
-            await next_task.activate()
+        await self.evaluate_next()
 
     async def handle_expiration(self) -> None:
         """Handle the expiration of a task item.
@@ -300,20 +304,17 @@ class Task(Entity):
         assert len(self.doc.timeout_states
                    ), f"No timeout states defined for task '#{self.id}'."
 
-        # 4: End the queue flow here if the session has timed out or no additional timeout states
-        if (session.session_state not in ACTIVE_SESSION_STATES
-                or len(self.doc.timeout_states) == 1):
-            session.set_state(SessionState.EXPIRED)
-            await session.doc.save_changes()
-            await session.broadcast_update()
-            await self.doc.save_changes()
-            return
-
         session.set_state(self.doc.timeout_states[0])
         session.doc.timeout_count += 1
         await session.doc.save_changes()
         await session.broadcast_update()
         await self.doc.save_changes()
+
+        # 4: End the queue flow here if the session has timed out or no additional timeout states
+        if (session.session_state not in ACTIVE_SESSION_STATES
+                or len(self.doc.timeout_states) == 1):
+            await self.evaluate_next()
+            return
 
         # 5: Create a new task to await the new user action
         await TaskItemModel(
@@ -339,8 +340,8 @@ class Task(Entity):
 
         await self.instruct_terminal_state(SessionState.EXPIRED)
 
-        # 7: Restart the expiration manager
-        task_expiration_manager.restart()
+        # 7: Start the next task
+        await self.evaluate_next()
 
 
 async def expiration_manager_loop() -> None:
@@ -353,7 +354,7 @@ async def expiration_manager_loop() -> None:
     """
     # 1: Get time to next expiration
     next_expiring_task: TaskItemModel = await TaskItemModel.find(
-        TaskItemModel.task_state == TaskState.PENDING
+        In(TaskItemModel.task_state, [TaskState.PENDING, TaskState.CANCELED]),
     ).sort(
         (TaskItemModel.expires_at, SortDirection.ASCENDING)
     ).first_or_none()
@@ -364,9 +365,9 @@ async def expiration_manager_loop() -> None:
         next_expiring_task.expires_at - datetime.now()).total_seconds()
     assert (sleep_duration > 0
             ), f"Task '{next_expiring_task.id}' has already expired."
-    logger.debug((
-        f"Task '#{next_expiring_task.id}' will expire "
-        f"next in {round(sleep_duration)} seconds"))
+    # logger.debug((
+    #    f"Task '#{next_expiring_task.id}' will expire "
+    #    f"next in {round(sleep_duration)} seconds"))
 
     # 2: Wait until the task expired
     await sleep(sleep_duration)

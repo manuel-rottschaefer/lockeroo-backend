@@ -56,7 +56,7 @@ async def get_session_review(
 
     # 1: Find the review entry
     review: ReviewModel = await ReviewModel.find_one(
-        ReviewModel.assigned_session == session_id
+        ReviewModel.assigned_session.id == session_id  # pylint: disable=no-member
     )
     if not review:
         raise ReviewNotFoundException(review_id=session_id)

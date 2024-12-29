@@ -68,6 +68,7 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
     ### States ###
     availability: LockerAvailability = Field(
         LockerAvailability.OPERATIONAL, description='Availability of the locker.')
+
     reported_state: LockerState = Field(
         LockerState.LOCKED, description='State of the locker as reported by the station.')
 

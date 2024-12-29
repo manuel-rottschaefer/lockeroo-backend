@@ -17,6 +17,7 @@ from src.models.action_models import ActionView
 from src.models.session_models import (
     SessionView,
     CreatedSessionView,
+    ConcludedSessionView,
     PaymentTypes)
 # Services
 from src.services import session_services
@@ -77,8 +78,8 @@ async def request_new_session(
 
 
 @ session_router.put(
-    '/{sessionID}/cancel',
-    response_model=Optional[SessionView],
+    '/{session_id}/cancel',
+    response_model=Optional[ConcludedSessionView],
     status_code=status.HTTP_200_OK,
     description='Request to cancel a locker session before it has been started')
 async def request_session_cancel(
@@ -86,13 +87,12 @@ async def request_session_cancel(
 
     _user: str = Header(default=None, alias="user"),
     access_info: User = Depends(require_auth),
-):
+) -> Optional[ConcludedSessionView]:
     """Handle request to cancel a locker session"""
-
     logger.info((f"User '#{access_info.id}' is trying to "
                 f"cancel session '#{session_id}'."))
     return await session_services.handle_cancel_request(
-        session_id=session_id,
+        session_id=ObjId(session_id),
         user=access_info
     )
 
