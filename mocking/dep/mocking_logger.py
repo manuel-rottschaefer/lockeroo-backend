@@ -3,12 +3,12 @@ import logging
 from datetime import datetime
 
 
-class LocustLogger():
+class LocustLogger():  # pylint: disable=too-few-public-methods
     """Logger for locust"""
 
     def __init__(self):
         # Create a file handler
-        locust_logfile = f"locustt/logs/{
+        locust_logfile = f"mocking/logs/{
             datetime.today().strftime('%Y-%m-%d')}.log"
 
         # Create a formatter and add it to the handler

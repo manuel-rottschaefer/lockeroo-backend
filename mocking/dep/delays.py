@@ -1,3 +1,5 @@
+"""This module contains the delays for the different actions and stations in the simulation."""
+
 from os import getenv
 from typing import Dict, List
 
@@ -5,7 +7,7 @@ from dotenv import load_dotenv
 
 from src.models.session_models import SessionState
 
-load_dotenv('locustt/environments/quick.env')
+load_dotenv('mocking/environments/quick.env')
 
 
 def get_delay_ranges(key):

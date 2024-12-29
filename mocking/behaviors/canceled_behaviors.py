@@ -1,0 +1,83 @@
+"""Session behaviors that end in SessionState.CANCELED."""
+from mocking.dep.abilities import MockingSession
+from src.models.session_models import SessionState
+
+
+class CancelAfterCreate(MockingSession):
+    """Cancel session after creation."""
+
+    def run(self):  # pylint: disable=missing-function-docstring
+        self.user_request_session()
+        self.verify_state(SessionState.CREATED)
+        self.delay_action(SessionState.CREATED)
+
+        self.user_request_cancel_session()
+        self.verify_state(SessionState.CANCELED)
+
+        self.terminate_session()
+
+
+class CancelAfterPaymentSelection(MockingSession):
+    """Cancel session after payment selection."""
+
+    def run(self):  # pylint: disable=missing-function-docstring
+        self.user_request_session()
+        self.verify_state(SessionState.CREATED)
+        self.delay_action(SessionState.CREATED)
+
+        self.user_select_payment_method()
+        self.verify_state(SessionState.PAYMENT_SELECTED)
+        self.delay_action(SessionState.PAYMENT_SELECTED)
+
+        self.user_request_cancel_session()
+        self.verify_state(SessionState.CANCELED)
+
+        self.terminate_session()
+
+
+class CancelDuringVerification(MockingSession):
+    """Cancel session during verification."""
+
+    def run(self):  # pylint: disable=missing-function-docstring
+        self.user_request_session()
+        self.verify_state(SessionState.CREATED)
+        self.delay_action(SessionState.CREATED)
+
+        self.user_select_payment_method()
+        self.verify_state(SessionState.PAYMENT_SELECTED)
+        self.delay_action(SessionState.PAYMENT_SELECTED)
+
+        self.user_request_verification()
+        self.await_state(SessionState.VERIFICATION)
+        self.delay_action(SessionState.VERIFICATION)
+
+        self.user_request_cancel_session()
+        self.verify_state(SessionState.CANCELED)
+
+        self.terminate_session()
+
+
+class CancelDuringStashing(MockingSession):
+    """Cancel session during stashing."""
+
+    def run(self):  # pylint: disable=missing-function-docstring
+        self.user_request_session()
+        self.verify_state(SessionState.CREATED)
+        self.delay_action(SessionState.CREATED)
+
+        self.user_select_payment_method()
+        self.verify_state(SessionState.PAYMENT_SELECTED)
+        self.delay_action(SessionState.PAYMENT_SELECTED)
+
+        self.user_request_verification()
+        self.await_state(SessionState.VERIFICATION)
+        self.delay_action(SessionState.VERIFICATION)
+
+        self.station_report_verification()
+        self.await_state(SessionState.STASHING)
+        self.delay_action(SessionState.STASHING)
+
+        self.user_request_cancel_session()
+        self.verify_state(SessionState.CANCELED)
+
+        self.terminate_session()
