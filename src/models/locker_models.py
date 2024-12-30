@@ -27,12 +27,13 @@ class LockerState(str, Enum):
     """Lock State of a locker."""
     LOCKED = 'locked'
     UNLOCKED = 'unlocked'
+    STALE = 'stale'
 
 
 class LockerAvailability(str, Enum):
     """Availability of a locker."""
     OPERATIONAL = 'operational'
-    MAINENANCE = 'maintenance'
+    MAINTENANCE = 'maintenance'
     OUT_OF_ORDER = 'out_of_order'
 
 
@@ -126,16 +127,18 @@ class LockerView(View):
         None, description='Station callsign this locker belongs to.')
 
     #### Locker Properties ###
-    locker_type: str
+    locker_type: str = Field(description='Type of the locker.')
+    availability: str = Field(description='Availability of the locker.')
     station_index: int = Field(
-        ..., description='Index of the locker in the station.')
+        description='Index of the locker in the station.')
 
     class Settings:  # pylint: disable=too-few-public-methods
         source = LockerModel
         projection = {
-            "id": "$_id",
+            "id": {"$toString": "$_id"},
             "station": "$station.callsign",
             "locker_type": "$locker_type",
+            "availability": {"$toString": "$availability"},
             "station_index": "$station_index"
         }
 
@@ -145,17 +148,43 @@ class LockerView(View):
             "id": "60d5ec49f1d2b2a5d8f8b8b8",
             "station": "CENTRAL",
             "locker_type": "Type A",
+            "availability": "operational",
             "station_index": 1
         }
 
 
-class LockerTypeAvailability(BaseModel):
+class ReducedLockerView(View):
+    """Only id and name of the locker type."""
+    id: str = Field(description="Unique identifier of the locker type.")
+    locker_type: str = Field(description="Name of the locker type.")
+    locker_state: str = Field(description="State of the locker.")
+
+    class Settings:  # pylint: disable=too-few-public-methods
+        source = LockerModel
+        projection = {
+            "id": {"$toString": "$_id"},
+            "locker_type": "$locker_type.name",
+            "locker_state": {"$toString": "$reported_state"}
+        }
+
+    @ dataclass
+    class Config:
+        json_schema_extra = {
+            "id": "60d5ec49f1d2b2a5d8f8b8b8",
+            "locker_type": "Medium",
+            "locker_state": "locked"
+        }
+
+
+class LockerTypeAvailabilityView(View):
     """Representation of the availability of a locker type at a station."""
     issued_at: datetime = Field(
         datetime.now(), description="Timestamp of the availability check.")
-    locker_type: str = Field(description="Name of the locker type.")
+
     station: str = Field(description="Name of the station.")
-    installed_count: int = Field(description="Total number of lockers.")
+
+    locker_type: str = Field(description="Name of the locker type.")
+
     is_available: bool = Field(
         description="Whether the locker type is currently available at the station.")
 
@@ -171,11 +200,15 @@ def load_locker_types(config_path: str) -> Optional[List[LockerType]]:
         return locker_types
     except FileNotFoundError:
         logger.warning(f"Configuration file not found: {config_path}.")
+        return None
     except yaml.YAMLError as e:
         logger.warning(f"Error parsing YAML configuration: {e}")
+        return None
     except TypeError as e:
         logger.warning(f"Data structure mismatch: {e}")
+        return None
 
 
 LOCKER_TYPES: List[LockerType] = load_locker_types(
     config_path='src/config/locker_types.yml')
+LOCKER_TYPE_NAMES = [locker.name for locker in LOCKER_TYPES]

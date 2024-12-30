@@ -1,14 +1,14 @@
 """This module provides utilities for user management."""
 # Basics
 from datetime import datetime, timedelta
-
 # Beanie
 from beanie.operators import In, NotIn
-
 # Entities
 from src.entities.entity_utils import Entity
-from src.models.session_models import (ACTIVE_SESSION_STATES, SessionModel,
-                                       SessionState)
+from src.models.session_models import (
+    ACTIVE_SESSION_STATES,
+    SessionModel,
+    SessionState)
 # Models
 from src.models.user_models import UserModel
 

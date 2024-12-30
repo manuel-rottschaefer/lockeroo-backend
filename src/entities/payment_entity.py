@@ -1,18 +1,13 @@
 """This module provides utilities for  database for payments."""
-
 # Basics
 from datetime import datetime, timedelta
 from typing import Optional
-
 # Entities
 from src.entities.entity_utils import Entity
 from src.entities.locker_entity import Locker
 from src.entities.session_entity import Session
-from src.entities.station_entity import Station
 from src.models.payment_models import PaymentModel, PaymentStates, PricingModel
 from src.models.session_models import SessionModel
-# Models
-from src.models.station_models import TerminalState
 # Services
 from src.services.payment_services import PRICING_MODELS
 
@@ -39,7 +34,9 @@ class Payment(Entity):
     async def current_price(self) -> Optional[int]:
         """Calculate the total cost of a session in cents."""
         # 1: Get the assigned session
-        await self.doc.fetch_all_links()
+        await self.doc.fetch_link(PaymentModel.assigned_session)
+        assert (PaymentModel.assigned_session
+                ), f"Payment '#{self.doc.id}' has no assigned session."
         session: Session = Session(self.doc.assigned_session)
 
         # 2: Get the locker assigned to this session

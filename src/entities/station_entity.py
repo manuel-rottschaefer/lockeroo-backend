@@ -1,14 +1,27 @@
 """This module provides utilities for  database for stations."""
+# Beanie
+from beanie import SortDirection
+from beanie.operators import In, Or
 # Entities
 from src.entities.entity_utils import Entity
-from src.entities.locker_entity import Locker
-from src.models.locker_models import LockerModel
+from src.models.locker_models import (
+    LockerModel,
+    LockerAvailability,
+    ReducedLockerView)
 # Models
-from src.models.session_models import SessionModel, SessionState
-from src.models.station_models import (StationModel, StationStates,
-                                       TerminalState)
+from src.models.session_models import (
+    SessionModel,
+    ReducedSessionView,
+    SessionState,
+    ACTIVE_SESSION_STATES)
+from src.models.station_models import (
+    StationModel,
+    StationStates,
+    TerminalState)
 # Logging
 from src.services.logging_services import logger
+# Exceptions
+from src.exceptions.station_exceptions import StationNotFoundException
 # Services
 from src.services.maintenance_services import has_scheduled
 
@@ -16,6 +29,13 @@ from src.services.maintenance_services import has_scheduled
 class Station(Entity):
     """Adds behaviour for a station instance."""
     doc: StationModel
+
+    def __init__(self, document=None, callsign=None):
+        if document is None:
+            raise StationNotFoundException(
+                callsign=callsign,
+            )
+        super().__init__(document)
 
     ### Attributes ###
     @property
@@ -57,24 +77,46 @@ class Station(Entity):
 
     ### Locker management ###
 
-    async def get_locker(self, index: int) -> Locker:
-        """Find a locker at a station by index."""
-        # 1: Find the locker
-        return Locker(await
-                      LockerModel.find_one(
-                          LockerModel.station == self.id,
-                          LockerModel.station_index == index,)
-                      )
+    async def get_available_lockers(self) -> list[ReducedLockerView]:
+        """Find all available lockers at a station.
+        Look for active sessions at the station, then filter out the lockers that are in use.
+        Return the available lockers sorted by total session count."""
 
-    async def get_available_lockers(self) -> list[Locker]:
-        """Find all available lockers at a station."""
-        # TODO: Implement and apply this method
-        # 1: Find all lockers
-        lockers = await LockerModel.find(
-            LockerModel.station == self.id,
-            LockerModel.is_available == True
-        ).to_list()
-        return [Locker(locker) for locker in lockers]
+        # Get all lockers at this station
+        all_station_lockers = await LockerModel.find(
+            LockerModel.station.id == self.doc.id,  # pylint: disable=no-member
+            LockerModel.availability == LockerAvailability.OPERATIONAL,
+            fetch_links=True
+        ).sort(
+            (LockerModel.total_session_count, SortDirection.ASCENDING)
+        ).project(ReducedLockerView).to_list()  # pylint: disable=no-member
+
+        # Get active sessions for this station
+        active_sessions = await SessionModel.find(
+            SessionModel.assigned_station.id == self.doc.id,  # pylint: disable=no-member
+            Or(In(SessionModel.session_state, ACTIVE_SESSION_STATES),
+                SessionModel.session_state == SessionState.STALE),
+            fetch_links=True
+        ).project(ReducedSessionView).sort(
+            (SessionModel.created_at, SortDirection.ASCENDING)).to_list()
+
+        # Get IDs of lockers that are currently in use
+        active_lockers = {
+            session.assigned_locker for session in active_sessions}
+
+        # Filter out lockers that are in use
+        available_lockers = [
+            locker for locker in all_station_lockers
+            if locker.id not in active_lockers
+        ]
+
+        # Verify we don't have more active lockers than exist
+        assert (len(all_station_lockers) >= len(active_lockers)
+                ), (f"Found {len(active_lockers)} active lockers, but only "
+                    f"{len(all_station_lockers)} lockers exist at station '#{self.callsign}'.")
+
+        return available_lockers
+
     ### Terminal setters ###
 
     async def register_station_state(

@@ -3,17 +3,13 @@
 """
 # Basics
 from typing import Annotated
-
 # FastAPI
 from fastapi import APIRouter, Path
 # Auth
 from fief_client import FiefAccessTokenInfo
-
 # Entities
 from src.entities.maintenance_entity import Maintenance
 from src.entities.station_entity import Station
-# Exceptions
-from src.exceptions.station_exceptions import StationNotFoundException
 # Models
 from src.models.maintenance_models import MaintenanceView
 from src.models.station_models import StationModel
@@ -37,10 +33,9 @@ async def create_scheduled_maintenance(
         _access_info: FiefAccessTokenInfo = None,) -> MaintenanceView:
     """Get the availability of lockers at the station"""
     station: Station = Station(await StationModel.find(
-        StationModel.callsign == callsign)
+        StationModel.callsign == callsign).first_or_none(),
+        callsign=callsign
     )
-    if not station.exists:
-        raise StationNotFoundException(callsign=callsign)
 
     maintenance_item = await Maintenance().create(station_id=station.id,
                                                   staff_id=staff_id)
@@ -57,10 +52,9 @@ async def get_next_scheduled_maintenance(
 ) -> MaintenanceView:
     """Get the availability of lockers at the station"""
     station: Station = Station(await StationModel.find(
-        StationModel.callsign == callsign).first_or_none()
+        StationModel.callsign == callsign).first_or_none(),
+        callsign=callsign
     )
-    if not station.exists:
-        raise StationNotFoundException(callsign=callsign)
     return await maintenance_services.get_next(
         station_id=station.id
     )

@@ -4,7 +4,7 @@
 import json
 import os
 
-from beanie import PydanticObjectId, init_beanie
+from beanie import PydanticObjectId as ObjId, init_beanie
 from dotenv import load_dotenv
 # Database utilities
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -52,7 +52,7 @@ def convert_oid(document):
     """Convert $oid fields to ObjectId"""
     for key, value in document.items():
         if isinstance(value, dict) and "$oid" in value:
-            document[key] = ObjectId(value["$oid"])
+            document[key] = ObjId(value["$oid"])
         elif isinstance(value, list):
             for item in value:
                 if isinstance(item, dict):

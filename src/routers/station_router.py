@@ -7,11 +7,11 @@ from typing import Annotated, Any, List, Optional
 
 from beanie import PydanticObjectId as ObjId
 # FastAPI & Beanie
-from fastapi import APIRouter, Path, Response
+from fastapi import APIRouter, Path
 
 # Exceptions
 from src.exceptions.locker_exceptions import InvalidLockerReportException
-from src.models.locker_models import (LockerState, LockerTypeAvailability,
+from src.models.locker_models import (LockerState, LockerTypeAvailabilityView,
                                       LockerView)
 from src.models.session_models import SessionState
 # Models
@@ -55,10 +55,10 @@ async def get_nearby_stations(
 @ handle_exceptions(logger)
 async def get_station_details(
         callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
-        response: Response) -> StationView:
+) -> StationView:
     """Get detailed information about a station"""
     return await station_services.get_details(
-        callsign=callsign, response=response)
+        callsign=callsign)
 
 
 @station_router.get(
@@ -69,22 +69,22 @@ async def get_station_details(
 @ handle_exceptions(logger)
 async def get_active_session_count(
         callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
-        response: Response) -> StationView:
+) -> StationView:
     """Get detailed information about a station"""
     return await station_services.get_active_session_count(
-        callsign=callsign, response=response)
+        callsign=callsign)
 
 
 @station_router.get(
     '/{callsign}/lockers',
-    response_model=List[LockerTypeAvailability])
-# @ handle_exceptions(logger)
+    response_model=List[LockerTypeAvailabilityView])
+@ handle_exceptions(logger)
 async def get_locker_overview(
         callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')]
-) -> List[LockerTypeAvailability]:
+) -> List[LockerTypeAvailabilityView]:
     """Get the availability of lockers at the station"""
     return await station_services.get_locker_overview(
-        callsign=callsign, response=Response)
+        callsign=callsign)
 
 
 @station_router.get(
@@ -94,12 +94,11 @@ async def get_locker_overview(
 async def get_locker_by_index(
         callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
         station_index: int,
-        response: Response) -> Optional[LockerView]:
+) -> Optional[LockerView]:
     """Get the availability of lockers at the station"""
     return await station_services.get_locker_by_index(
         callsign=callsign,
         station_index=station_index,
-        response=response
     )
 
 

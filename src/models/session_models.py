@@ -78,7 +78,7 @@ ACTIVE_SESSION_STATES: List[SessionState] = [
 SESSION_TIMEOUTS: Dict[SessionState, int] = {
     SessionState.CREATED: 30,
     SessionState.PAYMENT_SELECTED: 60,
-    SessionState.VERIFICATION: 10,  # 30
+    SessionState.VERIFICATION: 30,
     SessionState.STASHING: 45,
     SessionState.ACTIVE: 86400,
     SessionState.HOLD: 120,
@@ -133,7 +133,7 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
         default=SessionTypes.PERSONAL, description="The type of session service.\
             Affects price and session flow.")
     payment_method: Optional[PaymentTypes] = Field(
-        default=PaymentTypes.TERMINAL, description="The type of payment method.\
+        default=None, description="The type of payment method.\
             Affects ability to hold and resume sessions.")
 
     ### State management ###
@@ -164,10 +164,11 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
 
     @ after_event(Insert)
     async def log_creation(self):
+        await self.fetch_link(SessionModel.assigned_locker)
         logger.debug(
             (f"Created session '#{self.id}' for user "
              f"'#{self.user.id}' at locker "  # pylint: disable=no-member
-             f"'#{self.assigned_locker.callsign}'."))  # pylint: disable=no-member
+             f"'#{self.assigned_locker.id}'."))  # pylint: disable=no-member
 
     @ dataclass
     class Settings:
@@ -235,7 +236,7 @@ class SessionView(View):
     @ dataclass
     class Settings:
         source = SessionModel
-        is_root = True
+        is_root = False
         projection = {
             "id": {"$toString": "$_id"},
             "user": "$user.fief_id",
@@ -243,6 +244,32 @@ class SessionView(View):
             "station_index": "$assigned_locker.station_index",
             "session_type": "$session_type",
             "session_state": "$session_state.name",
+        }
+
+
+class ReducedSessionView(View):
+    """Used for serving information about an active session"""
+    id: str = Field(description="Unique identifier of the session.")
+    session_state: SessionState = Field(
+        description="Current state of the session")
+    assigned_locker: str = Field(
+        None, description="The assigned locker to this session.")
+
+    @ dataclass
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "id": "60d5ec49f1d2b2a5d8f8b8b8",
+            "session_state": "created"
+        }
+
+    @ dataclass
+    class Settings:
+        source = SessionModel
+        projection = {
+            "id": {"$toString": "$_id"},
+            "session_state": "$session_state",
+            "assigned_locker": {"$toString": "$assigned_locker._id"}
         }
 
 

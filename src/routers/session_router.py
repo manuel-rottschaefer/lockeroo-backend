@@ -3,12 +3,11 @@
 """
 # Basics
 from typing import Annotated, List, Optional
-
+from asyncio import Lock
 # Database utils
 from beanie import PydanticObjectId as ObjId
 # FastAPI
 from fastapi import APIRouter, Depends, Header, Path, Query, WebSocket, status
-
 # Entities
 from src.entities.user_entity import User
 from src.models.action_models import ActionView
@@ -19,6 +18,7 @@ from src.models.session_models import (
     CreatedSessionView,
     ConcludedSessionView,
     PaymentTypes)
+from src.models.locker_models import LOCKER_TYPE_NAMES
 # Services
 from src.services import session_services
 from src.services.auth_services import require_auth
@@ -27,7 +27,6 @@ from src.services.logging_services import logger
 
 # Create the router
 session_router = APIRouter()
-
 
 ### REST ENDPOINTS ###
 
@@ -62,19 +61,21 @@ async def get_session_details(
     description='Request a new session at a given station')
 async def request_new_session(
     station_callsign: Annotated[str, Query(pattern='^[A-Z]{6}$')],
-    locker_type: str,
-
+    locker_type: Annotated[str, Query(enum=LOCKER_TYPE_NAMES)],
+    payment_method: Optional[PaymentTypes] = Query(None),
     _user: str = Header(default=None, alias="user"),
     access_info: User = Depends(require_auth),
 ) -> Optional[CreatedSessionView]:
     """Handle request to create a new session"""
     logger.info((f"User '#{access_info.fief_id}' is requesting a "
                 f"new session at station '{station_callsign}'."))
-    return await session_services.handle_creation_request(
-        user=access_info,
-        callsign=station_callsign,
-        locker_type=locker_type
-    )
+    async with Lock():  # TODO: Check if lock solves the problem adequately
+        return await session_services.handle_creation_request(
+            user=access_info,
+            callsign=station_callsign,
+            locker_type=locker_type,
+            payment_method=payment_method
+        )
 
 
 @ session_router.put(

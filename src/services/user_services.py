@@ -1,19 +1,17 @@
 """Provides utility functions for the the user management backend."""
-
 # Types
 from datetime import datetime, timedelta
 from uuid import UUID
-
-from beanie import PydanticObjectId as ObjId
+# Beanie
+from beanie import PydanticObjectId as ObjId, SortDirection
 from beanie.operators import In
-
 # Exceptions
 from src.exceptions.user_exceptions import UserHasActiveSessionException
-# Beanie
-from src.models.objectid import SortDirection
 # Models
-from src.models.session_models import (ACTIVE_SESSION_STATES, SessionModel,
-                                       SessionState)
+from src.models.session_models import (
+    SessionModel,
+    SessionState,
+    ACTIVE_SESSION_STATES,)
 
 
 async def has_active_session(user_id: UUID) -> bool:

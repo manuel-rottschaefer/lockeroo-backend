@@ -6,15 +6,19 @@ from src.entities.locker_entity import Locker, LockerState
 from src.entities.session_entity import Session
 # Entities
 from src.entities.task_entity import Task
-from src.exceptions.locker_exceptions import (InvalidLockerReportException,
-                                              InvalidLockerStateException)
+from src.exceptions.locker_exceptions import (
+    InvalidLockerReportException,
+    InvalidLockerStateException)
 # Exceptions
 from src.exceptions.task_exceptions import TaskNotFoundException
 from src.models.action_models import ActionModel, ActionType
 # Models
 from src.models.session_models import SessionState
-from src.models.task_models import (TaskItemModel, TaskState, TaskTarget,
-                                    TaskType)
+from src.models.task_models import (
+    TaskItemModel,
+    TaskState,
+    TaskTarget,
+    TaskType)
 # Services
 from src.services.logging_services import logger
 
@@ -133,7 +137,8 @@ async def handle_lock_report(
 
     assert (session.doc.session_state in [
         SessionState.STASHING,
-        SessionState.RETRIEVAL]
+        SessionState.RETRIEVAL,
+        SessionState.CANCELED]
     ), (f"Session '#{session.id}' is in {session.session_state}, expected "
         f"{[SessionState.STASHING, SessionState.ACTIVE, SessionState.RETRIEVAL]}.")
 
@@ -150,7 +155,7 @@ async def handle_lock_report(
     await task.complete()
 
     # 8: Catch completed sessions
-    next_state: SessionState = await session.next_state
+    next_state: SessionState = session.next_state
     if next_state == SessionState.COMPLETED:
         # Update session state
         session.set_state(SessionState.COMPLETED)
@@ -158,6 +163,10 @@ async def handle_lock_report(
         await ActionModel(
             assigned_session=session.doc, action_type=ActionType.COMPLETE).insert()
         return await session.handle_conclude()
+
+    # Catch canceled sessions
+    if session.doc.session_state == SessionState.CANCELED:
+        return
 
     # 9: Await user to return to the locker to pick up his stuff.
     await Task(await TaskItemModel(

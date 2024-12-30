@@ -1,11 +1,8 @@
 """This module provides utilities for  database for maintenance events."""
-
 # Basics
 from datetime import datetime
-
 # Types
 from beanie import PydanticObjectId as ObjId
-
 # Entities
 from src.entities.entity_utils import Entity
 # Models

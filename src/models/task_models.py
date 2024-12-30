@@ -6,7 +6,7 @@ from enum import Enum
 from typing import List, Optional
 
 # Beanie
-from beanie import Document, View, Link, Insert
+from beanie import Document, Link, Insert
 from beanie import PydanticObjectId as ObjId
 from beanie import SaveChanges, after_event, before_event
 from dotenv import load_dotenv
@@ -128,13 +128,6 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
             "task_state": "queued",
             "expiration_window": 3600
         }
-
-
-class TaskQueueView(View):
-    id: ObjId = Field(None, alias="_id")
-
-    assigned_session: ObjId = Field(
-        None, description="The session which this task handles.")
 
 
 try:

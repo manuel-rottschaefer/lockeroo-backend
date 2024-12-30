@@ -3,7 +3,6 @@
 from datetime import datetime, timedelta
 # Types
 from typing import List
-
 # Entities
 from src.entities.entity_utils import Entity
 from src.models.action_models import ActionModel, ActionType
@@ -18,15 +17,24 @@ from src.models.session_models import (
 # Models
 from src.models.station_models import StationModel
 from src.models.user_models import UserModel
-from src.models.task_models import TaskQueueView
+from src.models.task_models import TaskItemModel
 # Services
 from src.services import websocket_services
 from src.services.logging_services import logger
+# Exceptions
+from src.exceptions.session_exceptions import SessionNotFoundException
 
 
 class Session(Entity):
     """Add behaviour to a session instance."""
     doc: SessionModel
+
+    def __init__(self, document=None, user_id=None):
+        if document is None:
+            raise SessionNotFoundException(
+                user_id=user_id,
+            )
+        super().__init__(document)
 
     @property
     async def view(self) -> SessionView:
@@ -103,11 +111,11 @@ class Session(Entity):
                 return active_duration
 
     @ property
-    async def next_state(self) -> SessionState:
+    def next_state(self) -> SessionState:
         """Return the next logical state of the session."""
         return FOLLOW_UP_STATES[self.session_state]
 
-    async def broadcast_update(self, task: TaskQueueView = None) -> None:
+    async def broadcast_update(self, task: TaskItemModel = None) -> None:
         """Send a websocket update to the client."""
         update_view = {
             "id": str(self.doc.id),

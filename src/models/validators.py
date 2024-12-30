@@ -1,7 +1,7 @@
 """Validator for all models in the models folder"""
-from typing import Annotated, Union
-
-from beanie import PydanticObjectId
+# Types
+from typing import Annotated
+# Pydantic
 from pydantic import BeforeValidator, ValidationError
 
 
