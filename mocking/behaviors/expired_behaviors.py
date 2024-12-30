@@ -8,18 +8,17 @@ class AbandonAfterCreate(MockingSession):
 
     def run(self):  # pylint: disable=missing-function-docstring
         self.user_request_session()
-        self.verify_state(SessionState.CREATED)
-        self.wait_for_timeout(SessionState.CREATED)
+        self.verify_state(SessionState.PAYMENT_SELECTED)
+        self.wait_for_timeout(SessionState.PAYMENT_SELECTED)
 
         self.verify_state(SessionState.EXPIRED)
-        self.terminate_session()
 
 
 class AbandonAfterPaymentSelection(MockingSession):
     """Abandon session after payment selection."""
 
     def run(self):  # pylint: disable=missing-function-docstring
-        self.user_request_session()
+        self.user_request_session(select_payment=False)
         self.verify_state(SessionState.CREATED)
         self.delay_action(SessionState.CREATED)
 
@@ -28,7 +27,6 @@ class AbandonAfterPaymentSelection(MockingSession):
         self.wait_for_timeout(SessionState.PAYMENT_SELECTED)
 
         self.verify_state(SessionState.EXPIRED)
-        self.terminate_session()
 
 
 class AbandonBothVerifications(MockingSession):
@@ -36,10 +34,6 @@ class AbandonBothVerifications(MockingSession):
 
     def run(self):  # pylint: disable=missing-function-docstring
         self.user_request_session()
-        self.verify_state(SessionState.CREATED)
-        self.delay_action(SessionState.CREATED)
-
-        self.user_select_payment_method()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
 
@@ -52,7 +46,6 @@ class AbandonBothVerifications(MockingSession):
         self.await_state(SessionState.VERIFICATION)
         self.wait_for_timeout(SessionState.VERIFICATION)
         self.verify_state(SessionState.EXPIRED)
-        self.terminate_session()
 
 
 class AbandonActive(MockingSession):
@@ -60,10 +53,6 @@ class AbandonActive(MockingSession):
 
     def run(self):  # pylint: disable=missing-function-docstring
         self.user_request_session()
-        self.verify_state(SessionState.CREATED)
-        self.delay_action(SessionState.CREATED)
-
-        self.user_select_payment_method()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
 
@@ -80,7 +69,6 @@ class AbandonActive(MockingSession):
         self.wait_for_timeout(SessionState.ACTIVE)
 
         self.verify_state(SessionState.EXPIRED)
-        self.terminate_session()
 
 
 class AbandonBothPayments(MockingSession):
@@ -88,10 +76,6 @@ class AbandonBothPayments(MockingSession):
 
     def run(self):  # pylint: disable=missing-function-docstring
         self.user_request_session()
-        self.verify_state(SessionState.CREATED)
-        self.delay_action(SessionState.CREATED)
-
-        self.user_select_payment_method()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
 
@@ -116,4 +100,3 @@ class AbandonBothPayments(MockingSession):
         self.await_state(SessionState.PAYMENT)
         self.wait_for_timeout(SessionState.PAYMENT)
         self.verify_state(SessionState.EXPIRED)
-        self.terminate_session()

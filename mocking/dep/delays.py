@@ -26,6 +26,7 @@ ACTION_DELAYS: Dict[SessionState, List[int]] = {
     SessionState.ACTIVE: get_delay_ranges('ACTIVE'),
     SessionState.PAYMENT: get_delay_ranges('PAYMENT'),
     SessionState.RETRIEVAL: get_delay_ranges('RETRIEVAL'),
+    SessionState.CANCELED: get_delay_ranges('CANCELED'),
 }
 
 

@@ -33,22 +33,22 @@ async def on_message(_client, _userdata, msg: mqtt.MQTTMessage):
     payload = msg.payload.decode('utf-8')
 
     if is_terminal_instruction(msg.topic) and payload in ['VERIFICATION', 'PAYMENT', 'IDLE']:
+        await asyncio.sleep(0.1)  # Non-blocking delay
         mqttc.publish(
             topic=f"stations/{msg.topic.split('/')[1]}/terminal/confirm",
             payload=payload,
             qos=2)
         print(f"Confirmed mode {payload} for station {
               msg.topic.split('/')[1]}.")
-        await asyncio.sleep(0.1)  # Non-blocking delay
 
     elif is_locker_instruction(msg.topic) and payload in ['locked', 'unlocked']:
+        await asyncio.sleep(0.1)  # Non-blocking delay
         mqttc.publish(
             topic=f"stations/{topic[1]}/locker/{topic[3]}/confirm",
             payload=payload,
             qos=2)
         print(f"Confirmed state {payload.upper()} for locker {
               topic[3]} at station {topic[1]}.")
-        await asyncio.sleep(0.1)  # Non-blocking delay
 
     # elif is_action_report(msg.topic):
     #    await asyncio.sleep(0.1)  # Non-blocking delay

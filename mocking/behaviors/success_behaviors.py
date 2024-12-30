@@ -14,10 +14,6 @@ class RegularSession(MockingSession):
 
     def run(self):  # pylint: disable=missing-function-docstring
         self.user_request_session()
-        self.verify_state(SessionState.CREATED)
-        self.delay_action(SessionState.CREATED)
-
-        self.user_select_payment_method()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
 
@@ -43,7 +39,7 @@ class RegularSession(MockingSession):
 
         self.station_report_locker_close()
         self.await_state(SessionState.COMPLETED)
-        self.terminate_session()
+        #
 
 
 class Abandon1stVerificationThenNormal(MockingSession):
@@ -51,10 +47,6 @@ class Abandon1stVerificationThenNormal(MockingSession):
 
     def run(self):  # pylint: disable=missing-function-docstring
         self.user_request_session()
-        self.verify_state(SessionState.CREATED)
-        self.delay_action(SessionState.CREATED)
-
-        self.user_select_payment_method()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
 
@@ -85,18 +77,13 @@ class Abandon1stVerificationThenNormal(MockingSession):
 
         self.station_report_locker_close()
         self.await_state(SessionState.COMPLETED)
-        self.terminate_session()
 
 
-class AbandonFirstPaymentThenNormal(MockingSession):
+class Abandon1stPaymentThenNormal(MockingSession):
     """Miss the first payment window, but then continue as normal."""
 
     def run(self):  # pylint: disable=missing-function-docstring
         self.user_request_session()
-        self.verify_state(SessionState.CREATED)
-        self.delay_action(SessionState.CREATED)
-
-        self.user_select_payment_method()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
 
@@ -127,4 +114,3 @@ class AbandonFirstPaymentThenNormal(MockingSession):
 
         self.station_report_locker_close()
         self.await_state(SessionState.COMPLETED)
-        self.terminate_session()

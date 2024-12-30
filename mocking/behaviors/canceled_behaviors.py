@@ -8,20 +8,18 @@ class CancelAfterCreate(MockingSession):
 
     def run(self):  # pylint: disable=missing-function-docstring
         self.user_request_session()
-        self.verify_state(SessionState.CREATED)
-        self.delay_action(SessionState.CREATED)
+        self.verify_state(SessionState.PAYMENT_SELECTED)
+        self.delay_action(SessionState.PAYMENT_SELECTED)
 
         self.user_request_cancel_session()
         self.verify_state(SessionState.CANCELED)
-
-        self.terminate_session()
 
 
 class CancelAfterPaymentSelection(MockingSession):
     """Cancel session after payment selection."""
 
     def run(self):  # pylint: disable=missing-function-docstring
-        self.user_request_session()
+        self.user_request_session(select_payment=False)
         self.verify_state(SessionState.CREATED)
         self.delay_action(SessionState.CREATED)
 
@@ -32,18 +30,12 @@ class CancelAfterPaymentSelection(MockingSession):
         self.user_request_cancel_session()
         self.verify_state(SessionState.CANCELED)
 
-        self.terminate_session()
-
 
 class CancelDuringVerification(MockingSession):
     """Cancel session during verification."""
 
     def run(self):  # pylint: disable=missing-function-docstring
         self.user_request_session()
-        self.verify_state(SessionState.CREATED)
-        self.delay_action(SessionState.CREATED)
-
-        self.user_select_payment_method()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
 
@@ -54,18 +46,12 @@ class CancelDuringVerification(MockingSession):
         self.user_request_cancel_session()
         self.verify_state(SessionState.CANCELED)
 
-        self.terminate_session()
-
 
 class CancelDuringStashing(MockingSession):
     """Cancel session during stashing."""
 
     def run(self):  # pylint: disable=missing-function-docstring
         self.user_request_session()
-        self.verify_state(SessionState.CREATED)
-        self.delay_action(SessionState.CREATED)
-
-        self.user_select_payment_method()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
 
@@ -78,6 +64,7 @@ class CancelDuringStashing(MockingSession):
         self.delay_action(SessionState.STASHING)
 
         self.user_request_cancel_session()
-        self.verify_state(SessionState.CANCELED)
+        self.delay_action(SessionState.CANCELED)
 
-        self.terminate_session()
+        self.station_report_locker_close()
+        self.await_state(SessionState.CANCELED)

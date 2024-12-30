@@ -15,7 +15,7 @@ from locust import HttpUser, TaskSet
 from mocking.dep.mocking_logger import LocustLogger
 from mocking.dep.delays import ACTION_DELAYS
 from mocking.dep.user_pool import UserPool
-from src.models.locker_models import LockerTypeAvailability
+from src.models.locker_models import LockerTypeAvailabilityView
 from src.models.session_models import (
     PaymentTypes,
     SessionView,
@@ -47,7 +47,7 @@ class MockingSession:
         self.client: HttpUser = user.client
         self.mqtt_client: mqttc.Client = mqtt_client
         self.station_callsign = "MUCODE"
-        self.payment_method = 'terminal'
+        self.payment_method = PaymentTypes.TERMINAL
         self.endpoint: str = getenv('API_BASE_URL')
         self.ws_endpoint: str = getenv('API_WS_URL')
         self.session: Union[CreatedSessionView, SessionView]
@@ -55,6 +55,12 @@ class MockingSession:
         self.headers: dict
 
         self.awaited_state: Optional[SessionState] = None
+
+    def get_user(self) -> None:
+        self.user_id = user_pool.get_available_user()
+        self.headers: dict = {"user": self.user_id}
+        if self.user_id is None:
+            self.terminate_session()
 
     def subscribe_to_updates(self):
         """Subscribe to a session update stream and handle awaited states."""
@@ -119,153 +125,136 @@ class MockingSession:
 
     def find_available_locker(self) -> Optional[str]:
         """Try to find an available locker at the locker station."""
-        # Make the request
         res = self.client.get(
-            self.endpoint + f'/stations/{self.station_callsign}/lockers', timeout=3)
-        # Check for server errors
+            f'{self.endpoint}/stations/{self.station_callsign}/lockers', timeout=3)
         if res.status_code == 400:
             self.terminate_session()
-            return None
         res.raise_for_status()
+
         # Check if the session state matches the expected state
-        avail_locker_types: List[LockerTypeAvailability] = [
-            LockerTypeAvailability(**i) for i in res.json() if i['is_available']]
+        avail_locker_types: List[LockerTypeAvailabilityView] = [
+            LockerTypeAvailabilityView(**i) for i in res.json() if i['is_available']]
         if not avail_locker_types:
             # Wait here so a locker can become available
             sleep(5)
             self.terminate_session()
-            return None
+
         return choice([locker_type.locker_type for locker_type in avail_locker_types])
 
-    def user_request_session(self) -> None:
+    def user_request_session(self, select_payment: bool = True) -> None:
         """Try to request a new session at the locker station."""
-        # Make the request
-        self.user_id = user_pool.get_available_user()
-        if self.user_id is None:
-            self.terminate_session()
-            return None
-        self.headers: dict = {"user": self.user_id}
+        self.get_user()
         locker_type = self.find_available_locker()
         res = self.client.post(
             self.endpoint + '/sessions/create', params={
                 'station_callsign': self.station_callsign,
-                'locker_type': locker_type
+                'locker_type': locker_type,
+                'payment_method': self.payment_method if select_payment else None
             }, headers=self.headers, timeout=3)
-        # Check for server errors
+
         if res.status_code == 400:
-            # interrupt task set
             self.terminate_session()
-            return None
         res.raise_for_status()
-        # Check if the session state matches the expected state
+
         self.session = CreatedSessionView(**res.json())
-        if self.session.session_state != SessionState.CREATED:
-            self.log_unexpected_state(self.session, SessionState.CREATED)
-        # Subscribe to updates
         self.subscribe_to_updates()
-        # Return obtained session
+
         self.logger.info(
-            (f"Created session '#{self.session.id}' "
-             f"with behavior {self.__class__.__name__}."))
+            f"Created session '#{self.session.id}' of behavior "
+            f"{self.__class__.__name__} at station '{self.station_callsign}'.")
 
     def user_request_cancel_session(self) -> None:
         """Try to cancel a session."""
-        # Make the request
+        self.logger.info(
+            f"Canceling session '#{self.session.id}' at station '{self.station_callsign}'.")
+
         res = self.client.put(
-            self.endpoint + f'/sessions/{self.session.id}/cancel', headers=self.headers, timeout=3)
-        # Check for server errors
+            f'{self.endpoint}/sessions/{self.session.id}/cancel',
+            headers=self.headers, timeout=3)
         if res.status_code == 400:
             return None
         res.raise_for_status()
-        # Check if the session state matches the expected state
-        print(res.json())
+
         self.session = ConcludedSessionView(**res.json())
-        if self.session.session_state != SessionState.CANCELED:
-            self.log_unexpected_state(self.session, SessionState.CANCELED)
-        # Return current session
-        self.logger.info(f"Canceled session '#{self.session.id}'.")
 
     def user_select_payment_method(self) -> None:
         """Try to select a payment method for a session."""
-        payment_method = PaymentTypes.TERMINAL
-        # Make the request
+        self.logger.info(
+            (f"Selecting payment method for session '#{self.session.id}' "
+             f"at station '{self.station_callsign}'."))
+
         res = self.client.put(
-            self.endpoint + f'/sessions/{self.session.id}/payment/select', params={
-                'payment_method': payment_method.value
+            f'{self.endpoint}/sessions/{self.session.id}/payment/select', params={
+                'payment_method': self.payment_method.value
             }, headers=self.headers, timeout=3)
-        # Check for server errors
         if res.status_code == 400:
             return None
         res.raise_for_status()
-        # Check if the session state matches the expected state
+
         self.session = ActiveSessionView(**res.json())
-        if self.session.session_state != SessionState.PAYMENT_SELECTED:
-            self.log_unexpected_state(
-                self.session, SessionState.PAYMENT_SELECTED)
-        # Return current session
-        self.logger.info((f"Selected {payment_method} for session "
-                          f"'#{self.session.id}'."))
 
     def user_request_verification(self) -> None:
         """Try to request verification for a session."""
-        # Make the request
+        self.logger.info(
+            (f"Requesting verification for session '#{self.session.id}' "
+             f"at station '{self.station_callsign}'."))
+
         res = self.client.put(
             f'{self.endpoint}/sessions/{self.session.id}/payment/verify',
             headers=self.headers, timeout=3)
-        # Check for server errors
         if res.status_code == 400:
             return None
         res.raise_for_status()
-        # Check if the session state matches the expected state
+
         self.session = SessionView(**res.json())
-        # Return current session
-        self.logger.info((f"Requested verification for session "
-                          f"'#{self.session.id}'."))
 
     def request_payment(self) -> None:
         """Try to request payment for a session."""
-        # Make the request
+        self.logger.info(
+            (f"Requesting payment for session '#{self.session.id}' "
+             f"at station '{self.station_callsign}'."))
+
         res = self.client.put(
             f'{self.endpoint}/sessions/{self.session.id}/payment',
             headers=self.headers, timeout=3)
-        # Check for server errors
         if res.status_code == 400:
             return None
         res.raise_for_status()
-        # Check if the session state matches the expected state
+
         self.session = SessionView(**res.json())
-        # Return current session
-        self.logger.info((f"Requested payment for session "
-                         f"'#{self.session.id}'."))
 
     #########################
     ###  STATION ACTIONS  ###
     #########################
 
     def station_report_verification(self):
+        self.logger.info(
+            (f"Reporting VERIFICATION at station '#{self.station_callsign}' "
+             f"for session '#{self.session.id}''."))
         self.mqtt_client.publish(
             f'stations/{self.station_callsign}/verification/report', '123456', qos=2)
-        self.logger.info(f"Verification reported at station '#{
-            self.station_callsign}'.")
 
     def station_report_payment(self):
+        self.logger.info(
+            (f"Reporting PAYMENT at station '#{self.station_callsign}' "
+             f"for session '#{self.session.id}''."))
         self.mqtt_client.publish(
             f'stations/{self.station_callsign}/payment/report', '123456', qos=2)
-        self.logger.info(f"Payment reported at station '#{
-                         self.station_callsign}'.")
 
     def station_report_locker_open(self):
+        self.logger.info(
+            (f"Instructing station '{self.station_callsign}' to open locker "
+             f"{self.session.locker_index} for session '#{self.session.id}'.")
+        )
         self.mqtt_client.publish((
             f"stations/{self.station_callsign}/locker/"
             f"{self.session.locker_index}/report'"), 'UNLOCKED', qos=2)
-        self.logger.info((
-            f"Locker {self.session.locker_index} opened "
-            f"at station '{self.station_callsign}'."))
 
     def station_report_locker_close(self):
+        self.logger.info(
+            (f"Instructing station '{self.station_callsign}' to close locker "
+             f"{self.session.locker_index} for session '#{self.session.id}'.")
+        )
         self.mqtt_client.publish((
             f"stations/{self.station_callsign}/locker/"
             f"{self.session.locker_index}/report"), 'LOCKED', qos=2)
-        self.logger.info((
-            f"Locker {self.session.locker_index} closed "
-            f"at station '{self.station_callsign}'."))
