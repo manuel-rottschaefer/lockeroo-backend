@@ -65,26 +65,14 @@ class ActionModel(Document):  # pylint: disable=too-many-ancestors
         }
 
 
-try:
-    ActionModel.model_json_schema()
-except PydanticUserError as exc_info:
-    assert exc_info.code == 'invalid-for-json-schema'
-
-
 class ActionView(View):  # pylint: disable=too-many-ancestors
     """Database representation of a action"""
-    id: str = Field(description="Unique identifier of the action.")
-    assigned_session: ObjId = Field(
-        description="The assigned session to this action."
-    )
+    id: str
+    assigned_session: ObjId
 
     # Action Properties
-    timestamp: datetime = Field(
-        None, description="The timestamp at which the action was registered."
-    )
-    action_type: ActionType = Field(
-        None, description="The type of action that has been registered."
-    )
+    timestamp: datetime
+    action_type: ActionType
 
     @ dataclass
     class Config:
@@ -94,3 +82,10 @@ class ActionView(View):  # pylint: disable=too-many-ancestors
             "timestamp": "2023-10-10T10:00:00",
             "action_type": "create"
         }
+
+
+try:
+    for model in [ActionModel, ActionView]:
+        model.model_json_schema()
+except PydanticUserError as exc_info:
+    assert exc_info.code == 'invalid-for-json-schema'

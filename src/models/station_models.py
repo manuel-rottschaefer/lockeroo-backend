@@ -4,14 +4,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Annotated, Dict, List, Optional
-
+# Beanie
 from beanie import Document, Indexed
 from beanie import PydanticObjectId as ObjId
 from beanie import SaveChanges, View, after_event
 from pydantic import BaseModel, Field, PydanticUserError
-# Beanie
 from pymongo import TEXT
-
 # Services
 from src.services.mqtt_services import fast_mqtt
 
@@ -67,41 +65,54 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a station in the database."""
     # Identification
     id: ObjId = Field(None, alias="_id")
-    full_name: str
+    full_name: str = Field(description="Full name of the station.")
     callsign: Annotated[str, Indexed(index_type=TEXT, unique=True)]
 
     # Internal Properties
-    station_type: str
-    hw_version: str
-    sw_version: str
+    station_type: str = Field(description="Hardware type of the station.")
+    hw_version: str = Field(description="Hardware version of the station.")
+    sw_version: str = Field(description="Software version of the station.")
 
     # Setup and Installation Data
-    installed_at: datetime
-    installed_lockers: int
+    installed_at: datetime = Field(
+        description="Date and time of installation.")
+    installed_lockers: int = Field(description="Amount of lockers installed.")
 
     # Layout
-    locker_layout: LockerLayout
+    locker_layout: LockerLayout = Field(description="Layout of the station.")
 
     # Operation state
-    station_state: StationStates = Field(default=StationStates.AVAILABLE)
-    terminal_state: TerminalState = Field(default=TerminalState.IDLE)
-    next_service_date: datetime
-    service_due: bool
+    station_state: StationStates = Field(
+        default=StationStates.AVAILABLE,
+        description="Current state of the station.")
+    terminal_state: TerminalState = Field(
+        default=TerminalState.IDLE,
+        description="Current state of the terminal.")
+    next_service_date: datetime = Field(
+        description="Date of the next scheduled maintenance.")
+    service_due: bool = Field(
+        description="Whether the station is due for maintenance.")
 
     # Operation history
-    total_session_count: int
-    total_session_duration: timedelta
-    last_service_date: datetime
+    total_session_count: int = Field(
+        description="Total amount of sessions completed.")
+    total_session_duration: timedelta = Field(
+        description="Total duration of all sessions.")
+    last_service_date: datetime = Field(
+        description="Date of the last maintenance.")
 
     # Service states
-    is_storage_available: bool
-    is_charging_available: bool
+    is_storage_available: bool = Field(
+        description="Whether the station has storage available.")
+    is_charging_available: bool = Field(
+        description="Whether the station has charging available.")
 
     # Location
-    city_name: str
-    address: str
-    location: Dict
-    nearby_public_transit: Optional[str]
+    city_name: str = Field(description="Name of the city.")
+    address: str = Field(description="Address of the station.")
+    location: Dict = Field(description="GPS coordinates of the station.")
+    nearby_public_transit: Optional[str] = Field(
+        description="Name of nearby public transit.")
 
     @ after_event(SaveChanges)
     def notify_station_state(self):
@@ -142,16 +153,10 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
         }
 
 
-try:
-    StationModel.model_json_schema()
-except PydanticUserError as exc_info:
-    assert exc_info.code == 'invalid-for-json-schema'
-
-
 class StationView(View):
     """Public representation of a station"""
     # Identification
-    id: str = Field(description="Unique identifier of the station.")
+    id: str
     full_name: str
     callsign: str
 
@@ -193,3 +198,10 @@ class StationView(View):
             "location": {"lat": 40.7128, "lon": -74.0060},
             "nearby_public_transit": "Subway"
         }
+
+
+try:
+    for model in StationModel.model_json_schema():
+        model.json_schema()
+except PydanticUserError as exc_info:
+    assert exc_info.code == 'invalid-for-json-schema'

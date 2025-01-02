@@ -1,5 +1,6 @@
 """This module provides the Models for Session management."""
 # Basics
+from os import getenv
 # Types
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -62,6 +63,8 @@ class SessionState(str, Enum):
     EXPIRED = "expired"
     # Session has expired due to internal failure / no response from station
     ABORTED = "aborted"
+    # User has left his stuff in the locker
+    ABANDONED = "abandoned"
 
 
 ACTIVE_SESSION_STATES: List[SessionState] = [
@@ -76,19 +79,19 @@ ACTIVE_SESSION_STATES: List[SessionState] = [
 ]
 
 SESSION_TIMEOUTS: Dict[SessionState, int] = {
-    SessionState.CREATED: 30,
-    SessionState.PAYMENT_SELECTED: 60,
-    SessionState.VERIFICATION: 30,
-    SessionState.STASHING: 45,
-    SessionState.ACTIVE: 86400,
-    SessionState.HOLD: 120,
-    SessionState.PAYMENT: 30,
-    SessionState.RETRIEVAL: 45,
-    SessionState.COMPLETED: 0,
-    SessionState.CANCELED: 0,
-    SessionState.STALE: 0,
-    SessionState.EXPIRED: 0,
-    SessionState.ABORTED: 0
+    SessionState.CREATED: float(getenv("CREATED", '0')),
+    SessionState.PAYMENT_SELECTED: float(getenv("PAYMENT_SELECTED", '0')),
+    SessionState.VERIFICATION: float(getenv("VERIFICATION", '0')),
+    SessionState.STASHING: float(getenv("STASHING", '0')),
+    SessionState.ACTIVE: float(getenv("ACTIVE", '0')),
+    SessionState.HOLD: float(getenv("HOLD", '0')),
+    SessionState.PAYMENT: float(getenv("PAYMENT", '0')),
+    SessionState.RETRIEVAL: float(getenv("RETRIEVAL", '0')),
+    SessionState.COMPLETED: float(getenv("COMPLETED", '0')),
+    SessionState.CANCELED: float(getenv("CANCELED", '0')),
+    SessionState.STALE: float(getenv("STALE", '0')),
+    SessionState.EXPIRED: float(getenv("EXPIRED", '0')),
+    SessionState.ABORTED: float(getenv("ABORTED", '0'))
 }
 
 FOLLOW_UP_STATES: Dict[SessionState, Union[SessionState, None]] = {
@@ -191,34 +194,18 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
         }
 
 
-try:
-    SessionModel.model_json_schema()
-except PydanticUserError as exc_info:
-    assert exc_info.code == 'invalid-for-json-schema'
-
-
 class SessionView(View):
     """Used for serving information about an active session"""
     # Identification
-    id: str = Field(description="Unique identifier of the session.")
+    id: str
+    user: UUID
 
-    user: UUID = Field(
-        None, description="The assigned user to this session.")
+    station: str
+    locker_index: int
 
-    station: str = Field(
-        description="Station at which the session takes place")
+    service_type: SessionTypes
+    session_state: SessionState
 
-    locker_index: int = Field(
-        default=None, description="Local index of the locker at its station")
-
-    service_type: SessionTypes = Field(
-        None, description="Type of session")
-
-    session_state: SessionState = Field(
-        None, description="Current state of the session")
-
-    # These timestamps are only gathered from session actions when a
-    # session view isrequested to avoid duplicate data entries
     # TODO: Implement a timestamping mechanism
 
     @ dataclass
@@ -249,18 +236,17 @@ class SessionView(View):
 
 class ReducedSessionView(View):
     """Used for serving information about an active session"""
-    id: str = Field(description="Unique identifier of the session.")
-    session_state: SessionState = Field(
-        description="Current state of the session")
-    assigned_locker: str = Field(
-        None, description="The assigned locker to this session.")
+    id: str
+    session_state: SessionState
+    assigned_locker: str
 
     @ dataclass
     class Config:
         from_attributes = True
         json_schema_extra = {
             "id": "60d5ec49f1d2b2a5d8f8b8b8",
-            "session_state": "created"
+            "session_state": "created",
+            "assigned_locker": "60d5ec49f1d2b2a5d8f8b8b8"
         }
 
     @ dataclass
@@ -274,8 +260,7 @@ class ReducedSessionView(View):
 
 
 class CreatedSessionView(SessionView):
-    websocket_token: str = Field(
-        None, description="Token for websocket communication.")
+    websocket_token: str
 
     @ dataclass
     class Config:
@@ -287,8 +272,7 @@ class CreatedSessionView(SessionView):
 
 class ActiveSessionView(SessionView):
     """Used for serving information about an active session"""
-    queue_position: Optional[int] = Field(
-        None, description="Position in the queue for the locker.")
+    queue_position: Optional[int]
 
     @ dataclass
     class Config:
@@ -301,35 +285,56 @@ class ActiveSessionView(SessionView):
 class WebsocketUpdate(View):
     """Used for serving information about an active session"""
     # Identification
-    id: str = Field(description="Unique identifier of the session.")
-
-    session_state: str = Field(
-        None, description="Current state of the session")
-
-    queue_position: Optional[int] = Field(
-        None, description="Position in the queue for the locker.")
+    id: str
+    session_state: str
+    queue_position: Optional[int]
 
     @ dataclass
     class Config:
         from_attributes = True
         json_schema_extra = {
             "id": "60d5ec49f1d2b2a5d8f8b8b8",
-            "session_state": "created"
+            "session_state": "created",
+            "queue_position": 1
         }
 
 
 class ConcludedSessionView(View):
     """Used for serving information about a completed session"""
-    id: str = Field(description="Unique identifier of the session.")
-    station: str = Field(
-        description="Station callsign at which the session took place")
-    locker_index: int = Field(
-        description="Local index of the locker at its station")
-    service_type: SessionTypes = Field(description="Type of session")
-    session_state: SessionState = Field(
-        description="Current state of the session")
+    id: str
+    station: str
+    locker_index: int
+    service_type: SessionTypes
+    session_state: SessionState
 
     # These values can be calculated with the createSummary method
     # finalPrice: Optional[float] = None
-    total_duration: float = Field(description="Total duration of the session")
-    # activeDuration: Optional[float] = None
+    total_duration: float
+    activeDuration: float
+
+    @ dataclass
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "id": "60d5ec49f1d2b2a5d8f8b8b8",
+            "station": "MUCODE",
+            "locker_index": 1,
+            "service_type": "personal",
+            "session_state": "completed",
+            "total_duration": 100,
+            "activeDuration": 50
+        }
+
+
+try:
+    models = [SessionModel,
+              SessionView,
+              ReducedSessionView,
+              CreatedSessionView,
+              ActiveSessionView,
+              WebsocketUpdate,
+              ConcludedSessionView]
+    for model in models:
+        model.model_json_schema()
+except PydanticUserError as exc_info:
+    assert exc_info.code == 'invalid-for-json-schema'

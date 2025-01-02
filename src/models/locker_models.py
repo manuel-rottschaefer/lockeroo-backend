@@ -114,23 +114,15 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
         }
 
 
-try:
-    LockerModel.model_json_schema()
-except PydanticUserError as exc_info:
-    assert exc_info.code == 'invalid-for-json-schema'
-
-
 class LockerView(View):
     """A public view of the locker model."""
-    id: str = Field(description="Unique identifier of the locker.")
-    station: str = Field(
-        None, description='Station callsign this locker belongs to.')
+    id: str
+    station: str
 
     #### Locker Properties ###
-    locker_type: str = Field(description='Type of the locker.')
-    availability: str = Field(description='Availability of the locker.')
-    station_index: int = Field(
-        description='Index of the locker in the station.')
+    locker_type: str
+    availability: str
+    station_index: int
 
     class Settings:  # pylint: disable=too-few-public-methods
         source = LockerModel
@@ -155,9 +147,9 @@ class LockerView(View):
 
 class ReducedLockerView(View):
     """Only id and name of the locker type."""
-    id: str = Field(description="Unique identifier of the locker type.")
-    locker_type: str = Field(description="Name of the locker type.")
-    locker_state: str = Field(description="State of the locker.")
+    id: str
+    locker_type: str
+    locker_state: str
 
     class Settings:  # pylint: disable=too-few-public-methods
         source = LockerModel
@@ -178,15 +170,10 @@ class ReducedLockerView(View):
 
 class LockerTypeAvailabilityView(View):
     """Representation of the availability of a locker type at a station."""
-    issued_at: datetime = Field(
-        datetime.now(), description="Timestamp of the availability check.")
-
-    station: str = Field(description="Name of the station.")
-
-    locker_type: str = Field(description="Name of the locker type.")
-
-    is_available: bool = Field(
-        description="Whether the locker type is currently available at the station.")
+    issued_at: datetime
+    station: str
+    locker_type: str
+    is_available: bool
 
 
 def load_locker_types(config_path: str) -> Optional[List[LockerType]]:
@@ -209,6 +196,18 @@ def load_locker_types(config_path: str) -> Optional[List[LockerType]]:
         return None
 
 
+# Load locker types from configuration
 LOCKER_TYPES: List[LockerType] = load_locker_types(
     config_path='src/config/locker_types.yml')
 LOCKER_TYPE_NAMES = [locker.name for locker in LOCKER_TYPES]
+
+
+try:
+    models = [LockerModel,
+              LockerView,
+              ReducedLockerView,
+              LockerTypeAvailabilityView]
+    for model in models:
+        model.model_json_schema()
+except PydanticUserError as exc_info:
+    assert exc_info.code == 'invalid-for-json-schema'

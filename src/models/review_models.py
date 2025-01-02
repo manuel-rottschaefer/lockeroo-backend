@@ -55,29 +55,16 @@ class ReviewModel(Document):  # pylint: disable=too-many-ancestors
         }
 
 
-try:
-    ReviewModel.model_json_schema()
-except PydanticUserError as exc_info:
-    assert exc_info.code == 'invalid-for-json-schema'
-
-
 class ReviewView(View):  # pylint: disable=too-many-ancestors
     """View of the Review Model"""
     # Identification
-    id: str = Field(description="Unique identifier of the review.")
-    assigned_session: ObjId
+    id: str
 
     submitted_at: datetime
 
-    experience_rating: int = Field(
-        ge=1, le=5, description="Rating of the overall experience"
-    )
-    cleanliness_rating: int = Field(
-        ge=1, le=5, description="Rating of the cleanliness of the locker"
-    )
-    details: str = Field(
-        description="Written feedback on the session. Should not be made public."
-    )
+    experience_rating: int
+    cleanliness_rating: int
+    details: str
 
     @ dataclass
     class Config:
@@ -89,3 +76,11 @@ class ReviewView(View):  # pylint: disable=too-many-ancestors
             "cleanliness_rating": 4,
             "details": "Great experience!"
         }
+
+
+try:
+    models = [ReviewModel, ReviewView]
+    for model in models:
+        model.model_json_schema()
+except PydanticUserError as exc_info:
+    assert exc_info.code == 'invalid-for-json-schema'

@@ -4,22 +4,17 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
-
 # Beanie
 from beanie import Document, Link, Insert
 from beanie import PydanticObjectId as ObjId
 from beanie import SaveChanges, after_event, before_event
-from dotenv import load_dotenv
 from pydantic import Field, PydanticUserError
-
 from src.models.locker_models import LockerModel
 # Models
 from src.models.session_models import SessionModel, SessionState
 from src.models.station_models import StationModel
 # Services
 from src.services.logging_services import logger
-
-load_dotenv('environments/.env')
 
 
 class TaskState(str, Enum):
@@ -82,7 +77,7 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     from_expired: bool = Field(
         False, description="Whether the task is being requeued from an expired state.")
 
-    expiration_window: int = Field(
+    expiration_window: float = Field(
         0, description="The time in seconds until the task expires.")
 
     created_at: Optional[datetime] = Field(
@@ -123,10 +118,19 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     @ dataclass
     class Config:
         json_schema_extra = {
+            "_id": "5f7f9f8b0b7c0e001f6b0d0c",
             "task_type": "report",
             "target": "user",
             "task_state": "queued",
-            "expiration_window": 3600
+            "queue_position": 0,
+            "moves_session": False,
+            "timeout_states": ["expired"],
+            "from_expired": False,
+            "expiration_window": 0,
+            "created_at": "2020-10-08T15:00:00",
+            "expires_at": "2020-10-08T15:00:00",
+            "activated_at": "2020-10-08T15:00:00",
+            "completed_at": "2020-10-08T15:00:00"
         }
 
 

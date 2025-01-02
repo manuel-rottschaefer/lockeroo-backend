@@ -63,13 +63,15 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
         description='Session to which the payment belongs to.')
 
     state: PaymentStates = Field(
-        PaymentStates.SCHEDULED, description='Current state of the payment object.')
+        PaymentStates.SCHEDULED,
+        description='Current state of the payment object.')
 
     price: int = Field(
-        0, description='The calculated price of the assigned session at the time of creation.')
+        default=0,
+        description='The calculated price of the assigned session at the time of creation.')
 
-    last_updated: datetime = Field(datetime.now(),
-                                   description='The timestamp of the last update to this payment.')
+    last_updated: datetime = Field(
+        datetime.now(), description='The timestamp of the last update to this payment.')
 
     @ after_event(SaveChanges)
     async def check_pending(self):
@@ -96,11 +98,13 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
             "assigned_station": "60d5ec49f1d2b2a5d8f8b8b8",
             "assigned_session": "60d5ec49f1d2b2a5d8f8b8b8",
             "state": "scheduled",
-            "price": 1000
+            "price": 1000,
+            "last_updated": "2023-10-10T10:00:00"
         }
 
 
 try:
-    PaymentModel.model_json_schema()
+    for model in [PaymentModel, PricingModel]:
+        model.model_json_schema()
 except PydanticUserError as exc_info:
     assert exc_info.code == 'invalid-for-json-schema'

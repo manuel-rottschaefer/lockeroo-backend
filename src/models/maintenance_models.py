@@ -30,13 +30,13 @@ class MaintenanceModel(Document):  # pylint: disable=too-many-ancestors
     id: ObjId = Field(None, alias="_id")
 
     assigned_station: Link[StationModel] = Field(
-        None, description="Station to which this maintenance is assigned to.")
+        description="Station to which this maintenance is assigned to.")
 
     # Planned datetimes
     scheduled_for: datetime = Field(
         description="Scheduled time of maintenance")
-    planned_duration: timedelta = Field(
-        timedelta(hours=1), description="Planned duration of the maintenance session.")
+    planned_duration: timedelta = Field(timedelta(hours=1),
+                                        description="Planned duration of the maintenance session.")
 
     started: Optional[datetime] = Field(
         None, description="Actual starting time")
@@ -47,8 +47,8 @@ class MaintenanceModel(Document):  # pylint: disable=too-many-ancestors
         description="Current state of the maintenance item"
     )
 
-    assigned_staff: ObjId = Field(None,
-                                  description="The person assigned with this task")
+    assigned_staff: ObjId = Field(
+        description="The person assigned with this task")
 
     @ dataclass
     class Settings:  # pylint: disable=too-few-public-methods
@@ -65,36 +65,21 @@ class MaintenanceModel(Document):  # pylint: disable=too-many-ancestors
         }
 
 
-try:
-    MaintenanceModel.model_json_schema()
-except PydanticUserError as exc_info:
-    assert exc_info.code == 'invalid-for-json-schema'
-
-
 class MaintenanceView(View):  # pylint: disable=too-many-ancestors
     """Entity of a station maintenance event"""
-    id: str = Field(description="Unique identifier of the maintenance event.")
+    id: str
 
-    assigned_station: str = Field(
-        None, description="Station to which this maintenance is assigned to.")
+    assigned_station: str
 
     # Planned datetimes
-    scheduled_for: datetime = Field(
-        description="Scheduled time of maintenance")
-    planned_duration: timedelta = Field(
-        timedelta(hours=1), description="Planned duration of the maintenance session.")
+    scheduled_for: datetime
+    planned_duration: timedelta
 
-    started: Optional[datetime] = Field(
-        None, description="Actual starting time")
-    completed: Optional[datetime] = Field(
-        None, description="Actual completion time")
+    started: Optional[datetime]
+    completed: Optional[datetime]
 
-    state: MaintenanceStates = Field(
-        description="Current state of the maintenance item"
-    )
-
-    assigned_staff: str = Field(
-        None, description="The person assigned with this task")
+    state: MaintenanceStates
+    assigned_staff: str
 
     @ dataclass
     class Config:
@@ -106,3 +91,10 @@ class MaintenanceView(View):  # pylint: disable=too-many-ancestors
             "state": "scheduled",
             "assigned_staff": "John Doe"
         }
+
+
+try:
+    for model in [MaintenanceModel, MaintenanceView]:
+        model.model_json_schema()
+except PydanticUserError as exc_info:
+    assert exc_info.code == 'invalid-for-json-schema'
