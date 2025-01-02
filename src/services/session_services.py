@@ -16,7 +16,10 @@ from src.entities.payment_entity import Payment
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
 from src.entities.task_entity import (
-    Task, TaskState, TaskTarget, TaskType)
+    Task,
+    TaskState,
+    TaskTarget,
+    TaskType)
 from src.entities.user_entity import User
 from src.exceptions.locker_exceptions import (
     InvalidLockerTypeException,
@@ -35,7 +38,7 @@ from src.exceptions.user_exceptions import (
     UserHasActiveSessionException,
     UserNotAuthorizedException)
 from src.models.action_models import ActionModel, ActionType
-from src.models.locker_models import LockerState, LOCKER_TYPES
+from src.models.locker_models import LOCKER_TYPES
 from src.models.session_models import (
     ACTIVE_SESSION_STATES,
     SessionView,
@@ -61,17 +64,36 @@ async def get_details(session_id: ObjId, user: User) -> Optional[SessionView]:
     if session.doc.user.id != user.id:
         raise UserNotAuthorizedException(user_id=user.id)
 
-    # Get queued task
-    task: Task = Task(await TaskItemModel.find(
-        TaskItemModel.assigned_session.id == session_id,  # pylint: disable=no-member
-        TaskItemModel.task_state == TaskState.QUEUED,
-        TaskItemModel.expires_at > datetime.now()
-    ).first_or_none())
+    await session.doc.fetch_all_links()
 
-    return ActiveSessionView(
-        **session.doc.model_dump(),
-        queue_position=task.queue_position if task.exists else None
-    )
+    # If the session is completed, return the concluded view, otherwise the active view
+    if session.session_state in ACTIVE_SESSION_STATES:
+        # Fetch a queued task
+        task: Task = Task(await TaskItemModel.find(
+            TaskItemModel.assigned_session.id == session_id,  # pylint: disable=no-member
+            TaskItemModel.task_state == TaskState.QUEUED,
+            TaskItemModel.expires_at > datetime.now()
+        ).first_or_none())
+
+        return ActiveSessionView(
+            id=str(session.doc.id),
+            user=session.doc.user.fief_id,
+            station=session.doc.assigned_station.callsign,
+            locker_index=session.doc.assigned_locker.station_index,
+            service_type=session.doc.session_type,
+            session_state=session.doc.session_state,
+            queue_position=task.queue_position if task.exists else None
+        )
+
+    else:
+        return ConcludedSessionView(
+            id=str(session.doc.id),
+            station=session.doc.assigned_station.callsign,
+            locker_index=session.doc.assigned_locker.station_index,
+            service_type=session.doc.session_type,
+            session_state=session.doc.session_state,
+            total_duration=session.doc.total_duration.total_seconds()
+        )
 
 
 async def get_session_history(session_id: ObjId, user: User) -> Optional[List[ActionModel]]:
@@ -539,23 +561,9 @@ async def handle_cancel_request(session_id: ObjId, user: User
     ).to_list()
 
     for task in tasks:
-        task.task_state = TaskState.CANCELED
-        await task.save_changes()
+        await Task(task).cancel()
 
-    # 4: If the locker is open, create a task to close it
-    await session.doc.fetch_link(SessionModel.assigned_locker)
-    if session.doc.assigned_locker.reported_state == LockerState.UNLOCKED:
-        await Task(await TaskItemModel(
-            target=TaskTarget.LOCKER,
-            task_type=TaskType.REPORT,
-            assigned_session=session.doc,
-            assigned_station=session.assigned_station,
-            assigned_locker=session.assigned_locker,
-            timeout_states=[SessionState.STALE],
-            moves_session=False
-        ).insert()).activate()
-
-    # 5. Update session state and log the action
+    # 4. Update session state and log the action
     session.set_state(SessionState.CANCELED)
     session.doc.total_duration = await session.total_duration
     await session.doc.save_changes()

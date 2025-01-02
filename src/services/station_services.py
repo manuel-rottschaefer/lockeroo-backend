@@ -317,8 +317,11 @@ async def handle_terminal_state_confirmation(
             moves_session=True,
         ).insert()).activate()
 
+    elif session.doc.session_state not in ACTIVE_SESSION_STATES:
+        return
+
     elif confirmed_state == TerminalState.IDLE:
-        if pending_task.doc.from_expired:
+        if pending_task.doc.from_expired:  # TODO: Check if this is required
             # Create task for user to try the expired action again
             await Task(await TaskItemModel(
                 target=TaskTarget.USER,

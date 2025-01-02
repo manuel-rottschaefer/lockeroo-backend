@@ -100,7 +100,6 @@ async def restore_mongodb_data(directory):
     os.system(f"mongorestore --drop {directory} > /dev/null 2>&1")
 
 
-load_dotenv(dotenv_path='environments/.env')
 URI = f"mongodb://{os.getenv('DB_USER')
                    }:{os.getenv('DB_PASS')}@{os.getenv('DB_HOST')}"
 client = AsyncIOMotorClient(URI)

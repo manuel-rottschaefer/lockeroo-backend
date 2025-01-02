@@ -157,8 +157,9 @@ async def handle_lock_report(
     # 8: Catch completed sessions
     next_state: SessionState = session.next_state
     if next_state == SessionState.COMPLETED:
-        # Update session state
         session.set_state(SessionState.COMPLETED)
+        # TODO: Should be redundant with handle_conclude, but is not
+        await session.doc.save_changes()
         await session.broadcast_update()
         await ActionModel(
             assigned_session=session.doc, action_type=ActionType.COMPLETE).insert()
@@ -175,6 +176,6 @@ async def handle_lock_report(
         assigned_session=session.doc,
         assigned_station=locker.doc.station,
         assigned_locker=locker.doc,
-        timeout_states=[SessionState.STALE],
+        timeout_states=[SessionState.ABANDONED],
         moves_session=True,
     ).insert()).activate()
