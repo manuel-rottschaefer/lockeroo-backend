@@ -1,7 +1,6 @@
 """Locust configuration file for testing the Lockeroo Backend."""
 
 from os import getenv
-from dotenv import load_dotenv
 from locust import HttpUser,  TaskSet, SequentialTaskSet, between, task
 
 
@@ -12,21 +11,17 @@ from mocking.behaviors import (
     stalled_behaviors)
 
 
-# Load environment variables
-load_dotenv('environments/.env')
-
-
 class RandomizedBehaviors(TaskSet):
     """TaskSet for regular session behavior"""
 
     ### Success Behaviors ###
-    @ task(74000)
+    @ task(74)
     def regular_session(self):
         success_behaviors.RegularSession(self, self.user).run()
 
     @ task(2)
     def abandon_first_verification_then_normal(self):
-        success_behaviors.Abandon1stVerificationThenNormal(
+        success_behaviors.Abandon1stVerifyThenNormal(
             self, self.user).run()
 
     @ task(2)
@@ -47,7 +42,7 @@ class RandomizedBehaviors(TaskSet):
     def abandon_during_both_verifications(self):
         expired_behaviors.AbandonBothVerifications(self, self.user).run()
 
-    @ task(0)
+    @ task(2)
     def abandon_during_active(self):
         expired_behaviors.AbandonActive(self, self.user).run()
 
@@ -88,11 +83,11 @@ class UnitTestBehaviors(SequentialTaskSet):
     @ task
     def test_regular_session(self):
         """Test regular session behavior"""
+
         ### Success Behaviors ###
         success_behaviors.RegularSession(self, self.user).run()
 
-        success_behaviors.Abandon1stVerificationThenNormal(
-            self, self.user).run()
+        success_behaviors.Abandon1stVerifyThenNormal(self, self.user).run()
 
         success_behaviors.Abandon1stPaymentThenNormal(self, self.user).run()
 
@@ -124,6 +119,6 @@ class UnitTestBehaviors(SequentialTaskSet):
 
 class LockerStationUser(HttpUser):
     host = getenv('API_BASE_URL')
-    tasks = {RandomizedBehaviors: 1}
     # tasks = {UnitTestBehaviors: 1}
+    tasks = {RandomizedBehaviors: 1}
     wait_time = between(15, 30)

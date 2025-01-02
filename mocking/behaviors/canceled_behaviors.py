@@ -12,7 +12,7 @@ class CancelAfterCreate(MockingSession):
         self.delay_action(SessionState.PAYMENT_SELECTED)
 
         self.user_request_cancel_session()
-        self.verify_state(SessionState.CANCELED)
+        self.verify_state(SessionState.CANCELED, final=True)
 
 
 class CancelAfterPaymentSelection(MockingSession):
@@ -28,7 +28,7 @@ class CancelAfterPaymentSelection(MockingSession):
         self.delay_action(SessionState.PAYMENT_SELECTED)
 
         self.user_request_cancel_session()
-        self.verify_state(SessionState.CANCELED)
+        self.verify_state(SessionState.CANCELED, final=True)
 
 
 class CancelDuringVerification(MockingSession):
@@ -44,7 +44,7 @@ class CancelDuringVerification(MockingSession):
         self.delay_action(SessionState.VERIFICATION)
 
         self.user_request_cancel_session()
-        self.verify_state(SessionState.CANCELED)
+        self.verify_state(SessionState.CANCELED, final=True)
 
 
 class CancelDuringStashing(MockingSession):
@@ -64,7 +64,8 @@ class CancelDuringStashing(MockingSession):
         self.delay_action(SessionState.STASHING)
 
         self.user_request_cancel_session()
+        self.verify_state(SessionState.CANCELED)
         self.delay_action(SessionState.CANCELED)
 
         self.station_report_locker_close()
-        self.await_state(SessionState.CANCELED)
+        self.verify_state(SessionState.CANCELED, final=True)

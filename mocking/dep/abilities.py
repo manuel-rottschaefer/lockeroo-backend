@@ -1,6 +1,7 @@
 """Abilities for the locust user mocker"""
 import json
 import threading
+import configparser
 from os import getenv
 from time import sleep
 from random import choice, uniform
@@ -14,6 +15,7 @@ from locust import HttpUser, TaskSet
 
 from mocking.dep.mocking_logger import LocustLogger
 from mocking.dep.delays import ACTION_DELAYS
+from mocking.dep.exceptions import handle_invalid_state
 from mocking.dep.user_pool import UserPool
 from src.models.locker_models import LockerTypeAvailabilityView
 from src.models.session_models import (
@@ -26,6 +28,9 @@ from src.models.session_models import (
     WebsocketUpdate,
     SESSION_TIMEOUTS)
 
+from src.exceptions.session_exceptions import InvalidSessionStateException
+
+
 # Initialize the user pool
 user_pool = UserPool()
 
@@ -36,6 +41,11 @@ mqtt_client.loop_start()
 
 # Initialize the logger once
 locust_logger = LocustLogger().logger
+
+# Read the expiration window
+config = configparser.ConfigParser()
+config.read('mocking/.env')
+QUEUE_EXPIRATION = float(config.get('QUICK_TIMEOUTS', 'QUEUE'))
 
 
 class MockingSession:
@@ -78,18 +88,26 @@ class MockingSession:
         thread = threading.Thread(target=monitor, daemon=True)
         thread.start()
 
-    def await_state(self, state: SessionState, timeout: int = 300) -> None:
+    @ handle_invalid_state
+    def await_state(self, expected_state: SessionState, timeout: float = QUEUE_EXPIRATION) -> None:
         """Wait for the next state to be reached."""
         expiration = datetime.now() + timedelta(seconds=timeout)
         try:
             while datetime.now() < expiration:
-                if self.session.session_state == state:
+                if self.session.session_state == expected_state:
                     self.logger.info(
-                        f"Session '#{self.session.id}' reached state '{state}'.")
+                        f"Session '#{self.session.id}' reached state '{expected_state}'.")
                     return
                 sleep(0.2)
             self.logger.warning(
-                f"Session '#{self.session.id}' did not reach state '{state}'.")
+                f"Session '#{self.session.id}' did not reach state '{expected_state}'.")
+            self.terminate_session()
+            raise InvalidSessionStateException(
+                session_id=self.session.id,
+                actual_state=self.session.session_state,
+                expected_states=[expected_state]
+            )
+
         except KeyboardInterrupt:
             return
 
@@ -99,21 +117,30 @@ class MockingSession:
         sleep(uniform(ACTION_DELAYS[session_state]
               [0], ACTION_DELAYS[session_state][1]))
 
+    @ handle_invalid_state
     def wait_for_timeout(self, session_state: SessionState):
         """Let the user wait for the session timeout to expire.
         One second is added to the timeout to ensure the session actually expires."""
         sleep(SESSION_TIMEOUTS[session_state] + 1)
 
-    def log_unexpected_state(self, session, state):
-        self.logger.warning(
-            f"Session '#{session.id}' is in state '{
-                session.session_state}', "
-            f"expected '{state}'.")
+    def verify_state(self, expected_state, final=False):
+        """Verify the current session state."""
+        if self.session.session_state == expected_state:
+            self.logger.debug(
+                f"Session '#{self.session.id}' is in expected state '{expected_state}'.")
+            if final:
+                self.terminate_session()
+        else:
+            self.logger.warning(
+                f"Session '#{self.session.id}' is in state '{
+                    self.session.session_state}', "
+                f"expected '{expected_state}'.")
 
-    def verify_state(self, expected_state):
-        if self.session.session_state != expected_state:
-            self.log_unexpected_state(self.session, expected_state)
-            self.terminate_session()
+            raise InvalidSessionStateException(
+                session_id=self.session.id,
+                actual_state=self.session.session_state,
+                expected_states=[expected_state]
+            )
 
     def terminate_session(self):
         user_pool.return_user(self.user_id)
@@ -143,6 +170,7 @@ class MockingSession:
 
     def user_request_session(self, select_payment: bool = True) -> None:
         """Try to request a new session at the locker station."""
+        self.logger.info('-' * 64)
         self.get_user()
         locker_type = self.find_available_locker()
         res = self.client.post(
@@ -172,7 +200,7 @@ class MockingSession:
             f'{self.endpoint}/sessions/{self.session.id}/cancel',
             headers=self.headers, timeout=3)
         if res.status_code == 400:
-            return None
+            self.terminate_session()
         res.raise_for_status()
 
         self.session = ConcludedSessionView(**res.json())
@@ -188,7 +216,7 @@ class MockingSession:
                 'payment_method': self.payment_method.value
             }, headers=self.headers, timeout=3)
         if res.status_code == 400:
-            return None
+            self.terminate_session()
         res.raise_for_status()
 
         self.session = ActiveSessionView(**res.json())
@@ -203,7 +231,7 @@ class MockingSession:
             f'{self.endpoint}/sessions/{self.session.id}/payment/verify',
             headers=self.headers, timeout=3)
         if res.status_code == 400:
-            return None
+            self.terminate_session()
         res.raise_for_status()
 
         self.session = SessionView(**res.json())
@@ -218,7 +246,7 @@ class MockingSession:
             f'{self.endpoint}/sessions/{self.session.id}/payment',
             headers=self.headers, timeout=3)
         if res.status_code == 400:
-            return None
+            self.terminate_session()
         res.raise_for_status()
 
         self.session = SessionView(**res.json())

@@ -19,7 +19,7 @@ class AbandonStashing(MockingSession):
         self.await_state(SessionState.STASHING)
         self.wait_for_timeout(SessionState.STASHING)
 
-        self.verify_state(SessionState.STALE)
+        self.verify_state(SessionState.STALE, final=True)
 
 
 class AbandonRetrieval(MockingSession):
@@ -50,7 +50,7 @@ class AbandonRetrieval(MockingSession):
         self.await_state(SessionState.RETRIEVAL)
         self.wait_for_timeout(SessionState.RETRIEVAL)
 
-        self.verify_state(SessionState.STALE)
+        self.verify_state(SessionState.STALE, final=True)
 
 
 class AbandonAfterStashingCancel(MockingSession):
@@ -73,4 +73,4 @@ class AbandonAfterStashingCancel(MockingSession):
         self.await_state(SessionState.CANCELED)
         self.delay_action(SessionState.STASHING)
 
-        self.verify_state(SessionState.STALE)
+        self.verify_state(SessionState.STALE, final=True)

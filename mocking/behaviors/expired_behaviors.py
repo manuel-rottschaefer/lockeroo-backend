@@ -11,7 +11,7 @@ class AbandonAfterCreate(MockingSession):
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.wait_for_timeout(SessionState.PAYMENT_SELECTED)
 
-        self.verify_state(SessionState.EXPIRED)
+        self.verify_state(SessionState.EXPIRED, final=True)
 
 
 class AbandonAfterPaymentSelection(MockingSession):
@@ -26,7 +26,7 @@ class AbandonAfterPaymentSelection(MockingSession):
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.wait_for_timeout(SessionState.PAYMENT_SELECTED)
 
-        self.verify_state(SessionState.EXPIRED)
+        self.verify_state(SessionState.EXPIRED, final=True)
 
 
 class AbandonBothVerifications(MockingSession):
@@ -45,7 +45,7 @@ class AbandonBothVerifications(MockingSession):
         self.user_request_verification()
         self.await_state(SessionState.VERIFICATION)
         self.wait_for_timeout(SessionState.VERIFICATION)
-        self.verify_state(SessionState.EXPIRED)
+        self.verify_state(SessionState.EXPIRED, final=True)
 
 
 class AbandonActive(MockingSession):
@@ -68,7 +68,7 @@ class AbandonActive(MockingSession):
         self.await_state(SessionState.ACTIVE)
         self.wait_for_timeout(SessionState.ACTIVE)
 
-        self.verify_state(SessionState.EXPIRED)
+        self.verify_state(SessionState.ABANDONED, final=True)
 
 
 class AbandonBothPayments(MockingSession):
@@ -99,4 +99,4 @@ class AbandonBothPayments(MockingSession):
         self.request_payment()
         self.await_state(SessionState.PAYMENT)
         self.wait_for_timeout(SessionState.PAYMENT)
-        self.verify_state(SessionState.EXPIRED)
+        self.verify_state(SessionState.EXPIRED, final=True)

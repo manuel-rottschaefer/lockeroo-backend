@@ -39,10 +39,10 @@ class RegularSession(MockingSession):
 
         self.station_report_locker_close()
         self.await_state(SessionState.COMPLETED)
-        #
+        self.verify_state(SessionState.COMPLETED, final=True)
 
 
-class Abandon1stVerificationThenNormal(MockingSession):
+class Abandon1stVerifyThenNormal(MockingSession):
     """Miss the first verification window, but then continue as normal."""
 
     def run(self):  # pylint: disable=missing-function-docstring
@@ -77,6 +77,7 @@ class Abandon1stVerificationThenNormal(MockingSession):
 
         self.station_report_locker_close()
         self.await_state(SessionState.COMPLETED)
+        self.verify_state(SessionState.COMPLETED, final=True)
 
 
 class Abandon1stPaymentThenNormal(MockingSession):
@@ -114,3 +115,4 @@ class Abandon1stPaymentThenNormal(MockingSession):
 
         self.station_report_locker_close()
         self.await_state(SessionState.COMPLETED)
+        self.verify_state(SessionState.COMPLETED, final=True)
