@@ -4,7 +4,7 @@
 # Basics
 from typing import Annotated
 # FastAPI
-from fastapi import APIRouter, Path
+from fastapi import APIRouter, Path, status
 # Auth
 from fief_client import FiefAccessTokenInfo
 # Entities
@@ -23,8 +23,10 @@ from src.services.logging_services import logger
 maintenance_router = APIRouter()
 
 
-@maintenance_router.post('/{callsign}/maintenance/schedule',
-                         response_model=MaintenanceView)
+@maintenance_router.post(
+    '/{callsign}/maintenance/schedule',
+    status_code=status.HTTP_201_CREATED,
+    response_model=MaintenanceView)
 @ handle_exceptions(logger)
 @require_auth
 async def create_scheduled_maintenance(
@@ -42,8 +44,10 @@ async def create_scheduled_maintenance(
     return maintenance_item.doc
 
 
-@maintenance_router.get('/{callsign}/maintenance/next',
-                        response_model=MaintenanceView)
+@maintenance_router.get(
+    '/{callsign}/maintenance/next',
+    status_code=status.HTTP_200_OK,
+    response_model=MaintenanceView)
 @ handle_exceptions(logger)
 @require_auth
 async def get_next_scheduled_maintenance(

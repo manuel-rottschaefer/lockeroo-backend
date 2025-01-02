@@ -1,14 +1,11 @@
 """
 This module contains the station router which handles all station related requests
 """
-
 # Basics
 from typing import Annotated, Any, List, Optional
-
 from beanie import PydanticObjectId as ObjId
 # FastAPI & Beanie
-from fastapi import APIRouter, Path
-
+from fastapi import APIRouter, Path, status
 # Exceptions
 from src.exceptions.locker_exceptions import InvalidLockerReportException
 from src.models.locker_models import (LockerState, LockerTypeAvailabilityView,
@@ -29,6 +26,7 @@ station_router = APIRouter()
 @station_router.get(
     '/',
     response_model=List[StationView],
+    status_code=status.HTTP_200_OK,
     description="Return a list of all installed stations.")
 @ handle_exceptions(logger)
 async def return_all_stations():
@@ -39,6 +37,7 @@ async def return_all_stations():
 @station_router.get(
     '/discover',
     response_model=List[StationView],
+    status_code=status.HTTP_200_OK,
     description="Get a list of all stations within a range of a given location.")
 @ handle_exceptions(logger)
 async def get_nearby_stations(
@@ -50,6 +49,7 @@ async def get_nearby_stations(
 @station_router.get(
     '/{callsign}/details',
     response_model=StationView,
+    status_code=status.HTTP_200_OK,
     description='Get detailed information about a station.'
 )
 @ handle_exceptions(logger)
@@ -64,6 +64,7 @@ async def get_station_details(
 @station_router.get(
     '/{callsign}/active_session_count',
     response_model=int,
+    status_code=status.HTTP_200_OK,
     description='Get the amount of currently active sessions at this station.'
 )
 @ handle_exceptions(logger)
@@ -77,7 +78,8 @@ async def get_active_session_count(
 
 @station_router.get(
     '/{callsign}/lockers',
-    response_model=List[LockerTypeAvailabilityView])
+    response_model=List[LockerTypeAvailabilityView],
+    status_code=status.HTTP_200_OK,)
 @ handle_exceptions(logger)
 async def get_locker_overview(
         callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')]
@@ -89,7 +91,9 @@ async def get_locker_overview(
 
 @station_router.get(
     '/{callsign}/lockers/{station_index}',
-    response_model=LockerView)
+    response_model=LockerView,
+    status_code=status.HTTP_200_OK,
+)
 @ handle_exceptions(logger)
 async def get_locker_by_index(
         callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
@@ -104,7 +108,8 @@ async def get_locker_by_index(
 
 @station_router.put(
     '/{callsign}/state',
-    response_model=StationView)
+    response_model=StationView,
+    status_code=status.HTTP_202_ACCEPTED,)
 @ handle_exceptions(logger)
 async def set_station_state(
         callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
@@ -117,7 +122,8 @@ async def set_station_state(
 
 @station_router.patch(
     '/{callsign}/reset_queue',
-    response_model=StationView)
+    response_model=StationView,
+    status_code=status.HTTP_202_ACCEPTED,)
 @ handle_exceptions(logger)
 async def reset_station_queue(
         callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')],

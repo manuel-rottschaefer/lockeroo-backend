@@ -32,7 +32,7 @@ session_router = APIRouter()
 
 
 @session_router.get(
-    '/{session_id}/details',
+    '/{session_id}/',
     response_model=Optional[SessionView],
     status_code=status.HTTP_200_OK,
     description=('Get the details of a session including (active) time,'
@@ -81,7 +81,7 @@ async def request_new_session(
 @ session_router.put(
     '/{session_id}/cancel',
     response_model=Optional[ConcludedSessionView],
-    status_code=status.HTTP_200_OK,
+    status_code=status.HTTP_202_ACCEPTED,
     description='Request to cancel a locker session before it has been started')
 async def request_session_cancel(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],

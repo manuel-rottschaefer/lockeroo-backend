@@ -16,8 +16,9 @@ from src.services.logging_services import logger
 admin_router = APIRouter()
 
 
-@admin_router.get('/reset',
-                  description='Reset the database and populate it with mock data')
+@admin_router.get(
+    '/reset',
+    description='Reset the database and populate it with mock data')
 @ handle_exceptions(logger)
 async def reset_db():
     """Reset the db"""

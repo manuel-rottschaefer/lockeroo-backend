@@ -7,7 +7,7 @@ from typing import Annotated
 # Database utils
 from beanie import PydanticObjectId as ObjId
 # FastAPI
-from fastapi import APIRouter, Depends, Header, Path, Query
+from fastapi import APIRouter, Depends, Header, Path, Query, status
 
 # Models
 from src.models.review_models import ReviewView
@@ -22,9 +22,11 @@ from src.services.logging_services import logger
 review_router = APIRouter()
 
 
-@ review_router.get('/{session_id}',
-                    response_model=ReviewView,
-                    description='Get the review of a session.')
+@ review_router.get(
+    '/{session_id}',
+    response_model=ReviewView,
+    status_code=status.HTTP_200_OK,
+    description='Get the review of a session.')
 @ handle_exceptions(logger)
 async def get_review(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
@@ -38,9 +40,11 @@ async def get_review(
     )
 
 
-@ review_router.put('/{session_id}/submit',
-                    response_model=ReviewView,
-                    description='Submit a review for a completed session.')
+@ review_router.put(
+    '/{session_id}/submit',
+    response_model=ReviewView,
+    status_code=status.HTTP_201_CREATED,
+    description='Submit a review for a completed session.')
 @ handle_exceptions(logger)
 async def submit_review(
     session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
