@@ -151,10 +151,15 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
         None, description="Timestamp of session creation."
     )
 
+    completed_at: Optional[datetime] = Field(
+        None, description="Timestamp of session completion.")
+
     # Statistics
     total_duration: Optional[timedelta] = Field(
-        None, description=("Total duration between session creation and completion.",
-                           "This value is only being calculated on demand and can be None."))
+        None, description="Total duration between session creation and completion.")
+
+    active_duration: Optional[timedelta] = Field(
+        None, description="Total duration of active time during the session.")
 
     ### Security ###
     websocket_token: Optional[str] = Field(
@@ -310,7 +315,7 @@ class ConcludedSessionView(View):
     # These values can be calculated with the createSummary method
     # finalPrice: Optional[float] = None
     total_duration: float
-    activeDuration: float
+    active_duration: float
 
     @ dataclass
     class Config:

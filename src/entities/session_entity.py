@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import List
 # Entities
 from src.entities.entity_utils import Entity
-from src.models.action_models import ActionModel, ActionType
+from src.models.action_models import ActionModel
 from src.models.locker_models import LockerModel
 from src.models.session_models import (
     FOLLOW_UP_STATES,
@@ -78,13 +78,7 @@ class Session(Entity):
             return datetime.now() - self.doc.created_at
 
         # Otherwise, return the seconds between creation and completion
-        completed_action: ActionModel = await ActionModel.find_one(
-            ActionModel.assigned_session.id == self.id,  # pylint: disable=no-member
-            ActionModel.action_type == ActionType.COMPLETE,
-            fetch_links=True
-        )
-
-        return completed_action.timestamp - self.doc.created_at
+        return self.doc.completed_at - self.doc.created_at
 
     @ property
     async def active_duration(self) -> timedelta:
@@ -101,14 +95,14 @@ class Session(Entity):
         ]
 
         # Sum up time between all locked cycles
-        async for action in ActionModel.find(ActionModel.assigned_session == self.id).sort(
-            ActionModel.timestamp
-        ):
+        async for action in ActionModel.find(
+            ActionModel.assigned_session == self.id
+        ).sort(ActionModel.timestamp):
             if action.action_type in SessionState.ACTIVE:
                 cycle_start = action.timestamp
             elif action.action_type in hold_states:
                 active_duration += action.timestamp - cycle_start
-                return active_duration
+        return active_duration
 
     @ property
     def next_state(self) -> SessionState:

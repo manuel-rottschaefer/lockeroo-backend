@@ -223,6 +223,7 @@ class Task(Entity):
         if self.doc.task_state != TaskState.QUEUED:
             logger.warning(
                 f"Task '#{self.doc.id}' is not queued, but {self.doc.task_state}.")
+            return
         # assert (self.doc.task_state == TaskState.QUEUED
         #        ), f"Task '#{self.doc.id}' is not queued."
         session: Session = Session(self.doc.assigned_session)
@@ -299,18 +300,21 @@ class Task(Entity):
         # 3: Reset the session timeout counter
         if self.doc.target == TaskTarget.TERMINAL and self.doc.task_type == TaskType.REPORT:
             # TODO: Optimise this
-            await self.doc.fetch_link(TaskItemModel.assigned_session)
+            # await self.doc.fetch_link(TaskItemModel.assigned_session)
             self.doc.assigned_session.timeout_count = 0
             await self.doc.assigned_session.save_changes()
 
         # 4: If the stations terminal is not idle, end here
         await self.doc.fetch_link(TaskItemModel.assigned_station)
-        await self.doc.assigned_station.sync()
+        # await self.doc.assigned_station.sync()
         if self.doc.assigned_station.terminal_state != TerminalState.IDLE:
             return
 
         # 5: Else, start the next task
-        await self.evaluate_next()
+        # This is to avoid redundant task activations due to concurrency
+        # TODO: Find a better solution for concurrency problems
+        if self.doc.target == TaskTarget.TERMINAL:
+            await self.evaluate_next()
 
         # 6: Restart the expiration manager
         task_expiration_manager.restart()
@@ -442,6 +446,8 @@ class Task(Entity):
         # 7: If no task was activated, evaluate the next task
         if not task_activated or len(self.doc.timeout_states) == 1:
             await self.evaluate_next()
+        else:
+            task_expiration_manager.restart()
 
 
 async def expiration_manager_loop() -> None:
@@ -464,17 +470,22 @@ async def expiration_manager_loop() -> None:
 
     sleep_duration: int = (
         next_expiring_task.expires_at - datetime.now()).total_seconds()
-    assert (sleep_duration > 0
-            ), f"Task '#{next_expiring_task.id}' has already expired."
-    logger.debug((
-        f"Task '#{next_expiring_task.id}' will expire "
-        f"next in {round(sleep_duration)} seconds"))
+
+    if sleep_duration > 0:
+        logger.debug((
+            f"Task '#{next_expiring_task.id}' will expire "
+            f"next in {round(sleep_duration)} seconds"))
+    else:
+        logger.debug((
+            f"Task '#{next_expiring_task.id}' expired "
+            f"{round(sleep_duration)} seconds ago"))
 
     # 2: Wait until the task expired
-    await sleep(sleep_duration)
+    if sleep_duration > 0:
+        await sleep(sleep_duration)
+        await next_expiring_task.sync()
 
     # 3: Check if the task is still pending, then fire up the expiration handler
-    await next_expiring_task.sync()  # TODO: Is this required here?
     if next_expiring_task.task_state == TaskState.PENDING:
         await Task(next_expiring_task).handle_expiration()
 

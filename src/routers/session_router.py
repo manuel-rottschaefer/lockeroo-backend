@@ -16,6 +16,7 @@ from src.models.action_models import ActionView
 from src.models.session_models import (
     SessionView,
     CreatedSessionView,
+    ActiveSessionView,
     ConcludedSessionView,
     PaymentTypes)
 from src.models.locker_models import LOCKER_TYPE_NAMES
@@ -100,7 +101,7 @@ async def request_session_cancel(
 
 @ session_router.put(
     '/{session_id}/payment/select',
-    response_model=Optional[SessionView],
+    response_model=Optional[ActiveSessionView],
     status_code=status.HTTP_202_ACCEPTED,
     description="Select a payment method for a session")
 @ handle_exceptions(logger)

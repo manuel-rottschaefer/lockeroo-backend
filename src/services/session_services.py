@@ -82,7 +82,7 @@ async def get_details(session_id: ObjId, user: User) -> Optional[SessionView]:
             locker_index=session.doc.assigned_locker.station_index,
             service_type=session.doc.session_type,
             session_state=session.doc.session_state,
-            queue_position=task.queue_position if task.exists else None
+            queue_position=task.queue_position if task.exists else 0
         )
 
     else:
@@ -200,7 +200,7 @@ async def handle_payment_selection(
     session_id: ObjId,
     user: User,
     payment_method: str
-) -> Optional[SessionView]:
+) -> Optional[ActiveSessionView]:
     """Handles a request to select the payment method for a session submitted by a user.
 
     Finds the task awaiting the user action.
@@ -566,6 +566,7 @@ async def handle_cancel_request(session_id: ObjId, user: User
     # 4. Update session state and log the action
     session.set_state(SessionState.CANCELED)
     session.doc.total_duration = await session.total_duration
+    session.doc.active_duration = await session.active_duration
     await session.doc.save_changes()
     await session.broadcast_update()
     await session.handle_conclude()
@@ -579,6 +580,7 @@ async def handle_cancel_request(session_id: ObjId, user: User
         service_type=session.session_type,
         session_state=session.session_state,
         total_duration=session.doc.total_duration.total_seconds(),
+        active_duration=session.doc.active_duration.total_seconds()
     )
 
 

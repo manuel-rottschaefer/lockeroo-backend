@@ -201,7 +201,7 @@ class StationView(View):
 
 
 try:
-    for model in StationModel.model_json_schema():
-        model.json_schema()
+    for model in [StationModel, StationView]:
+        model.model_json_schema()
 except PydanticUserError as exc_info:
     assert exc_info.code == 'invalid-for-json-schema'

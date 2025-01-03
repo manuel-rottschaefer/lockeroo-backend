@@ -1,10 +1,12 @@
 """Provides utility functions for the locker management backend."""
+# Basics
+from datetime import datetime
 # Beanie
 from beanie import SortDirection
-
+from beanie.operators import In
+# Entities
 from src.entities.locker_entity import Locker, LockerState
 from src.entities.session_entity import Session
-# Entities
 from src.entities.task_entity import Task
 from src.exceptions.locker_exceptions import (
     InvalidLockerReportException,
@@ -12,6 +14,7 @@ from src.exceptions.locker_exceptions import (
 # Exceptions
 from src.exceptions.task_exceptions import TaskNotFoundException
 from src.models.action_models import ActionModel, ActionType
+from src.models.session_models import SessionModel
 # Models
 from src.models.session_models import SessionState
 from src.models.task_models import (
@@ -105,10 +108,29 @@ async def handle_lock_report(
         TaskItemModel.created_at, SortDirection.ASCENDING
     )).first_or_none())
     if not task.exists:
-        raise TaskNotFoundException(
-            task_type=TaskType.REPORT,
-            assigned_station=callsign,
-            raise_http=False)
+        # Try to find a session that matches the locker
+        # and is in a non-complete and non-active state
+        session: Session = Session(await SessionModel.find(
+            SessionModel.assigned_locker.station.callsign == callsign,  # pylint: disable=no-member
+            SessionModel.assigned_locker.station_index == station_index,  # pylint: disable=no-member
+            In(SessionModel.session_state, [
+                SessionState.CANCELED,
+                SessionState.ABANDONED,
+                SessionState.STALE,
+                SessionState.EXPIRED]),
+            fetch_links=True
+        ).first_or_none())
+        if session.exists:
+            logger.info(
+                (f"Station '{callsign}' reported {LockerState.LOCKED} "
+                 f"at locker {station_index}, but the assigned session "
+                 f"'#{session.id}' is in {session.doc.session_state}."))
+            return
+        else:
+            raise TaskNotFoundException(
+                task_type=TaskType.REPORT,
+                assigned_station=callsign,
+                raise_http=False)
 
     # 2: Get the affected locker
     locker: Locker = Locker(task.assigned_locker)
@@ -158,6 +180,7 @@ async def handle_lock_report(
     next_state: SessionState = session.next_state
     if next_state == SessionState.COMPLETED:
         session.set_state(SessionState.COMPLETED)
+        session.doc.completed_at = datetime.now()
         # TODO: Should be redundant with handle_conclude, but is not
         await session.doc.save_changes()
         await session.broadcast_update()

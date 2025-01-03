@@ -137,6 +137,7 @@ async def get_locker_overview(
     # 3: Create a list of locker availabilities
     locker_availabilities: List[LockerTypeAvailabilityView] = [
         LockerTypeAvailabilityView(
+            issued_at=datetime.now(),
             station=callsign,
             locker_type=locker_type,
             is_available=locker_type_counts[locker_type] > 0)

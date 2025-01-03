@@ -36,7 +36,7 @@ class UserModel(Document):  # pylint: disable=too-many-ancestors
 
     # Authentication
     hashed_password: Optional[str] = Field(
-        description="Hashed password of user.")
+        None, description="Hashed password of user.")
 
     # User Properties
     active_auth_method: AuthMethod = Field(
@@ -129,7 +129,7 @@ class UserQuickStats(View):
 
 
 try:
-    for model in UserSummary.model_json_schema():
-        model.json_schema()
+    for model in [UserModel, UserSummary, UserQuickStats]:
+        model.model_json_schema()
 except PydanticUserError as exc_info:
     assert exc_info.code == 'invalid-for-json-schema'
