@@ -81,7 +81,7 @@ class UnitTestBehaviors(SequentialTaskSet):
     """Testing all behaviors once as unit tests"""
 
     @ task
-    def test_regular_session(self):
+    def test_all_session_behaviors(self):
         """Test regular session behavior"""
 
         ### Success Behaviors ###
@@ -119,6 +119,5 @@ class UnitTestBehaviors(SequentialTaskSet):
 
 class LockerStationUser(HttpUser):
     host = getenv('API_BASE_URL')
-    # tasks = {UnitTestBehaviors: 1}
-    tasks = {RandomizedBehaviors: 1}
+    tasks = {UnitTestBehaviors: 1}  # RandomizedBehaviors: 1}
     wait_time = between(15, 30)

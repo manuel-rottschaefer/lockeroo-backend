@@ -42,7 +42,7 @@ class AbandonRetrieval(MockingSession):
         self.await_state(SessionState.ACTIVE)
         self.delay_action(SessionState.ACTIVE)
 
-        self.request_payment()
+        self.user_request_payment()
         self.await_state(SessionState.PAYMENT)
         self.delay_action(SessionState.PAYMENT)
 

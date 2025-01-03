@@ -11,6 +11,7 @@ from typing import List, Optional, Union
 
 import paho.mqtt.client as mqttc
 import websockets.sync.client as sync_websockets
+from websockets.exceptions import ConnectionClosedError
 from locust import HttpUser, TaskSet
 
 from mocking.dep.mocking_logger import LocustLogger
@@ -80,10 +81,13 @@ class MockingSession:
         def monitor():
             with sync_websockets.connect(ws_url) as ws:
                 while True:
-                    msg = ws.recv()
-                    update: WebsocketUpdate = WebsocketUpdate(
-                        **json.loads(msg))
-                    self.session.session_state = update.session_state
+                    try:
+                        msg = ws.recv()
+                        update: WebsocketUpdate = WebsocketUpdate(
+                            **json.loads(msg))
+                        self.session.session_state = update.session_state
+                    except ConnectionClosedError:
+                        break
 
         thread = threading.Thread(target=monitor, daemon=True)
         thread.start()
@@ -144,7 +148,7 @@ class MockingSession:
 
     def terminate_session(self):
         user_pool.return_user(self.user_id)
-        self.task_set.interrupt()
+        # self.task_set.interrupt()
 
     ########################
     ###   USER ACTIONS   ###
@@ -236,7 +240,7 @@ class MockingSession:
 
         self.session = SessionView(**res.json())
 
-    def request_payment(self) -> None:
+    def user_request_payment(self) -> None:
         """Try to request payment for a session."""
         self.logger.info(
             (f"Requesting payment for session '#{self.session.id}' "

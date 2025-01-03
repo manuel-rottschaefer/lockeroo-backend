@@ -91,12 +91,12 @@ class AbandonBothPayments(MockingSession):
         self.await_state(SessionState.ACTIVE)
         self.delay_action(SessionState.ACTIVE)
 
-        self.request_payment()
+        self.user_request_payment()
         self.await_state(SessionState.PAYMENT)
         self.wait_for_timeout(SessionState.PAYMENT)
         self.verify_state(SessionState.ACTIVE)
 
-        self.request_payment()
+        self.user_request_payment()
         self.await_state(SessionState.PAYMENT)
         self.wait_for_timeout(SessionState.PAYMENT)
         self.verify_state(SessionState.EXPIRED, final=True)

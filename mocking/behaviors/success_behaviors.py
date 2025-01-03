@@ -29,7 +29,7 @@ class RegularSession(MockingSession):
         self.await_state(SessionState.ACTIVE)
         self.delay_action(SessionState.ACTIVE)
 
-        self.request_payment()
+        self.user_request_payment()
         self.await_state(SessionState.PAYMENT)
         self.delay_action(SessionState.PAYMENT)
 
@@ -67,7 +67,7 @@ class Abandon1stVerifyThenNormal(MockingSession):
         self.await_state(SessionState.ACTIVE)
         self.delay_action(SessionState.ACTIVE)
 
-        self.request_payment()
+        self.user_request_payment()
         self.await_state(SessionState.PAYMENT)
         self.delay_action(SessionState.PAYMENT)
 
@@ -100,12 +100,12 @@ class Abandon1stPaymentThenNormal(MockingSession):
         self.await_state(SessionState.ACTIVE)
         self.delay_action(SessionState.ACTIVE)
 
-        self.request_payment()
+        self.user_request_payment()
         self.await_state(SessionState.PAYMENT)
         self.wait_for_timeout(SessionState.PAYMENT)
         self.verify_state(SessionState.ACTIVE)
 
-        self.request_payment()
+        self.user_request_payment()
         self.await_state(SessionState.PAYMENT)
         self.delay_action(SessionState.PAYMENT)
 
