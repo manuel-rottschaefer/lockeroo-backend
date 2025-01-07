@@ -19,7 +19,7 @@ from src.models.station_models import (
     StationStates,
     TerminalState)
 # Logging
-from src.services.logging_services import logger
+from src.services.logging_services import logger_service as logger
 # Exceptions
 from src.exceptions.station_exceptions import StationNotFoundException
 # Services

@@ -13,7 +13,7 @@ from fief_client import FiefAccessTokenInfo
 from src.models.session_models import ACTIVE_SESSION_STATES, SessionModel
 # Services
 from src.services.exception_services import handle_exceptions
-from src.services.logging_services import logger
+from src.services.logging_services import logger_service as logger
 
 # Create the router
 dashboard_router = APIRouter()

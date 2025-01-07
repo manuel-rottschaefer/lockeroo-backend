@@ -10,7 +10,7 @@ from fastapi import APIRouter
 from src.services.database_services import restore_json_mock_data
 # Services
 from src.services.exception_services import handle_exceptions
-from src.services.logging_services import logger
+from src.services.logging_services import logger_service as logger
 
 # Create the router
 admin_router = APIRouter()

@@ -20,7 +20,7 @@ from src.models.user_models import UserModel
 from src.models.task_models import TaskItemModel
 # Services
 from src.services import websocket_services
-from src.services.logging_services import logger
+from src.services.logging_services import logger_service as logger
 # Exceptions
 from src.exceptions.session_exceptions import SessionNotFoundException
 
@@ -43,7 +43,7 @@ class Session(Entity):
         return SessionView(
             id=str(self.doc.id),
             station=str(self.doc.assigned_station.id),
-            user=self.doc.user.fief_id,
+            assigned_user=self.doc.assigned_user.fief_id,
             locker_index=self.doc.assigned_locker.station_index if self.assigned_locker else None,
             service_type=self.doc.session_type,
             session_state=self.doc.session_state,
@@ -55,7 +55,7 @@ class Session(Entity):
         """Return a view of the session that is suitable for creation."""
         return CreatedSessionView(
             id=str(self.doc.id),
-            user=self.doc.user.fief_id,
+            assigned_user=self.doc.assigned_user.fief_id,
             station=str(self.doc.assigned_station.id),
             locker_index=self.doc.assigned_locker.station_index,
             service_type=self.doc.session_type,
@@ -114,6 +114,7 @@ class Session(Entity):
         update_view = {
             "id": str(self.doc.id),
             "session_state": self.doc.session_state.value,
+            "timeout": task.expires_at if task else None,
             "queue_position": task.queue_position if task else 0,
         }
         await websocket_services.send_dict(
@@ -139,7 +140,7 @@ class Session(Entity):
             {LockerModel.total_session_count: 1,
              LockerModel.total_session_duration: self.doc.total_duration})
         # Update user statistics
-        await self.doc.user.inc({
+        await self.doc.assigned_user.inc({
             UserModel.total_session_count: 1,
             UserModel.total_session_duration: self.doc.total_duration})
 

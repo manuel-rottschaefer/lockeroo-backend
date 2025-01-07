@@ -1,17 +1,14 @@
 """This file is used to create a MQTT client instance."""
-
 # Basics
 import logging
 import re
 from functools import wraps
 from typing import Any
-
 # FastAPI
 from fastapi_mqtt import FastMQTT, MQTTConfig
 from gmqtt import Client as MQTTClient
-
 # Logging
-from src.services.logging_services import logger
+from src.services.logging_services import logger_service as logger
 
 
 def validate_mqtt_topic(pattern: str, param_types: list):

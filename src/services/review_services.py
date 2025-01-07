@@ -27,7 +27,7 @@ async def handle_review_submission(session_id: ObjId,
     # 1: Get session
     session: SessionModel = await SessionModel.find_one(
         SessionModel.id == session_id,
-        SessionModel.user == user
+        SessionModel.assigned_user == user
     )
     if not session.exists:
         raise SessionNotFoundException(user_id=user.id)
@@ -63,7 +63,7 @@ async def get_session_review(
 
     # 2: Check if the user is authorized to view the review
     await review.doc.fetch_link(ReviewModel.assigned_session)
-    if review.assigned_session.user != user:
+    if review.assigned_session.doc.assigned_user != user:
         raise UserNotAuthorizedException(user_id=user.id)
 
     return review

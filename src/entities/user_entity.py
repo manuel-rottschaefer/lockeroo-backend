@@ -27,7 +27,7 @@ class User(Entity):
     async def has_active_session(self) -> bool:
         """Check whether the user has an active session."""
         session: SessionModel = await SessionModel.find_one(
-            SessionModel.user == self.doc.id,
+            SessionModel.assigned_user == self.doc.id,
             In(SessionModel.session_state, ACTIVE_SESSION_STATES)
         )
         return session is not None
@@ -36,7 +36,7 @@ class User(Entity):
     async def total_completed_session_count(self) -> int:
         """Get the total amount of sessions conducted at this station, without active ones."""
         session_count: int = await SessionModel.find(
-            SessionModel.user == self.doc.id,
+            SessionModel.assigned_user == self.doc.id,
             SessionModel.session_state == SessionState.COMPLETED
         ).count()
         return session_count
@@ -53,7 +53,7 @@ class User(Entity):
     async def get_expired_session_count(self, timeframe: timedelta):
         """Get the amount of sessions that have expired in the given timeframe."""
         session_count: int = await SessionModel.find(
-            SessionModel.user == self.doc.id,
+            SessionModel.assigned_user == self.doc.id,
             NotIn(SessionModel.session_state, ACTIVE_SESSION_STATES),
             SessionModel.created_at < datetime.now() - timeframe,
         ).count()

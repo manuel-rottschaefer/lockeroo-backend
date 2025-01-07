@@ -10,8 +10,13 @@ from src.models.locker_models import (
     LockerState,
     LockerType,
     ReducedLockerView)
+from src.models.task_models import (
+    TaskItemModel,
+    TaskTarget,
+    TaskType,
+    TaskState)
 # Services
-from src.services.logging_services import logger
+from src.services.logging_services import logger_service as logger
 from src.services.mqtt_services import fast_mqtt
 
 
@@ -24,23 +29,34 @@ class Locker(Entity):
         """Find an available locker at this station."""
         instance = cls()
 
-        # 1. Find all active sessions at this station
+        # 1: Find all available lockers at the station
         available_lockers: List[ReducedLockerView] = await station.get_available_lockers()
 
-        # 2. Check if there are any stale lockers, if so return the first one
+        # 2: Get all pending reservations for this station
+        pending_reservations = await TaskItemModel.find(
+            TaskItemModel.target == TaskTarget.USER,
+            TaskItemModel.task_type == TaskType.RESERVATION,
+            TaskItemModel.task_state == TaskState.PENDING,
+            TaskItemModel.assigned_station.id == station.doc.id,  # pylint: disable=no-member
+            fetch_links=True
+        ).to_list()
+
+        # 3: Check if there are any stale lockers, if so return the first one
         for locker in available_lockers:
             if locker.locker_state == LockerState.STALE:
                 instance.doc = await LockerModel.get(locker.id)
                 return instance
 
-        # 3. Check if there are any available lockers of the requested type
-        if available_lockers[0] is not None:
-            assert (available_lockers[0].locker_state == LockerState.LOCKED
-                    ), f"Locker '#{available_lockers[0].id}' is not locked."
-            instance.doc = available_lockers[0]
+        # 4: Go through the list of lockers and find one that is locked and not reserved
+        for locker in available_lockers:
+            if locker.locker_state == LockerState.LOCKED:
+                if locker.id not in [
+                        reservation.assigned_locker.id for reservation in pending_reservations]:
+                    instance.doc = await LockerModel.get(locker.id)
+                    return instance
 
-        assert (instance.exists
-                ), f"No available lockers of type '{locker_type}' at station '{station.callsign}'."
+        logger.warning(
+            f"No available lockers of type '{locker_type}' at station '{station.callsign}'.")
 
         return instance
 

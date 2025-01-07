@@ -17,7 +17,7 @@ from src.services import maintenance_services
 from src.services.auth_services import require_auth
 # Services
 from src.services.exception_services import handle_exceptions
-from src.services.logging_services import logger
+from src.services.logging_services import logger_service as logger
 
 # Create the router
 maintenance_router = APIRouter()

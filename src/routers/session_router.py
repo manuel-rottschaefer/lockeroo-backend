@@ -24,7 +24,7 @@ from src.models.locker_models import LOCKER_TYPE_NAMES
 from src.services import session_services
 from src.services.auth_services import require_auth
 from src.services.exception_services import handle_exceptions
-from src.services.logging_services import logger
+from src.services.logging_services import logger_service as logger
 
 # Create the router
 session_router = APIRouter()

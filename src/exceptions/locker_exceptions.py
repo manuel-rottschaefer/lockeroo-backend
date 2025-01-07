@@ -16,11 +16,11 @@ class LockerNotFoundException(Exception):
 
     def __init__(self,
                  locker_id: ObjId = None,
-                 station: ObjId = None,
+                 station_callsign: ObjId = None,
                  station_index: int = None,
                  raise_http: bool = True):
         self.locker_id = locker_id
-        self.station = station
+        self.station = station_callsign
         self.station_index = station_index
 
         if raise_http:

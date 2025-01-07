@@ -9,7 +9,7 @@ import yaml
 # Models
 from src.models.payment_models import PricingModel
 # Services
-from src.services.logging_services import logger
+from src.services.logging_services import logger_service as logger
 
 # Singleton for pricing models
 PRICING_MODELS: Dict[str, PricingModel] = None

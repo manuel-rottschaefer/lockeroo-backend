@@ -33,7 +33,7 @@ async def has_active_session(user_id: UUID) -> bool:
     """Check if the given user has an active session"""
 
     active_session = await SessionModel.find(
-        SessionModel.user.fief_id == user_id,  # pylint: disable=no-member
+        SessionModel.assigned_user.fief_id == user_id,  # pylint: disable=no-member
         In(SessionModel.session_state,
            ACTIVE_SESSION_STATES),  # pylint: disable=no-member
         fetch_links=True
@@ -48,7 +48,7 @@ async def has_active_session(user_id: UUID) -> bool:
 async def get_active_session(user_id: ObjId) -> Optional[SessionView]:
     """Return the active session of a user, if any."""
     return await SessionModel.find(
-        SessionModel.user.id == user_id,  # pylint: disable=no-member
+        SessionModel.assigned_user.id == user_id,  # pylint: disable=no-member
         In(SessionModel.session_state,
            ACTIVE_SESSION_STATES),  # pylint: disable=no-member
         fetch_links=True
@@ -60,7 +60,7 @@ async def get_active_session(user_id: ObjId) -> Optional[SessionView]:
 async def get_session_history(user_id: ObjId) -> List[SessionModel]:
     """Return the session history of a user."""
     return await SessionModel.find(
-        SessionModel.user.id == user_id,  # pylint: disable=no-member
+        SessionModel.assigned_user.id == user_id,  # pylint: disable=no-member
         fetch_links=True
     ).sort(
         (SessionModel.created_at, SortDirection.DESCENDING)
@@ -69,7 +69,7 @@ async def get_session_history(user_id: ObjId) -> List[SessionModel]:
 
 async def get_expired_session_count(user_id: ObjId) -> int:
     return await SessionModel.find(
-        SessionModel.user.id == user_id,  # pylint: disable=no-member
+        SessionModel.assigned_user.id == user_id,  # pylint: disable=no-member
         SessionModel.session_state == SessionState.EXPIRED,
         SessionModel.created_at >= (datetime.now() - timedelta(hours=24)),
         fetch_links=True

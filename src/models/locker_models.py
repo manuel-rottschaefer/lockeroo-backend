@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field, PydanticUserError
 from src.models.station_models import StationModel
 # Services
 # Logging
-from src.services.logging_services import logger
+from src.services.logging_services import logger_service as logger
 
 
 class LockerState(str, Enum):
