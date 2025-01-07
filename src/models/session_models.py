@@ -20,7 +20,7 @@ from src.models.station_models import StationModel
 from src.models.user_models import UserModel
 # Services
 from src.services import websocket_services
-from src.services.logging_services import logger
+from src.services.logging_services import logger_service as logger
 
 
 class SessionTypes(str, Enum):
@@ -128,7 +128,7 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     assigned_locker: Link[LockerModel] = Field(
         description="The assigned locker to this session.")
 
-    user: Link[UserModel] = Field(
+    assigned_user: Link[UserModel] = Field(
         None, description="The assigned user to this session.")
 
     ### Session Properties ###
@@ -175,7 +175,7 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
         await self.fetch_link(SessionModel.assigned_locker)
         logger.debug(
             (f"Created session '#{self.id}' for user "
-             f"'#{self.user.id}' at locker "  # pylint: disable=no-member
+             f"'#{self.assigned_user.id}' at locker "  # pylint: disable=no-member
              f"'#{self.assigned_locker.id}'."))  # pylint: disable=no-member
 
     @ dataclass
@@ -203,7 +203,7 @@ class SessionView(View):
     """Used for serving information about an active session"""
     # Identification
     id: str
-    user: UUID
+    assigned_user: UUID
 
     station: str
     locker_index: int
@@ -292,6 +292,7 @@ class WebsocketUpdate(View):
     # Identification
     id: str
     session_state: str
+    timeout: Optional[datetime]
     queue_position: Optional[int]
 
     @ dataclass
@@ -300,6 +301,7 @@ class WebsocketUpdate(View):
         json_schema_extra = {
             "id": "60d5ec49f1d2b2a5d8f8b8b8",
             "session_state": "created",
+            "timeout": "2023-10-10T10:00:00",
             "queue_position": 1
         }
 

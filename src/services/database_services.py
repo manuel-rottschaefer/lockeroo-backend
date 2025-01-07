@@ -5,7 +5,6 @@ import json
 import os
 
 from beanie import PydanticObjectId as ObjId, init_beanie
-from dotenv import load_dotenv
 # Database utilities
 from motor.motor_asyncio import AsyncIOMotorClient
 
@@ -21,7 +20,7 @@ from src.models.station_models import StationModel
 from src.models.task_models import TaskItemModel
 from src.models.user_models import UserModel
 # Services
-from src.services.logging_services import logger
+from src.services.logging_services import logger_service as logger
 
 
 async def setup():

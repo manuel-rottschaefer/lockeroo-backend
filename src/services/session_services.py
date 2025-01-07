@@ -53,15 +53,15 @@ from src.models.station_models import StationModel
 from src.models.task_models import TaskItemModel
 from src.services import websocket_services
 # Services
-from src.services.logging_services import logger
+from src.services.logging_services import logger_service as logger
 
 
 async def get_details(session_id: ObjId, user: User) -> Optional[SessionView]:
     """Get the details of a session."""
     session: Session = Session(await SessionModel.get(session_id), session_id)
 
-    await session.doc.fetch_link(SessionModel.user)
-    if session.doc.user.id != user.id:
+    await session.doc.fetch_link(SessionModel.assigned_user)
+    if session.doc.assigned_user.id != user.id:
         raise UserNotAuthorizedException(user_id=user.id)
 
     await session.doc.fetch_all_links()
@@ -77,7 +77,7 @@ async def get_details(session_id: ObjId, user: User) -> Optional[SessionView]:
 
         return ActiveSessionView(
             id=str(session.doc.id),
-            user=session.doc.user.fief_id,
+            assigned_user=session.doc.assigned_user.fief_id,
             station=session.doc.assigned_station.callsign,
             locker_index=session.doc.assigned_locker.station_index,
             service_type=session.doc.session_type,
@@ -85,15 +85,14 @@ async def get_details(session_id: ObjId, user: User) -> Optional[SessionView]:
             queue_position=task.queue_position if task.exists else 0
         )
 
-    else:
-        return ConcludedSessionView(
-            id=str(session.doc.id),
-            station=session.doc.assigned_station.callsign,
-            locker_index=session.doc.assigned_locker.station_index,
-            service_type=session.doc.session_type,
-            session_state=session.doc.session_state,
-            total_duration=session.doc.total_duration.total_seconds()
-        )
+    return ConcludedSessionView(
+        id=str(session.doc.id),
+        station=session.doc.assigned_station.callsign,
+        locker_index=session.doc.assigned_locker.station_index,
+        service_type=session.doc.session_type,
+        session_state=session.doc.session_state,
+        total_duration=session.doc.total_duration.total_seconds()
+    )
 
 
 async def get_session_history(session_id: ObjId, user: User) -> Optional[List[ActionModel]]:
@@ -101,7 +100,7 @@ async def get_session_history(session_id: ObjId, user: User) -> Optional[List[Ac
     session: Session = Session(await SessionModel.get(session_id), session_id)
     if not session.exists:
         raise SessionNotFoundException(user_id=user.id)
-    if session.user.id != user.id:
+    if session.doc.assigned_user.id != user.id:
         raise UserNotAuthorizedException(user_id=user.id)
 
     return await ActionModel.find(
@@ -151,37 +150,50 @@ async def handle_creation_request(
     if await user.get_expired_session_count(timedelta(days=1)) > 2:
         raise UserNotAuthorizedException(user_id=user.id)
 
-    # 5: Check whether the given locker type exists
+    # 3: Check whether the given locker type exists
     if locker_type.lower() not in [i.name for i in LOCKER_TYPES]:
         raise InvalidLockerTypeException(locker_type=locker_type)
     locker_type = next(i for i in LOCKER_TYPES if i.name ==
                        locker_type.lower())
 
-    # 6: Try to claim a locker at this station
-    locker: Locker = await Locker().find_available(
-        station=station, locker_type=locker_type)
-    if not locker.exists:
-        logger.warning(
-            f"No available locker of type '{locker_type.name}' at station '{callsign}'.")
-        raise LockerNotAvailableException(station_callsign=callsign)
+    # 4: Check if the user has a locker reservation
+    reservation: Task = Task(await TaskItemModel.find(
+        TaskItemModel.target == TaskTarget.USER,
+        TaskItemModel.task_type == TaskType.RESERVATION,
+        TaskItemModel.task_state == TaskState.PENDING,
+        TaskItemModel.assigned_user.id == user.id,  # pylint: disable=no-member
+        fetch_links=True
+    ).first_or_none())
+    if reservation.exists:
+        locker: Locker = Locker(await reservation.assigned_locker)
+        await reservation.complete()
 
-    # 7: Create a new session
+    else:
+        # 5: Try to find an available locker at the station
+        locker: Locker = await Locker().find_available(
+            station=station, locker_type=locker_type)
+        if not locker.exists:
+            logger.warning(
+                f"No available locker of type '{locker_type.name}' at station '{callsign}'.")
+            raise LockerNotAvailableException(station_callsign=callsign)
+
+    # 6: Create a new session
     initial_state = SessionState.PAYMENT_SELECTED if payment_method else SessionState.CREATED
     session = Session(await SessionModel(
-        user=user.doc,
+        assigned_user=user.doc,
         assigned_station=station.doc,
         assigned_locker=locker.doc.id,
         session_state=initial_state,
         payment_method=payment_method
     ).insert())
 
-    # 8: Await user to select a payment method,
+    # 7: Await user to select a payment method,
     # request a verification, move straight to stashing
     # or cancel the session
-    # TODO: Moving straight to stashing may not be supported for now
     task: Task = Task(await TaskItemModel(
         target=TaskTarget.USER,
         task_type=TaskType.REPORT,
+        assigned_user=user.doc,
         assigned_session=session.doc,
         assigned_station=station.doc,
         timeout_states=[SessionState.EXPIRED],
@@ -259,7 +271,7 @@ async def handle_payment_selection(
     await task.doc.fetch_link(TaskItemModel.assigned_session)
     session: Session = Session(task.assigned_session)
 
-    if session.user.id != user.id:
+    if session.doc.assigned_user.id != user.id:
         raise UserNotAuthorizedException(user_id=user.id)
     if session.session_state != SessionState.CREATED:
         raise InvalidSessionStateException(
@@ -283,6 +295,7 @@ async def handle_payment_selection(
     await Task(await TaskItemModel(
         target=TaskTarget.USER,
         task_type=TaskType.REPORT,
+        assigned_user=task.doc.assigned_user,
         assigned_session=session.doc,
         assigned_station=session.assigned_station,
         timeout_states=[SessionState.EXPIRED],
@@ -291,7 +304,7 @@ async def handle_payment_selection(
 
     return ActiveSessionView(
         id=str(session.doc.id),
-        user=session.doc.user.fief_id,
+        assigned_user=session.doc.assigned_user.fief_id,
         station=session.doc.assigned_station.callsign,
         locker_index=session.doc.assigned_locker.station_index,
         service_type=session.doc.session_type,
@@ -344,7 +357,7 @@ async def handle_verification_request(
     session: Session = Session(task.assigned_session)
     # await session.doc.sync()
 
-    if session.user.id != user.id:
+    if session.doc.assigned_user.id != user.id:
         raise UserNotAuthorizedException(user_id=user.id)
     if session.session_state != SessionState.PAYMENT_SELECTED:
         raise InvalidSessionStateException(
@@ -361,6 +374,7 @@ async def handle_verification_request(
     await Task(await TaskItemModel(
         target=TaskTarget.TERMINAL,
         task_type=TaskType.CONFIRMATION,
+        assigned_user=session.doc.assigned_user,
         assigned_session=session.doc,
         assigned_station=session.assigned_station,
         timeout_states=[SessionState.ABORTED],
@@ -395,8 +409,8 @@ async def handle_hold_request(
         InvalidPaymentMethodException: If the payment method does not allow holding."""
     # 1: Find the session and check whether it belongs to the user
     session: Session = Session(await SessionModel.get(session_id), session_id)
-    await session.doc.fetch_link(SessionModel.user)
-    if session.user.id != user.id:
+    await session.doc.assigned_user.fetch_link(SessionModel.assigned_user)
+    if session.doc.assigned_user.id != user.id:
         raise UserNotAuthorizedException(user_id=user.id)
 
     # 2: Check whether the session is active
@@ -421,6 +435,7 @@ async def handle_hold_request(
     await Task(TaskItemModel(
         target=TaskTarget.LOCKER,
         task_type=TaskType.CONFIRMATION,
+        assigned_user=session.doc.assigned_user,
         assigned_station=session.doc.assigned_station,
         assigned_session=session.doc,
         assigned_locker=locker.doc,
@@ -478,7 +493,7 @@ async def handle_payment_request(session_id: ObjId, user: User) -> Optional[Sess
     session: Session = Session(task.assigned_session)
 
     # 3: Validate session result
-    if session.user.id != user.id:
+    if session.doc.assigned_user.id != user.id:
         raise UserNotAuthorizedException(user_id=user.id)
 
     ACCEPTED_STATES = [SessionState.ACTIVE,  # pylint: disable=invalid-name
@@ -500,6 +515,7 @@ async def handle_payment_request(session_id: ObjId, user: User) -> Optional[Sess
     await Task(await TaskItemModel(
         target=TaskTarget.TERMINAL,
         task_type=TaskType.CONFIRMATION,
+        assigned_user=session.doc.assigned_user,
         assigned_session=session.doc,
         assigned_station=session.assigned_station,
         timeout_states=[session.session_state,
@@ -536,8 +552,8 @@ async def handle_cancel_request(session_id: ObjId, user: User
     # 1: Find the session and check whether it belongs to the user
     session: Session = Session(await SessionModel.get(session_id), session_id)
 
-    await session.doc.fetch_link(SessionModel.user)
-    if session.user.id != user.id:
+    await session.doc.fetch_link(SessionModel.assigned_user)
+    if session.doc.assigned_user.id != user.id:
         raise UserNotAuthorizedException(user_id=user.id)
 
     # 2: Check if session is in correct state
@@ -563,7 +579,7 @@ async def handle_cancel_request(session_id: ObjId, user: User
     for task in tasks:
         await Task(task).cancel()
 
-    # 4. Update session state and log the action
+    # 4: Update session state and log the action
     session.set_state(SessionState.CANCELED)
     session.doc.total_duration = await session.total_duration
     session.doc.active_duration = await session.active_duration
@@ -609,9 +625,9 @@ async def handle_update_subscription_request(
     if not session.exists:
         await socket.close(code=404)
         raise SessionNotFoundException(user_id=user_id)
-    await session.doc.fetch_link(SessionModel.user)
+    await session.doc.fetch_link(SessionModel.assigned_user)
     # TODO: Specify error codes
-    if session.doc.user.fief_id != UUID(user_id):
+    if session.doc.assigned_user.fief_id != UUID(user_id):
         await socket.close(code=1000)
         raise UserNotAuthorizedException(user_id=user_id)
     if session.doc.websocket_token != session_token:

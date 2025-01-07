@@ -13,7 +13,7 @@ from src.models.user_models import (
 # Services
 from src.services import user_services
 from src.services.exception_services import handle_exceptions
-from src.services.logging_services import logger
+from src.services.logging_services import logger_service as logger
 
 # Create the router
 user_router = APIRouter()

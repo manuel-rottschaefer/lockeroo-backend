@@ -5,19 +5,26 @@ This module contains the station router which handles all station related reques
 from typing import Annotated, Any, List, Optional
 from beanie import PydanticObjectId as ObjId
 # FastAPI & Beanie
-from fastapi import APIRouter, Path, status
+from fastapi import APIRouter, Path, Header, Depends, Query, status
 # Exceptions
 from src.exceptions.locker_exceptions import InvalidLockerReportException
-from src.models.locker_models import (LockerState, LockerTypeAvailabilityView,
-                                      LockerView)
-from src.models.session_models import SessionState
+from src.models.locker_models import (
+    LockerState,
+    LockerTypeAvailabilityView,
+    LockerView)
+
+# Entities
+from src.entities.user_entity import User
 # Models
 from src.models.station_models import StationStates, StationView, TerminalState
+from src.models.session_models import SessionState
+from src.models.locker_models import LOCKER_TYPE_NAMES
 # Services
-from src.services import locker_services, station_services
+from src.services import station_services, locker_services
 from src.services.exception_services import handle_exceptions
-from src.services.logging_services import logger
+from src.services.logging_services import logger_service as logger
 from src.services.mqtt_services import fast_mqtt, validate_mqtt_topic
+from src.services.auth_services import require_auth
 
 # Create the router
 station_router = APIRouter()
@@ -130,6 +137,45 @@ async def reset_station_queue(
 ) -> StationView:
     """Reset the queue at the station. This is helpful if the queue is stale."""
     return await station_services.reset_queue(callsign=callsign)
+
+
+@station_router.put(
+    '/{callsign}/reservation',
+    response_model=None,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+@ handle_exceptions(logger)
+async def reserve_station(
+        callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
+        locker_type: Annotated[str, Query(enum=LOCKER_TYPE_NAMES)],
+
+        _user: str = Header(default=None, alias="user"),
+        access_info: User = Depends(require_auth),
+) -> StationView:
+    """Reserve a station for a user"""
+    await station_services.handle_reservation_request(
+        callsign=callsign,
+        locker_type=locker_type,
+        user=access_info)
+
+
+@station_router.delete(
+    '/{callsign}/reservation',
+    response_model=None,
+    status_code=status.HTTP_202_ACCEPTED,
+
+)
+@ handle_exceptions(logger)
+async def handle_reservation_cancel(
+    callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
+    _user: str = Header(default=None, alias="user"),
+        access_info: User = Depends(require_auth),
+):
+    """Cancel a station reservation"""
+    await station_services.handle_reservation_cancel_request(
+        callsign=callsign,
+        user=access_info
+    )
 
 
 @validate_mqtt_topic('stations/+/terminal/confirm', [ObjId])

@@ -24,7 +24,7 @@ from src.models.task_models import (
     TaskState,
     TaskTarget,
     TaskType)
-from src.services.logging_services import logger
+from src.services.logging_services import logger_service as logger
 # Services
 from src.services.mqtt_services import fast_mqtt
 
@@ -97,8 +97,8 @@ class Task(Entity):
             (TaskItemModel.created_at, SortDirection.ASCENDING)
         ).first_or_none())
         if next_task.exists:
-            async with Lock():  # TODO: Verify that lock is useful in preventing duplicate task launches
-                # and also required.
+            #  TODO: Verify that lock is required and useful in preventing duplicate task launches
+            async with Lock():
                 await next_task.evaluate_queue_state()
 
     ### Queue utilities###
@@ -350,6 +350,7 @@ class Task(Entity):
                 await Task(await TaskItemModel(
                     target=TaskTarget.TERMINAL,
                     task_type=TaskType.CONFIRMATION,
+                    assigned_user=self.doc.assigned_user,
                     assigned_session=self.doc.assigned_session,
                     assigned_station=self.doc.assigned_station,
                     timeout_states=[SessionState.ABORTED],
@@ -363,6 +364,7 @@ class Task(Entity):
                 await Task(await TaskItemModel(
                     target=TaskTarget.LOCKER,
                     task_type=TaskType.REPORT,
+                    assigned_user=self.doc.assigned_user,
                     assigned_session=self.doc.assigned_session,
                     assigned_station=self.doc.assigned_station,
                     assigned_locker=self.doc.assigned_locker,
@@ -422,6 +424,7 @@ class Task(Entity):
             await Task(await TaskItemModel(
                 target=TaskTarget.TERMINAL,
                 task_type=TaskType.CONFIRMATION,
+                assigned_user=self.doc.assigned_user,
                 assigned_station=station.doc,
                 assigned_session=session.doc,
                 timeout_states=[SessionState.ABORTED],
@@ -436,6 +439,7 @@ class Task(Entity):
             await Task(await TaskItemModel(
                 target=TaskTarget.USER,
                 task_type=TaskType.REPORT,
+                assigned_user=self.doc.assigned_user,
                 assigned_station=station.doc,
                 assigned_session=session.doc,
                 timeout_states=self.doc.timeout_states[1:],

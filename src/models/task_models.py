@@ -11,10 +11,11 @@ from beanie import SaveChanges, after_event, before_event
 from pydantic import Field, PydanticUserError
 from src.models.locker_models import LockerModel
 # Models
+from src.models.user_models import UserModel
 from src.models.session_models import SessionModel, SessionState
 from src.models.station_models import StationModel
 # Services
-from src.services.logging_services import logger
+from src.services.logging_services import logger_service as logger
 
 
 class TaskState(str, Enum):
@@ -37,6 +38,7 @@ class TaskType(str, Enum):
     """Type of the queued actions."""
     REPORT = "report"
     CONFIRMATION = "confirmation"
+    RESERVATION = "reservation"
 
 
 class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
@@ -49,6 +51,9 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
 
     target: TaskTarget = Field(
         description="The target of the action being queued/awaited.")
+
+    assigned_user: Optional[Link[UserModel]] = Field(
+        None, description="The user which this task handles.")
 
     assigned_session: Link[SessionModel] = Field(
         None, description="The session which this task handles.")

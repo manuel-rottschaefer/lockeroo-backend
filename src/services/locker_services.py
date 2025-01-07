@@ -23,7 +23,7 @@ from src.models.task_models import (
     TaskTarget,
     TaskType)
 # Services
-from src.services.logging_services import logger
+from src.services.logging_services import logger_service as logger
 
 
 async def handle_unlock_confirmation(
@@ -85,6 +85,7 @@ async def handle_unlock_confirmation(
     await Task(await TaskItemModel(
         target=TaskTarget.LOCKER,
         task_type=TaskType.REPORT,
+        assigned_user=session.doc.assigned_user,
         assigned_session=session.doc,
         assigned_station=locker.doc.station,
         assigned_locker=locker.doc,
@@ -126,11 +127,11 @@ async def handle_lock_report(
                  f"at locker {station_index}, but the assigned session "
                  f"'#{session.id}' is in {session.doc.session_state}."))
             return
-        else:
-            raise TaskNotFoundException(
-                task_type=TaskType.REPORT,
-                assigned_station=callsign,
-                raise_http=False)
+
+        raise TaskNotFoundException(
+            task_type=TaskType.REPORT,
+            assigned_station=callsign,
+            raise_http=False)
 
     # 2: Get the affected locker
     locker: Locker = Locker(task.assigned_locker)
