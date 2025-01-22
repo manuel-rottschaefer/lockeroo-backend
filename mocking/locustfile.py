@@ -15,7 +15,7 @@ class RandomizedBehaviors(TaskSet):
     """TaskSet for regular session behavior"""
 
     ### Success Behaviors ###
-    @ task(74)
+    @ task(72)
     def regular_session(self):
         success_behaviors.RegularSession(self, self.user).run()
 
@@ -29,6 +29,10 @@ class RandomizedBehaviors(TaskSet):
         success_behaviors.Abandon1stPaymentThenNormal(self, self.user).run()
 
     ### Expired Behaviors ###
+
+    @ task(2)
+    def abandon_reservation(self):
+        expired_behaviors.AbandonReservation(self, self.user).run()
 
     @ task(2)
     def abandon_after_create(self):

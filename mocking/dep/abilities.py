@@ -172,9 +172,22 @@ class MockingSession:
 
         return choice([locker_type.locker_type for locker_type in avail_locker_types])
 
+    def user_request_reservation(self) -> None:
+        """Request a session reservation at the station."""
+        self.get_user()
+        locker_type = self.find_available_locker()
+        res = self.client.post(
+            self.endpoint + f'/stations/{self.station_callsign}/reservation', params={
+                'locker_type': locker_type
+            }, headers=self.headers, timeout=3)
+
+        if res.status_code == 400:
+            self.terminate_session()
+        res.raise_for_status()
+
     def user_request_session(self, select_payment: bool = True) -> None:
         """Try to request a new session at the locker station."""
-        self.logger.info('-' * 64)
+        # self.logger.info('-' * 64)
         self.get_user()
         locker_type = self.find_available_locker()
         res = self.client.post(

@@ -13,6 +13,9 @@ class RegularSession(MockingSession):
     """
 
     def run(self):  # pylint: disable=missing-function-docstring
+        self.user_request_reservation()
+        self.delay_action(SessionState.CREATED)
+
         self.user_request_session()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
