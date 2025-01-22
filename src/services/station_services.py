@@ -24,7 +24,7 @@ from src.models.session_models import (
     SessionState)
 from src.models.station_models import (
     StationModel,
-    StationStates,
+    StationState,
     StationType,
     StationView,
     TerminalState)
@@ -76,20 +76,20 @@ async def get_all_stations() -> List[StationView]:
 async def discover(lat: float, lon: float, radius: int,
                    amount: int) -> List[StationView]:
     """Return a list of stations within a given range around a location"""
+
     stations: List[StationView] = await StationModel.find(
         Near(StationModel.location, lat, lon, max_distance=radius)
-    ).limit(amount).to_list()
+    ).limit(amount).project(StationView).to_list()
     return stations
 
 
 async def get_details(callsign: str) -> Optional[StationView]:
     """Get detailed information about a station."""
     # Get station data from the database
-    station: Station = Station(await StationModel.find(
-        StationModel.callsign == callsign).first_or_none(),
-        callsign=callsign
-    )
-    return station.doc
+    station: StationView = await StationModel.find(
+        StationModel.callsign == callsign
+    ).project(StationView).first_or_none()
+    return station
 
 
 async def get_active_session_count(callsign: str) -> Optional[int]:
@@ -154,7 +154,7 @@ async def get_locker_overview(
     return locker_availabilities
 
 
-async def set_station_state(callsign: str, station_state: StationStates) -> StationView:
+async def set_station_state(callsign: str, station_state: StationState) -> StationView:
     """Set the state of a station."""
     station: Station = Station(await StationModel.find(
         StationModel.callsign == callsign).first_or_none(),
@@ -201,10 +201,10 @@ async def handle_reservation_request(
     )
 
     # 2: Check if the station is currently available
-    if station.station_state != StationStates.AVAILABLE:
+    if station.station_state != StationState.AVAILABLE:
         raise InvalidTerminalStateException(
             station_callsign=callsign,
-            expected_states=[StationStates.AVAILABLE],
+            expected_states=[StationState.AVAILABLE],
             actual_state=station.station_state,
             raise_http=False)
 
@@ -276,7 +276,7 @@ async def handle_terminal_report(
         TaskItemModel.task_type == TaskType.REPORT,
         TaskItemModel.task_state == TaskState.PENDING,
         TaskItemModel.assigned_station.callsign == callsign,  # pylint: disable=no-member
-        TaskItemModel.assigned_locker == None,  # pylint: disable=no-member singleton-comparison
+        TaskItemModel.assigned_locker is None,  # pylint: disable=no-member singleton-comparison
         fetch_links=True
     ).sort((
         TaskItemModel.created_at, SortDirection.ASCENDING

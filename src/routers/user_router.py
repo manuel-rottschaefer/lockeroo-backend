@@ -1,3 +1,6 @@
+"""
+This module contains the user router which handles all user tasks
+"""
 # Basics
 from typing import Annotated, Optional
 

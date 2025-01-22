@@ -9,14 +9,14 @@ from beanie import PydanticObjectId as ObjId
 from beanie import SortDirection
 
 # Models
-from src.models.maintenance_models import MaintenanceModel, MaintenanceStates
+from src.models.maintenance_models import MaintenanceModel, MaintenanceState
 
 
 async def get_next(station_id: ObjId) -> Optional[MaintenanceModel]:
     """Creates a new maintenance event."""
     return await MaintenanceModel.find(
         MaintenanceModel.assigned_station == station_id,
-        MaintenanceModel.state == MaintenanceStates.SCHEDULED
+        MaintenanceModel.state == MaintenanceState.SCHEDULED
     ).sort((MaintenanceModel.scheduled_for, SortDirection.DESCENDING)).first_or_none()
 
 
@@ -25,7 +25,7 @@ async def has_scheduled(station_id: ObjId) -> bool:
     # 1: Check if there are any active maintenance event at this station
     active_maintenance: MaintenanceModel = await MaintenanceModel.find_one(
         MaintenanceModel.assigned_station == station_id,
-        MaintenanceModel.state == MaintenanceStates.ACTIVE
+        MaintenanceModel.state == MaintenanceState.ACTIVE
     )
 
     now = datetime.now()

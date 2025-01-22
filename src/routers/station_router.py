@@ -16,7 +16,7 @@ from src.models.locker_models import (
 # Entities
 from src.entities.user_entity import User
 # Models
-from src.models.station_models import StationStates, StationView, TerminalState
+from src.models.station_models import StationState, StationView, TerminalState
 from src.models.session_models import SessionState
 from src.models.locker_models import LOCKER_TYPE_NAMES
 # Services
@@ -48,7 +48,7 @@ async def return_all_stations():
     description="Get a list of all stations within a range of a given location.")
 @ handle_exceptions(logger)
 async def get_nearby_stations(
-        lat: float, lon: float, radius: float, amount: int):
+        lat: float = 8.0, lon: float = 49.0, radius: float = 1000, amount: int = 100):
     """Return a list of station withing a given range of a location."""
     return await station_services.discover(lat, lon, radius, amount)
 
@@ -120,7 +120,7 @@ async def get_locker_by_index(
 @ handle_exceptions(logger)
 async def set_station_state(
         callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
-        state: StationStates) -> StationView:
+        state: StationState) -> StationView:
     """Set the high-level station state which indicates general availability."""
     return await station_services.set_station_state(
         callsign=callsign,
@@ -139,7 +139,7 @@ async def reset_station_queue(
     return await station_services.reset_queue(callsign=callsign)
 
 
-@station_router.put(
+@station_router.post(
     '/{callsign}/reservation',
     response_model=None,
     status_code=status.HTTP_202_ACCEPTED,
