@@ -3,6 +3,7 @@
 *.pyo
 __pycache__/
 *__init__.py
+*python-version
 
 # Ignore environment files
 *.env
@@ -18,6 +19,10 @@ __pycache__/
 .vscode
 .idea
 
+# Ignore docker
+docker-compose.yml
+Dockerfile
+
 # Ignore tool and external app data
 dep/*
 tools/*
@@ -29,6 +34,9 @@ docs/*
 
 # Ignore environments (API Keys in there!!)
 environments
+
+# Ignore project configuration packages
+pyproject.toml
 
 # Ignore the MongoDB Base Dump
 src/config/database/base_dump/*

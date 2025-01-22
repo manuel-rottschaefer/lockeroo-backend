@@ -1,18 +1,36 @@
-version: '3.8'
-
 services:
-  backend_service:
+  api:
     build: .
-    container_name: backend_service
-    command: python main.py
     ports:
-      - "8088:8080"  # Adjust the port as needed
-
-  locust_service:
-    build: .
-    container_name: locust_service
-    command: locust -f locustfile.py --host=http://0.0.0.0:8089
-    ports:
-      - "8089:8089"
+      - "8000:8000"
+    environment:
+      - MONGODB_URL=mongodb://mongodb:27017
+      - MQTT_BROKER_HOST=mosquitto
+      - MQTT_BROKER_PORT=1883
     depends_on:
-      - backend_service
+      - mongodb
+      - mosquitto
+    volumes:
+      - .:/app
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+
+volumes:
+  mongodb_data:
+  mosquitto_data:
+  mosquitto_log:
