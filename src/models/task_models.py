@@ -104,9 +104,10 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     @ after_event(Insert)
     async def log_creation(self):
         await self.fetch_link(TaskItemModel.assigned_session)
-        logger.debug(
-            (f"Created task '#{self.id}' of {self.task_type} "
-             f"for session '#{self.assigned_session.id}'."))  # pylint: disable=no-member
+        if self.assigned_session is not None:
+            logger.debug(
+                (f"Created task '#{self.id}' of {self.task_type} "
+                 f"for session '#{self.assigned_session.id}'."))  # pylint: disable=no-member
 
     @ after_event(SaveChanges)
     async def log_state(self) -> None:

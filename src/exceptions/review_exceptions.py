@@ -1,7 +1,7 @@
 """This module provides exception classes for station management."""
 # Beanie
 # Log level
-from logging import INFO, WARNING
+from logging import INFO
 
 from beanie import PydanticObjectId as ObjId
 # Exceptions

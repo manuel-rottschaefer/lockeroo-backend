@@ -19,7 +19,7 @@ from src.models.station_models import StationModel
 from src.services.mqtt_services import fast_mqtt
 
 
-class PaymentStates(Enum):
+class PaymentState(Enum):
     """All possible states for a payment instance"""
     SCHEDULED = 'scheduled'
     PENDING = 'pending'
@@ -62,8 +62,8 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
     assigned_session: Link[SessionModel] = Field(
         description='Session to which the payment belongs to.')
 
-    state: PaymentStates = Field(
-        PaymentStates.SCHEDULED,
+    state: PaymentState = Field(
+        PaymentState.SCHEDULED,
         description='Current state of the payment object.')
 
     price: int = Field(
@@ -81,7 +81,7 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
         self.doc.last_updated = datetime.now()
 
         # 2: Check if the payment is now pending
-        if self.state == PaymentStates.PENDING:
+        if self.state == PaymentState.PENDING:
             await self.fetch_link(SessionModel.assigned_station)
             fast_mqtt.publish(
                 f'/stations/{self.assigned_station.callsign}/payment/{self.price}')

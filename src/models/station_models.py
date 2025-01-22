@@ -14,7 +14,7 @@ from pymongo import TEXT
 from src.services.mqtt_services import fast_mqtt
 
 
-class StationStates(str, Enum):
+class StationState(str, Enum):
     """General status information for physical locker stations,
     relevant for session requests and internal maintenance management."""
     AVAILABLE = "available"         # Station terminal is passive and waiting for sessions
@@ -76,21 +76,20 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     # Setup and Installation Data
     installed_at: datetime = Field(
         description="Date and time of installation.")
-    installed_lockers: int = Field(description="Amount of lockers installed.")
 
     # Layout
     locker_layout: LockerLayout = Field(description="Layout of the station.")
 
     # Operation state
-    station_state: StationStates = Field(
-        default=StationStates.AVAILABLE,
+    station_state: StationState = Field(
+        default=StationState.AVAILABLE,
         description="Current state of the station.")
     terminal_state: TerminalState = Field(
         default=TerminalState.IDLE,
         description="Current state of the terminal.")
-    next_service_date: datetime = Field(
+    scheduled_maintenance_at: datetime = Field(
         description="Date of the next scheduled maintenance.")
-    service_due: bool = Field(
+    maintenance_due_at: bool = Field(
         description="Whether the station is due for maintenance.")
 
     # Operation history
@@ -111,8 +110,8 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     city_name: str = Field(description="Name of the city.")
     address: str = Field(description="Address of the station.")
     location: Dict = Field(description="GPS coordinates of the station.")
-    nearby_public_transit: Optional[str] = Field(
-        description="Name of nearby public transit.")
+    nearby_public_transport: Optional[str] = Field(
+        description="Name of nearby public transport.")
 
     @ after_event(SaveChanges)
     def notify_station_state(self):
@@ -149,43 +148,49 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
             "city_name": "City",
             "address": "123 Main St",
             "location": {"lat": 40.7128, "lon": -74.0060},
-            "nearby_public_transit": "Subway"
+            "nearby_public_transport": "U Odeonsplatz"
         }
 
 
 class StationView(View):
     """Public representation of a station"""
     # Identification
-    id: str
     full_name: str
     callsign: str
 
-    # Internal Properties
+    # Properties
     station_type: str
-
-    # Setup and Installation Data
-    installed_lockers: int
-
-    # Operation states
-    station_state: StationStates
-
     is_storage_available: bool
     is_charging_available: bool
+
+    # Operation states
+    station_state: StationState
 
     # Location
     city_name: str
     address: str
     location: Dict
-    nearby_public_transit: Optional[str]
+    nearby_public_transport: Optional[str]
 
     @ dataclass
     class Settings:  # pylint: disable=too-few-public-methods
         source = StationModel
+        projection = {
+            "full_name": 1,
+            "callsign": 1,
+            "station_type": 1,
+            "is_storage_available": 1,
+            "is_charging_available": 1,
+            "station_state": 1,
+            "city_name": 1,
+            "address": 1,
+            "location": 1,
+            "nearby_public_transit": 1
+        }
 
     @ dataclass
     class Config:
         json_schema_extra = {
-            "id": "60d5ec49f1d2b2a5d8f8b8b8",
             "full_name": "Central Station",
             "callsign": "CENTRAL",
             "station_type": "Type A",

@@ -15,7 +15,7 @@ from pydantic import Field, PydanticUserError
 from src.models.station_models import StationModel
 
 
-class MaintenanceStates(str, Enum):
+class MaintenanceState(str, Enum):
     """All possible states of a station maintenance event"""
     SCHEDULED = "scheduled"
     ACTIVE = "active"
@@ -43,7 +43,7 @@ class MaintenanceModel(Document):  # pylint: disable=too-many-ancestors
     completed: Optional[datetime] = Field(
         None, description="Actual completion time")
 
-    state: MaintenanceStates = Field(
+    state: MaintenanceState = Field(
         description="Current state of the maintenance item"
     )
 
@@ -78,7 +78,7 @@ class MaintenanceView(View):  # pylint: disable=too-many-ancestors
     started: Optional[datetime]
     completed: Optional[datetime]
 
-    state: MaintenanceStates
+    state: MaintenanceState
     assigned_staff: str
 
     @ dataclass

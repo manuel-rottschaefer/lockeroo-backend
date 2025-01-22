@@ -116,10 +116,7 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
 
 class LockerView(View):
     """A public view of the locker model."""
-    id: str
     station: str
-
-    #### Locker Properties ###
     locker_type: str
     availability: str
     station_index: int
@@ -127,7 +124,6 @@ class LockerView(View):
     class Settings:  # pylint: disable=too-few-public-methods
         source = LockerModel
         projection = {
-            "id": {"$toString": "$_id"},
             "station": "$station.callsign",
             "locker_type": "$locker_type",
             "availability": {"$toString": "$availability"},
@@ -137,7 +133,6 @@ class LockerView(View):
     @ dataclass
     class Config:
         json_schema_extra = {
-            "id": "60d5ec49f1d2b2a5d8f8b8b8",
             "station": "CENTRAL",
             "locker_type": "Type A",
             "availability": "operational",
@@ -145,16 +140,14 @@ class LockerView(View):
         }
 
 
-class ReducedLockerView(View):
+class ReducedLockerView(View):  # Internal use only
     """Only id and name of the locker type."""
-    id: str
     locker_type: str
     locker_state: str
 
     class Settings:  # pylint: disable=too-few-public-methods
         source = LockerModel
         projection = {
-            "id": {"$toString": "$_id"},
             "locker_type": "$locker_type.name",
             "locker_state": {"$toString": "$reported_state"}
         }

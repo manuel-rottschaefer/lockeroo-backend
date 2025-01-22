@@ -8,7 +8,7 @@ from beanie import PydanticObjectId as ObjId
 from fastapi import HTTPException
 
 # Models
-from src.models.maintenance_models import MaintenanceStates
+from src.models.maintenance_models import MaintenanceState
 
 
 class MaintenanceNotFoundException(Exception):
@@ -29,8 +29,8 @@ class InvalidMaintenanceStateException(Exception):
     """Exception raised when an invalid maintenance state is provided."""
 
     def __init__(self, maintenance_id: ObjId,
-                 expected_state: MaintenanceStates,
-                 actual_state: MaintenanceStates):
+                 expected_state: MaintenanceState,
+                 actual_state: MaintenanceState):
         self.maintenance_id = maintenance_id
         self.expected_state = expected_state
         self.actual_state = actual_state
