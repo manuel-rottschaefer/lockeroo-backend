@@ -16,7 +16,7 @@ from src.models.session_models import (
     ACTIVE_SESSION_STATES)
 from src.models.station_models import (
     StationModel,
-    StationStates,
+    StationState,
     TerminalState)
 # Logging
 from src.services.logging_services import logger_service as logger
@@ -48,7 +48,7 @@ class Station(Entity):
         """Check whether the station is available for new sessions at the moment.
         This method shall not check locker availability."""
         # 1: Check whether the station is marked as unavailable
-        if not self.station_state == StationStates.AVAILABLE:
+        if not self.station_state == StationState.AVAILABLE:
             return False
 
         # 2: Check whether there is a planned maintenance in 3 hours
@@ -120,8 +120,8 @@ class Station(Entity):
     ### Terminal setters ###
 
     async def register_station_state(
-        self: StationModel, new_station_state: StationStates
-    ) -> StationStates:
+        self: StationModel, new_station_state: StationState
+    ) -> StationState:
         """Update the state of a station.
         No checks are performed here, as the request is assumed to be valid."""
         self.doc.station_state = new_station_state

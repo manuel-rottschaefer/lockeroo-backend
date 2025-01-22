@@ -6,7 +6,7 @@ from typing import Optional
 from src.entities.entity_utils import Entity
 from src.entities.locker_entity import Locker
 from src.entities.session_entity import Session
-from src.models.payment_models import PaymentModel, PaymentStates, PricingModel
+from src.models.payment_models import PaymentModel, PaymentState, PricingModel
 from src.models.session_models import SessionModel
 # Services
 from src.services.payment_services import PRICING_MODELS
@@ -24,7 +24,7 @@ class Payment(Entity):
         instance.doc = PaymentModel(
             assigned_station=session.assigned_station,
             assigned_session=session,
-            state=PaymentStates.SCHEDULED,
+            state=PaymentState.SCHEDULED,
             last_updated=datetime.now()
         )
         await instance.doc.insert()

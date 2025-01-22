@@ -6,7 +6,7 @@ from beanie import PydanticObjectId as ObjId
 # Entities
 from src.entities.entity_utils import Entity
 # Models
-from src.models.maintenance_models import MaintenanceModel, MaintenanceStates
+from src.models.maintenance_models import MaintenanceModel, MaintenanceState
 
 
 class Maintenance(Entity):
@@ -24,7 +24,7 @@ class Maintenance(Entity):
         instance.doc = MaintenanceModel(
             assigned_station=station_id,
             assigned_staff=staff_id,
-            state=MaintenanceStates.SCHEDULED,
+            state=MaintenanceState.SCHEDULED,
             scheduled_for=datetime.now(),
         )
         await instance.doc.insert()

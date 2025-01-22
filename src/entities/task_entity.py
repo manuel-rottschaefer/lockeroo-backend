@@ -45,8 +45,9 @@ class Task(Entity):
         Returns:
             int: The timeout window in seconds
         """
-        assert self.doc.target is not None, f"No target found for task '#{
-            self.doc.id}'."
+        assert self.doc.target is not None, (
+            f"No target found for task '"
+            f"#{self.doc.id}'.")
 
         timeout_window: int = 0
         if self.doc.task_type == TaskType.CONFIRMATION:
@@ -140,8 +141,8 @@ class Task(Entity):
         # 3: Start the next task in the queue
         next_task = Task(tasks[0])
         if next_task.doc.id != self.doc.id:
-            logger.info(f"Task '#{self.doc.id}' is not next, but '#{
-                        next_task.doc.id}'.")
+            logger.info((f"Task '#{self.doc.id}' is not next, but '"
+                         f"#{next_task.doc.id}'."))
         assert (next_task.assigned_session is not None
                 ), f"Task '#{next_task.id}' has no assigned session."
         await next_task.doc.fetch_all_links()
@@ -149,14 +150,15 @@ class Task(Entity):
         # Do not start a task with a session that is not active
         if next_task.doc.assigned_session.session_state not in ACTIVE_SESSION_STATES:
             logger.debug((
-                f"Not activating task '#{next_task.id}' as session is not active."))
+                f"Not activating task '#{next_task.id}'"
+                "as session is not active."))
             return
 
         # Dont activate a terminal task if the terminal is not idle
         if (next_task.doc.target == TaskTarget.TERMINAL and
                 next_task.doc.assigned_station.terminal_state != TerminalState.IDLE):
-            logger.debug(f"Not activating task '#{
-                         next_task.id}' as terminal is not idle.")
+            logger.debug((f"Not activating task '#{next_task.id}'"
+                         "as terminal is not idle."))
             return
 
         # 4: Activate the next task
@@ -189,8 +191,9 @@ class Task(Entity):
                 (f"Sending {STATE_MAP[session_state]} instruction to "
                  f"terminal at station '#{self.doc.assigned_station.callsign}'."))
             fast_mqtt.publish(
-                message_or_topic=f"stations/{
-                    self.doc.assigned_station.callsign}/terminal/instruct",
+                message_or_topic=(
+                    f"stations/{self.doc.assigned_station.callsign}"
+                    "/terminal/instruct"),
                 payload=STATE_MAP[session_state].upper(),
                 qos=2)
         else:
