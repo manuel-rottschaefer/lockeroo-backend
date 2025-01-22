@@ -6,23 +6,48 @@
     "hw_version": "V1",
     "sw_version": "1.0.0",
     "installed_at": "2024-09-01T00:00:00Z",
-    "installed_lockers": 18,
+    "installed_locker_count": 18,
     "locker_layout": {
       "locker_count": 18,
       "column_count": 6,
       "max_row_count": 4,
-      "layout":[
-      ["medium", "medium", "medium"],
-      ["medium", "medium", "medium"],
-      ["small", "small", "small", "small"],
-      ["small", "small", "small", "small"],
-      ["large", "large"],
-      ["large", "large"]
-    ]},
+      "layout": [
+        [
+          "medium",
+          "medium",
+          "medium"
+        ],
+        [
+          "medium",
+          "medium",
+          "medium"
+        ],
+        [
+          "small",
+          "small",
+          "small",
+          "small"
+        ],
+        [
+          "small",
+          "small",
+          "small",
+          "small"
+        ],
+        [
+          "large",
+          "large"
+        ],
+        [
+          "large",
+          "large"
+        ]
+      ]
+    },
     "station_state": "available",
     "terminal_state": "idle",
-    "next_service_date": "2024-12-01T00:00:00Z",
-    "service_due": "false",
+    "scheduled_maintenance_at": "2024-12-01T00:00:00Z",
+    "maintenance_due_at": "false",
     "total_session_count": 0,
     "total_session_duration": 0,
     "last_service_date": "2024-09-01T00:00:00Z",
@@ -30,7 +55,143 @@
     "is_charging_available": false,
     "city_name": "München",
     "address": "Odeonsplatz 1",
-    "location": { "coordinates": [48.143, 11.577], "type": "Point" },
-    "nearby_public_transit": "Odeonsplatz"
+    "location": {
+      "coordinates": [
+        48.143,
+        11.577
+      ],
+      "type": "Point"
+    },
+    "nearby_public_transport": "Odeonsplatz"
+  },
+  {
+    "full_name": "München Marienplatz",
+    "callsign": "MUCMAR",
+    "station_type": "V1M",
+    "hw_version": "V1",
+    "sw_version": "1.0.0",
+    "installed_at": "2024-10-01T00:00:00Z",
+    "installed_locker_count": 18,
+    "locker_layout": {
+      "locker_count": 18,
+      "column_count": 6,
+      "max_row_count": 4,
+      "layout": [
+        [
+          "medium",
+          "medium",
+          "medium"
+        ],
+        [
+          "medium",
+          "medium",
+          "medium"
+        ],
+        [
+          "small",
+          "small",
+          "small",
+          "small"
+        ],
+        [
+          "small",
+          "small",
+          "small",
+          "small"
+        ],
+        [
+          "large",
+          "large"
+        ],
+        [
+          "large",
+          "large"
+        ]
+      ]
+    },
+    "station_state": "available",
+    "terminal_state": "idle",
+    "scheduled_maintenance_at": "2024-12-01T00:00:00Z",
+    "maintenance_due_at": "false",
+    "total_session_count": 0,
+    "total_session_duration": 0,
+    "last_service_date": "2024-09-01T00:00:00Z",
+    "is_storage_available": true,
+    "is_charging_available": false,
+    "city_name": "München",
+    "address": "Marienplatz 1",
+    "location": {
+      "coordinates": [
+        48.137,
+        11.575
+      ],
+      "type": "Point"
+    },
+    "nearby_public_transport": "Marienplatz"
+  },
+  {
+    "full_name": "München Hauptbahnhof",
+    "callsign": "MUCHBF",
+    "station_type": "V1M",
+    "hw_version": "V1",
+    "sw_version": "1.0.0",
+    "installed_at": "2024-11-01T00:00:00Z",
+    "installed_locker_count": 18,
+    "locker_layout": {
+      "locker_count": 18,
+      "column_count": 6,
+      "max_row_count": 4,
+      "layout": [
+        [
+          "medium",
+          "medium",
+          "medium"
+        ],
+        [
+          "medium",
+          "medium",
+          "medium"
+        ],
+        [
+          "small",
+          "small",
+          "small",
+          "small"
+        ],
+        [
+          "small",
+          "small",
+          "small",
+          "small"
+        ],
+        [
+          "large",
+          "large"
+        ],
+        [
+          "large",
+          "large"
+        ]
+      ]
+    },
+    "station_state": "available",
+    "terminal_state": "idle",
+    "scheduled_maintenance_at": "2024-12-01T00:00:00Z",
+    "maintenance_due_at": "false",
+    "total_session_count": 0,
+    "total_session_duration": 0,
+    "last_service_date": "2024-09-01T00:00:00Z",
+    "is_storage_available": true,
+    "is_charging_available": false,
+    "city_name": "München",
+    "address": "Hauptbahnhof 1",
+    "location": {
+      "coordinates": [
+        48.140,
+        11.558
+      ],
+      "type": "Point"
+    },
+    "nearby_public_transport": "Hauptbahnhof"
   }
 ]
