@@ -4,15 +4,11 @@
 # Basics
 from typing import Annotated
 # FastAPI
-from fastapi import APIRouter, Path, status
-# Auth
-from fief_client import FiefAccessTokenInfo
+from fastapi import APIRouter, Path, status, Depends, Header
 # Entities
-from src.entities.maintenance_entity import Maintenance
-from src.entities.station_entity import Station
+from src.entities.user_entity import User
 # Models
 from src.models.maintenance_models import MaintenanceView
-from src.models.station_models import StationModel
 from src.services import maintenance_services
 from src.services.auth_services import require_auth
 # Services
@@ -23,42 +19,83 @@ from src.services.logging_services import logger_service as logger
 maintenance_router = APIRouter()
 
 
-@maintenance_router.post(
-    '/{callsign}/maintenance/schedule',
-    status_code=status.HTTP_201_CREATED,
-    response_model=MaintenanceView)
-@ handle_exceptions(logger)
-@require_auth
-async def create_scheduled_maintenance(
-        callsign:  Annotated[str, Path(pattern='^[A-Z]{6}$')],
-        staff_id: str,
-        _access_info: FiefAccessTokenInfo = None,) -> MaintenanceView:
-    """Get the availability of lockers at the station"""
-    station: Station = Station(await StationModel.find(
-        StationModel.callsign == callsign).first_or_none(),
-        callsign=callsign
-    )
-
-    maintenance_item = await Maintenance().create(station_id=station.id,
-                                                  staff_id=staff_id)
-    return maintenance_item.doc
-
-
 @maintenance_router.get(
-    '/{callsign}/maintenance/next',
+    '/maintenance/{callsign}/next',
     status_code=status.HTTP_200_OK,
     response_model=MaintenanceView)
 @ handle_exceptions(logger)
-@require_auth
 async def get_next_scheduled_maintenance(
-    callsign: Annotated[str, Path(pattern='^[A-Z]{6}$')],
-    _access_info: FiefAccessTokenInfo = None
+    callsign: Annotated[str, Path(
+        pattern='^[A-Z]{6}$',
+        description="The callsign of the station of interest.")],
+    _user: str = Header(default=None, alias="user"),
+    _access_info: User = Depends(require_auth)
 ) -> MaintenanceView:
-    """Get the availability of lockers at the station"""
-    station: Station = Station(await StationModel.find(
-        StationModel.callsign == callsign).first_or_none(),
+    """Get the next scheduled maintenance for a given station."""
+    return await maintenance_services.get_next(
         callsign=callsign
     )
-    return await maintenance_services.get_next(
-        station_id=station.id
+
+
+@maintenance_router.post(
+    '/maintenance/{callsign}/schedule',
+    status_code=status.HTTP_201_CREATED,
+    response_model=MaintenanceView,
+)
+@ handle_exceptions(logger)
+async def request_maintenance_scheduling(
+        callsign:  Annotated[str, Path(
+            pattern='^[A-Z]{6}$',
+            description="The callsign of the station at which the maintenace is supposed to happen.")],
+        staff_id: Annotated[str, Path(
+            pattern='^[0-9]+$',
+            description="The ID of the staff member who is supposed to perform the maintenance.")],
+        _user: str = Header(default=None, alias="user"),
+        _access_info: User = Depends(require_auth)) -> MaintenanceView:
+    """Create a new scheduled maintenance for a given station and staff ID."""
+    return await maintenance_services.schedule(callsign, staff_id)
+
+
+@maintenance_router.put(
+    '/maintenance/{callsign}/cancel',
+    status_code=status.HTTP_200_OK,
+    response_model=MaintenanceView)
+@ handle_exceptions(logger)
+async def request_maintenance_cancelation(
+    callsign: Annotated[str, Path(
+        pattern='^[A-Z]{6}$',
+        description="The callsign of the station at which the maintenace is supposed to happen.")],
+    maintenance_id: Annotated[str, Path(
+        pattern='^[a-fA-F0-9]{24}$',
+        description="The unique identifier of the maintenance to be canceled.")],
+    _user: str = Header(default=None, alias="user"),
+    _access_info: User = Depends(require_auth)
+) -> MaintenanceView:
+    """Complete a scheduled maintenance for a given station."""
+    return await maintenance_services.cancel(
+        callsign=callsign,
+        maint_id=maintenance_id
+    )
+
+
+@maintenance_router.put(
+    '/maintenance/{callsign}/complete',
+    status_code=status.HTTP_200_OK,
+    response_model=MaintenanceView)
+@ handle_exceptions(logger)
+async def request_maintenance_completement(
+    callsign: Annotated[str, Path(
+        pattern='^[A-Z]{6}$',
+        description="The callsign of the station at which the maintenace is supposed to happen.")],
+    maintenance_id: Annotated[str, Path(
+        pattern='^[a-fA-F0-9]{24}$',
+        description="The unique identifier of the maintenance to be completed.")],
+    _comment: str,
+    _user: str = Header(default=None, alias="user"),
+    _access_info: User = Depends(require_auth)
+) -> MaintenanceView:
+    """Complete a scheduled maintenance for a given station."""
+    return await maintenance_services.complete(
+        callsign=callsign,
+        maint_id=maintenance_id
     )
