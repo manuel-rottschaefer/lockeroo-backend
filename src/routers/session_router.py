@@ -4,6 +4,7 @@
 # Basics
 from typing import Annotated, List, Optional
 from asyncio import Lock
+from uuid import uuid4
 # Database utils
 from beanie import PydanticObjectId as ObjId
 # FastAPI
@@ -41,16 +42,43 @@ session_router = APIRouter()
 )
 @ handle_exceptions(logger)
 async def get_session_details(
-    session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
-    _user: str = Header(default=None, alias="user"),
+    session_id: Annotated[str, Path(
+        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
+        description='Unique identifier of the session.')],
+    _user: Annotated[str, Header(
+        alias="user", example=uuid4(),
+        description="The user who is requesting details about the session.")],
     access_info: User = Depends(require_auth),
 ):
     """Return the details of a session. This is supposed to be used
     for refreshingthe app-state in case of disconnect or re-open."""
-    logger.info(f"User '#{access_info.fief_id}' is requesting details for session '#{
-                session_id}'.")
+    logger.info(
+        (f"User '#{access_info.fief_id}' is requesting "
+         f"details for session '#{session_id}'."))
     return await session_services.get_details(
         session_id=ObjId(session_id),
+        user=access_info
+    )
+
+
+@ session_router.get(
+    '/{session_id}/history',
+    response_model=Optional[List[ActionView]],
+    status_code=status.HTTP_200_OK,
+    description="Get a list of all actions of a session.")
+@ handle_exceptions(logger)
+async def get_session_history(
+    session_id: Annotated[str, Path(
+        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
+        description='Unique identifier of the session.')],
+    _user: Annotated[str, Header(
+        alias="user", example=uuid4(),
+        description="User UUID (only for debug)")],
+    access_info: User = Depends(require_auth),
+):
+    """Handle request to obtain a list of all actions from a session."""
+    return await session_services.get_session_history(
+        session_id=session_id,
         user=access_info
     )
 
@@ -61,10 +89,20 @@ async def get_session_details(
     status_code=status.HTTP_201_CREATED,
     description='Request a new session at a given station')
 async def request_new_session(
-    station_callsign: Annotated[str, Query(pattern='^[A-Z]{6}$')],
-    locker_type: Annotated[str, Query(enum=LOCKER_TYPE_NAMES)],
-    payment_method: Optional[PaymentTypes] = Query(None),
-    _user: str = Header(default=None, alias="user"),
+    # TODO: Fix the parameters
+    # station_callsign: str,
+    station_callsign: Annotated[str, Query(
+        pattern='^[A-Z]{6}$',
+        example="MUCODE",
+        description='Callsign of the station.')],
+    locker_type: Annotated[str, Query(
+        enum=LOCKER_TYPE_NAMES,
+        description='Type of locker to be used.')],
+    payment_method: Annotated[PaymentTypes, Query(
+        description='Payment method to be used.')],
+    _user: Annotated[str, Header(
+        alias="user", example=uuid4(),
+        description="The user who is requesting a new session.")],
     access_info: User = Depends(require_auth),
 ) -> Optional[CreatedSessionView]:
     """Handle request to create a new session"""
@@ -85,10 +123,13 @@ async def request_new_session(
     status_code=status.HTTP_202_ACCEPTED,
     description='Request to cancel a locker session before it has been started')
 async def request_session_cancel(
-    session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
-
-    _user: str = Header(default=None, alias="user"),
-    access_info: User = Depends(require_auth),
+    session_id: Annotated[str, Path(
+        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
+        description='Unique identifier of the session.')],
+    _user: Annotated[str, Header(
+        alias="user", example=uuid4(),
+        description="User UUID (only for debug)")],
+    access_info: User = Depends(require_auth)
 ) -> Optional[ConcludedSessionView]:
     """Handle request to cancel a locker session"""
     logger.info((f"User '#{access_info.id}' is trying to "
@@ -106,9 +147,14 @@ async def request_session_cancel(
     description="Select a payment method for a session")
 @ handle_exceptions(logger)
 async def choose_session_payment_method(
-    session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
-    payment_method: PaymentTypes,
-    _user: str = Header(default=None, alias="user"),
+    session_id: Annotated[str, Path(
+        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
+        description='Unique identifier of the session.')],
+    payment_method: Annotated[PaymentTypes, Query(
+        description='Payment method to be used.')],
+    _user: Annotated[str, Header(
+        alias="user", example=uuid4(),
+        description="User UUID (only for debug)")],
     access_info: User = Depends(require_auth),
 ):
     """Handle request to select a payment method"""
@@ -128,10 +174,13 @@ async def choose_session_payment_method(
     description='Request to enter the verification queue of a session')
 @ handle_exceptions(logger)
 async def request_session_verification(
-    session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
-
-    _user: str = Header(default=None, alias="user"),
-    access_info: User = Depends(require_auth),
+    session_id: Annotated[str, Path(
+        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
+        description='Unique identifier of the session.')],
+    _user: Annotated[str, Header(
+        alias="user", example=uuid4(),
+        description="User UUID (only for debug)")],
+    access_info: User = Depends(require_auth)
 ):
     """Handle request to enter the verification queue of a session"""
     logger.info(
@@ -149,10 +198,13 @@ async def request_session_verification(
     description='Request to hold (pause) a locker session')
 @ handle_exceptions(logger)
 async def request_session_hold(
-    session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
-
-    _user: str = Header(default=None, alias="user"),
-    access_info: User = Depends(require_auth),
+    session_id: Annotated[str, Path(
+        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
+        description='Unique identifier of the session.')],
+    _user: Annotated[str, Header(
+        alias="user", example=uuid4(),
+        description="User UUID (only for debug)")],
+    access_info: User = Depends(require_auth)
 ):
     """Handle request to pause a locker session"""
     logger.info(
@@ -171,10 +223,13 @@ async def request_session_hold(
     description='Request to enter the payment phase of a session')
 @ handle_exceptions(logger)
 async def request_session_payment(
-    session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
-
-    _user: str = Header(default=None, alias="user"),
-    access_info: User = Depends(require_auth),
+    session_id: Annotated[str, Path(
+        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
+        description='Unique identifier of the session.')],
+    _user: Annotated[str, Header(
+        alias="user", example=uuid4(),
+        description="User UUID (only for debug)")],
+    access_info: User = Depends(require_auth)
 ):
     """Handle request to enter the payment phase of a session"""
     logger.info(
@@ -182,24 +237,6 @@ async def request_session_payment(
          f"conduct a payment for session '#{session_id}'."))
     return await session_services.handle_payment_request(
         session_id=ObjId(session_id),
-        user=access_info
-    )
-
-
-@ session_router.get(
-    '/{session_id}/history',
-    response_model=Optional[List[ActionView]],
-    status_code=status.HTTP_200_OK,
-    description="Get a list of all actions of a session.")
-@ handle_exceptions(logger)
-async def get_session_history(
-    session_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
-    _user: str = Header(default=None, alias="user"),
-    access_info: User = Depends(require_auth),
-):
-    """Handle request to obtain a list of all actions from a session."""
-    return await session_services.get_session_history(
-        session_id=session_id,
         user=access_info
     )
 

@@ -3,6 +3,7 @@
 """
 # Basics
 from typing import Annotated
+from uuid import uuid4
 # FastAPI
 from fastapi import APIRouter, Path, status, Depends, Header
 # Entities
@@ -28,7 +29,9 @@ async def get_next_scheduled_maintenance(
     callsign: Annotated[str, Path(
         pattern='^[A-Z]{6}$',
         description="The callsign of the station of interest.")],
-    _user: str = Header(default=None, alias="user"),
+    _user: Annotated[str, Header(
+        alias="user", example=uuid4(),
+        description="User UUID (only for debug)")],
     _access_info: User = Depends(require_auth)
 ) -> MaintenanceView:
     """Get the next scheduled maintenance for a given station."""
@@ -37,26 +40,29 @@ async def get_next_scheduled_maintenance(
     )
 
 
-@maintenance_router.post(
+@ maintenance_router.post(
     '/maintenance/{callsign}/schedule',
     status_code=status.HTTP_201_CREATED,
     response_model=MaintenanceView,
 )
 @ handle_exceptions(logger)
 async def request_maintenance_scheduling(
-        callsign:  Annotated[str, Path(
-            pattern='^[A-Z]{6}$',
-            description="The callsign of the station at which the maintenace is supposed to happen.")],
-        staff_id: Annotated[str, Path(
-            pattern='^[0-9]+$',
-            description="The ID of the staff member who is supposed to perform the maintenance.")],
-        _user: str = Header(default=None, alias="user"),
-        _access_info: User = Depends(require_auth)) -> MaintenanceView:
+    callsign:  Annotated[str, Path(
+        pattern='^[A-Z]{6}$',
+        description="The callsign of the station at which the maintenace is supposed to happen.")],
+    staff_id: Annotated[str, Path(
+        pattern='^[0-9]+$',
+        description="The ID of the staff member who is supposed to perform the maintenance.")],
+    _user: Annotated[str, Header(
+        alias="user", example=uuid4(),
+        description="User UUID (only for debug)")],
+    _access_info: User = Depends(require_auth)
+) -> MaintenanceView:
     """Create a new scheduled maintenance for a given station and staff ID."""
     return await maintenance_services.schedule(callsign, staff_id)
 
 
-@maintenance_router.put(
+@ maintenance_router.put(
     '/maintenance/{callsign}/cancel',
     status_code=status.HTTP_200_OK,
     response_model=MaintenanceView)
@@ -68,7 +74,9 @@ async def request_maintenance_cancelation(
     maintenance_id: Annotated[str, Path(
         pattern='^[a-fA-F0-9]{24}$',
         description="The unique identifier of the maintenance to be canceled.")],
-    _user: str = Header(default=None, alias="user"),
+    _user: Annotated[str, Header(
+        alias="user", example=uuid4(),
+        description="User UUID (only for debug)")],
     _access_info: User = Depends(require_auth)
 ) -> MaintenanceView:
     """Complete a scheduled maintenance for a given station."""
@@ -78,7 +86,7 @@ async def request_maintenance_cancelation(
     )
 
 
-@maintenance_router.put(
+@ maintenance_router.put(
     '/maintenance/{callsign}/complete',
     status_code=status.HTTP_200_OK,
     response_model=MaintenanceView)
@@ -91,7 +99,9 @@ async def request_maintenance_completement(
         pattern='^[a-fA-F0-9]{24}$',
         description="The unique identifier of the maintenance to be completed.")],
     _comment: str,
-    _user: str = Header(default=None, alias="user"),
+    _user: Annotated[str, Header(
+        alias="user", example=uuid4(),
+        description="User UUID (only for debug)")],
     _access_info: User = Depends(require_auth)
 ) -> MaintenanceView:
     """Complete a scheduled maintenance for a given station."""
