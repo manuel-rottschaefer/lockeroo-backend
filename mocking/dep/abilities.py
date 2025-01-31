@@ -177,11 +177,11 @@ class MockingSession:
         self.get_user()
         locker_type = self.find_available_locker()
         res = self.client.post(
-            self.endpoint + f'/stations/{self.station_callsign}/reservation', params={
-                'locker_type': locker_type
-            }, headers=self.headers, timeout=3)
+            self.endpoint + f'/stations/{self.station_callsign}/reservation',
+            params={'locker_type': locker_type
+                    }, headers=self.headers, timeout=3)
 
-        if res.status_code == 400:
+        if res.status_code == 204:
             self.terminate_session()
         res.raise_for_status()
 
@@ -241,7 +241,7 @@ class MockingSession:
     def user_request_verification(self) -> None:
         """Try to request verification for a session."""
         self.logger.info(
-            (f"Requesting verification for session '#{self.session.id}' "
+            (f"Requesting 'VERIFICATION' for session '#{self.session.id}' "
              f"at station '{self.station_callsign}'."))
 
         res = self.client.put(
@@ -256,7 +256,7 @@ class MockingSession:
     def user_request_payment(self) -> None:
         """Try to request payment for a session."""
         self.logger.info(
-            (f"Requesting payment for session '#{self.session.id}' "
+            (f"Requesting 'PAYMENT' for session '#{self.session.id}' "
              f"at station '{self.station_callsign}'."))
 
         res = self.client.put(
@@ -274,14 +274,14 @@ class MockingSession:
 
     def station_report_verification(self):
         self.logger.info(
-            (f"Reporting VERIFICATION at station '#{self.station_callsign}' "
+            (f"Reporting 'VERIFICATION' at station '{self.station_callsign}' "
              f"for session '#{self.session.id}''."))
         self.mqtt_client.publish(
             f'stations/{self.station_callsign}/verification/report', '123456', qos=2)
 
     def station_report_payment(self):
         self.logger.info(
-            (f"Reporting PAYMENT at station '#{self.station_callsign}' "
+            (f"Reporting 'PAYMENT' at station '{self.station_callsign}' "
              f"for session '#{self.session.id}''."))
         self.mqtt_client.publish(
             f'stations/{self.station_callsign}/payment/report', '123456', qos=2)
