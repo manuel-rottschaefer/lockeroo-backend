@@ -9,7 +9,9 @@ from uuid import UUID
 from beanie import PydanticObjectId as ObjId, SortDirection
 from beanie.operators import In
 # Websockets
-from fastapi.websockets import WebSocket, WebSocketDisconnect
+from fastapi.websockets import (
+    WebSocket,
+    WebSocketDisconnect)
 # Entities
 from src.entities.locker_entity import Locker
 from src.entities.payment_entity import Payment
@@ -161,7 +163,8 @@ async def handle_creation_request(
         TaskItemModel.target == TaskTarget.USER,
         TaskItemModel.task_type == TaskType.RESERVATION,
         TaskItemModel.task_state == TaskState.PENDING,
-        TaskItemModel.assigned_user.id == user.id,  # pylint: disable=no-member
+        # TODO: There are problems with the user identification here.
+        # TaskItemModel.assigned_user.id == user.id,  # pylint: disable=no-member
         fetch_links=True
     ).first_or_none())
     if reservation.exists:
@@ -173,9 +176,9 @@ async def handle_creation_request(
         locker: Locker = await Locker().find_available(
             station=station, locker_type=locker_type)
         if not locker.exists:
-            logger.warning(
-                f"No available locker of type '{locker_type.name}' at station '{callsign}'.")
-            raise LockerNotAvailableException(station_callsign=callsign)
+            raise LockerNotAvailableException(
+                station_callsign=callsign,
+                locker_type=locker_type)
 
     # 6: Create a new session
     initial_state = SessionState.PAYMENT_SELECTED if payment_method else SessionState.CREATED
@@ -623,15 +626,14 @@ async def handle_update_subscription_request(
     # 1: Check whether the session exists
     session: Session = Session(await SessionModel.get(session_id), session_id)
     if not session.exists:
-        await socket.close(code=404)
+        await socket.close(code=1008)
         raise SessionNotFoundException(user_id=user_id)
     await session.doc.fetch_link(SessionModel.assigned_user)
-    # TODO: Specify error codes
     if session.doc.assigned_user.fief_id != UUID(user_id):
-        await socket.close(code=1000)
+        await socket.close(code=1008)
         raise UserNotAuthorizedException(user_id=user_id)
     if session.doc.websocket_token != session_token:
-        await socket.close(code=1001)
+        await socket.close(code=1008)
         raise UserNotAuthorizedException(user_id=user_id)
     if session.doc.session_state not in ACTIVE_SESSION_STATES:
         raise InvalidSessionStateException(
@@ -676,5 +678,5 @@ async def handle_update_subscription_request(
         logger.error(f"Error in ws for session '#{
                      session.id}': {e}")
         # Close the WebSocket connection with an internal error code
-        await socket.close(code=1011)
+        await socket.close(code=1006)
         websocket_services.unregister_connection(session.id)

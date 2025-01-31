@@ -70,7 +70,7 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
     availability: LockerAvailability = Field(
         LockerAvailability.OPERATIONAL, description='Availability of the locker.')
 
-    reported_state: LockerState = Field(
+    locker_state: LockerState = Field(
         LockerState.LOCKED, description='State of the locker as reported by the station.')
 
     ### Statistics ###
@@ -85,7 +85,7 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
     def log_changes(self):
         """Log the Database operation for debugging purposes."""
         logger.debug(f"Locker '#{self.callsign}' has been registered as {
-                     self.reported_state}.")
+                     self.locker_state}.")
 
     @ dataclass
     class Settings:
@@ -107,7 +107,7 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
                 "maintenance_interval": "7 days"
             },
             "station_index": 1,
-            "reported_state": "locked",
+            "locker_state": "locked",
             "total_session_count": 50,
             "total_session_duration": "100:00:00",
             "last_service_at": "2023-09-10T10:00:00"
@@ -142,14 +142,16 @@ class LockerView(View):
 
 class ReducedLockerView(View):  # Internal use only
     """Only id and name of the locker type."""
+    id: ObjId = Field(None, alias="_id")
     locker_type: str
     locker_state: str
 
     class Settings:  # pylint: disable=too-few-public-methods
         source = LockerModel
         projection = {
+            "id": "$id",
             "locker_type": "$locker_type.name",
-            "locker_state": {"$toString": "$reported_state"}
+            "locker_state": {"$toString": "$locker_state"}
         }
 
     @ dataclass

@@ -26,4 +26,4 @@ class TaskNotFoundException(Exception):
 
     def __str__(self):
         return (f"Could not find task of type {self.type}"
-                f" at station '#{self.station}'.")
+                f" at station '{self.station}'.")

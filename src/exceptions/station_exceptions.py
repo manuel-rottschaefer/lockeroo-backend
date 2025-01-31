@@ -20,14 +20,13 @@ class StationNotFoundException(Exception):
                  callsign: str = None,
                  station_id: ObjId = None,
                  raise_http: bool = True):
-        self.station = callsign if callsign else station_id
-        self.log_level = INFO
+        self.station = callsign if callsign else str(station_id)
 
         if raise_http:
             raise HTTPException(status_code=404, detail=self.__str__())
 
     def __str__(self):
-        return f"Station '#{self.station}' not found in database.)"
+        return f"Station '{self.station}' not found in database.)"
 
 
 class StationNotAvailableException(Exception):
@@ -35,11 +34,10 @@ class StationNotAvailableException(Exception):
 
     def __init__(self, callsign: str):
         self.station = callsign
-        self.log_level = INFO
         raise HTTPException(status_code=400, detail=self.__str__())
 
     def __str__(self):
-        return f"Station '#{self.station}' is not available at the moment.)"
+        return f"Station '{self.station}' is not available at the moment."
 
 
 class InvalidStationReportException(Exception):
@@ -57,8 +55,9 @@ class InvalidStationReportException(Exception):
             raise HTTPException(status_code=400, detail=self.__str__())
 
     def __str__(self):
-        return f"Invalid station report of {
-            self.reported_state} at station '#{self.station_callsign}'.)"
+        return (
+            f"Invalid station report of {self.reported_state} "
+            f"at station '{self.station_callsign}'.")
 
 
 class InvalidTerminalStateException(Exception):
@@ -78,5 +77,5 @@ class InvalidTerminalStateException(Exception):
             raise HTTPException(status_code=400, detail=self.__str__())
 
     def __str__(self):
-        return (f"Invalid terminal state at station '#{self.station_callsign}'."
+        return (f"Invalid terminal state at station '{self.station_callsign}'."
                 f" Expected '{[state for state in self.expected_states]}', got '{self.actual_state}'.")

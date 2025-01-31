@@ -23,7 +23,7 @@ from src.services.logging_services import logger_service as logger
 # Exceptions
 from src.exceptions.station_exceptions import StationNotFoundException
 # Services
-from src.services.maintenance_services import has_scheduled
+# from src.services.maintenance_services import has_scheduled
 
 
 class Station(Entity):
@@ -52,8 +52,9 @@ class Station(Entity):
             return False
 
         # 2: Check whether there is a planned maintenance in 3 hours
-        if await has_scheduled(self.id):
-            return False
+        # TODO: Resolve circular import
+        # if await has_scheduled(self.id):
+        #    return False
 
         return True
 
@@ -104,16 +105,16 @@ class Station(Entity):
         active_lockers = {
             session.assigned_locker for session in active_sessions}
 
-        # Filter out lockers that are in use
-        available_lockers = [
-            locker for locker in all_station_lockers
-            if locker.id not in active_lockers
-        ]
-
         # Verify we don't have more active lockers than exist
         assert (len(all_station_lockers) >= len(active_lockers)
                 ), (f"Found {len(active_lockers)} active lockers, but only "
                     f"{len(all_station_lockers)} lockers exist at station '#{self.callsign}'.")
+
+        # Filter out lockers that are in use
+        available_lockers = [
+            locker for locker in all_station_lockers
+            if str(locker.id) not in active_lockers
+        ]
 
         return available_lockers
 

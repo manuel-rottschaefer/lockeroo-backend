@@ -49,14 +49,16 @@ class Locker(Entity):
 
         # 4: Go through the list of lockers and find one that is locked and not reserved
         for locker in available_lockers:
+            # TODO: Locker type filtering is not quite clear.
             if locker.locker_state == LockerState.LOCKED:
                 if locker.id not in [
                         reservation.assigned_locker.id for reservation in pending_reservations]:
                     instance.doc = await LockerModel.get(locker.id)
                     return instance
 
-        logger.warning(
-            f"No available lockers of type '{locker_type}' at station '{station.callsign}'.")
+        logger.debug((
+            f"No available locker of type '{locker_type.name}' found "
+            f"at station '{station.callsign}'."))
 
         return instance
 
@@ -67,9 +69,10 @@ class Locker(Entity):
 
     async def register_state(self, state: LockerState):
         """Update the reported (actual) locker state"""
-        logger.debug(f"Locker '#{self.doc.callsign.replace('#', '')}' ('{
-                     self.doc.id}') registered as: {state}.")
-        self.doc.reported_state = state
+        logger.debug(
+            (f"Locker '{self.doc.callsign}'/"
+             f"'#{self.doc.id}') registered as: {state}."))
+        self.doc.locker_state = state
         await self.doc.save_changes(skip_actions=['log_changes'])
 
     async def instruct_state(self, state: LockerState):

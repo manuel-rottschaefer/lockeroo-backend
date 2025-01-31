@@ -27,8 +27,8 @@ def handle_exceptions(logging_service):
             except InvalidTerminalStateException as e:
                 logging_service.error(str(e))
             except Exception as e:
-                logging_service.error(f"Unhandled exception: {
-                                      traceback.format_exc()}")
+                logging_service.error(
+                    (f"Unhandled exception: {traceback.format_exc()}"))
                 raise HTTPException(
                     status_code=500, detail="Internal Server Error") from e
         return wrapper

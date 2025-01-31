@@ -20,7 +20,7 @@ class LockerNotFoundException(Exception):
                  station_index: int = None,
                  raise_http: bool = True):
         self.locker_id = locker_id
-        self.station = station_callsign
+        self.station_callsign = str(station_callsign)
         self.station_index = station_index
 
         if raise_http:
@@ -29,23 +29,29 @@ class LockerNotFoundException(Exception):
     def __str__(self):
         if self.locker_id:
             return f"Locker '#{self.locker_id}' not found in database."
-        elif self.station and self.station_index:
+        elif self.station_callsign and self.station_index:
             return (
-                (f"Locker at station '#{self.station}' with index '"
+                (f"Locker at station '{self.station_callsign}' with index '"
                  f"{self.station_index}' not found in database."))
 
 
 class LockerNotAvailableException(Exception):
     """Exception raised when a locker is not available for the requested action."""
 
-    def __init__(self, station_callsign: ObjId, raise_http: bool = True):
+    def __init__(self,
+                 station_callsign: ObjId,
+                 locker_type: LockerType,
+                 raise_http: bool = True):
         self.assigned_station = station_callsign
+        self.locker_type = locker_type
 
         if raise_http:
-            raise HTTPException(status_code=400, detail=self.__str__())
+            raise HTTPException(status_code=204, detail=self.__str__())
 
     def __str__(self):
-        return f"Locker at station '#{self.assigned_station}' is not available."
+        return (
+            f"No Locker of type {self.locker_type.name} available "
+            f"at station '#{self.assigned_station}'.")
 
 
 class InvalidLockerTypeException(Exception):
@@ -60,7 +66,7 @@ class InvalidLockerTypeException(Exception):
             raise HTTPException(status_code=400, detail=self.__str__())
 
     def __str__(self):
-        return f"Locker type '{self.locker_type}' is not found in the configuration."
+        return f"Locker type '{self.locker_type.name}' is not found in the configuration."
 
 
 class InvalidLockerStateException(Exception):

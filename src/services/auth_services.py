@@ -20,7 +20,7 @@ async def require_auth(user: Annotated[str | None, Header()] = None):
     """Add authorization middleware to an endpoint."""
     # Check if user_id can be formatted as a UUID
     if user and not UUID(user):
-        return None
+        return False
     if user:
         user_model = await UserModel.find_one(UserModel.fief_id == UUID(user))
         if not user_model:

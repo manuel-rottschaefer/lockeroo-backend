@@ -211,8 +211,6 @@ class SessionView(View):
     service_type: SessionTypes
     session_state: SessionState
 
-    # TODO: Implement a timestamping mechanism
-
     @ dataclass
     class Config:
         from_attributes = True

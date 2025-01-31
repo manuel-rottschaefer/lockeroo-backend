@@ -79,7 +79,7 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
         description="List of states the assigned session takes on after expiring, \
         each list item is a next try for this task.")
 
-    from_expired: bool = Field(
+    is_expiration_retry: bool = Field(
         False, description="Whether the task is being requeued from an expired state.")
 
     expiration_window: float = Field(

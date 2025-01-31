@@ -17,6 +17,7 @@ from src.entities.task_entity import Task
 # Models
 from src.models.locker_models import (
     LockerModel,
+    LOCKER_TYPES,
     ReducedLockerView,
     LockerTypeAvailabilityView)
 from src.models.session_models import (
@@ -206,15 +207,17 @@ async def handle_reservation_request(
             station_callsign=callsign,
             expected_states=[StationState.AVAILABLE],
             actual_state=station.station_state,
-            raise_http=False)
+            raise_http=True)
 
     # 3: Check if a locker of the requested type is available
+    locker_type = next(i for i in LOCKER_TYPES if i.name ==
+                       locker_type.lower())
     available_locker = await Locker.find_available(station, locker_type)
     if not available_locker.exists:
         raise LockerNotAvailableException(
             station_callsign=callsign,
-            # locker_type=locker_type,
-            raise_http=False)
+            locker_type=locker_type,
+            raise_http=True)
 
     # 4: Create a reservation task, to be completed by a session creation
     await Task(await TaskItemModel(
@@ -224,7 +227,7 @@ async def handle_reservation_request(
         assigned_station=station.doc,
         assigned_locker=available_locker.doc,
         timeout_states=[SessionState.EXPIRED],
-        moves_session=False,
+        moves_session=False
     ).insert()).activate()
 
 
@@ -276,7 +279,7 @@ async def handle_terminal_report(
         TaskItemModel.task_type == TaskType.REPORT,
         TaskItemModel.task_state == TaskState.PENDING,
         TaskItemModel.assigned_station.callsign == callsign,  # pylint: disable=no-member
-        TaskItemModel.assigned_locker is None,  # pylint: disable=no-member singleton-comparison
+        TaskItemModel.assigned_locker == None,  # pylint: disable=no-member singleton-comparison
         fetch_links=True
     ).sort((
         TaskItemModel.created_at, SortDirection.ASCENDING
@@ -350,7 +353,6 @@ async def handle_terminal_state_confirmation(
     await station.register_terminal_state(confirmed_state)
 
     # 2: Find the pending task for this station
-    # TODO: FIXME This query may retrieve wrong tasks
     pending_task: Task = Task(await TaskItemModel.find(
         TaskItemModel.assigned_station.id == station.id,  # pylint: disable=no-member
         TaskItemModel.target == TaskTarget.TERMINAL,
@@ -407,7 +409,8 @@ async def handle_terminal_state_confirmation(
         return
 
     elif confirmed_state == TerminalState.IDLE:
-        if pending_task.doc.from_expired:  # TODO: Check if this is required
+        # TODO: Find a better way to check if the task is from an expired one
+        if pending_task.doc.is_expiration_retry:
             # Create task for user to try the expired action again
             await Task(await TaskItemModel(
                 target=TaskTarget.USER,

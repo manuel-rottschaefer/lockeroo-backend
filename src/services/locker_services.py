@@ -11,12 +11,9 @@ from src.entities.task_entity import Task
 from src.exceptions.locker_exceptions import (
     InvalidLockerReportException,
     InvalidLockerStateException)
-# Exceptions
-from src.exceptions.task_exceptions import TaskNotFoundException
-from src.models.action_models import ActionModel, ActionType
-from src.models.session_models import SessionModel
 # Models
-from src.models.session_models import SessionState
+from src.models.action_models import ActionModel, ActionType
+from src.models.session_models import SessionModel, SessionState
 from src.models.task_models import (
     TaskItemModel,
     TaskState,
@@ -24,6 +21,9 @@ from src.models.task_models import (
     TaskType)
 # Services
 from src.services.logging_services import logger_service as logger
+# Exceptions
+from src.exceptions.task_exceptions import TaskNotFoundException
+from src.exceptions.session_exceptions import InvalidSessionStateException
 
 
 async def handle_unlock_confirmation(
@@ -60,7 +60,7 @@ async def handle_unlock_confirmation(
             ), f"Locker '#{locker.id}' does not match task '#{task.id}'."
 
     # 4: Check whether the locker is actually registered as unlocked
-    assert (locker.doc.reported_state == LockerState.LOCKED
+    assert (locker.doc.locker_state == LockerState.LOCKED
             ), f"Locker '#{locker.doc.id}' is not locked."
 
     # 5: Find the assigned session
@@ -111,22 +111,23 @@ async def handle_lock_report(
     if not task.exists:
         # Try to find a session that matches the locker
         # and is in a non-complete and non-active state
+        EXPECTED_STATES = [
+            SessionState.CANCELED,
+            SessionState.ABANDONED,
+            SessionState.STALE,
+            SessionState.EXPIRED]
         session: Session = Session(await SessionModel.find(
             SessionModel.assigned_locker.station.callsign == callsign,  # pylint: disable=no-member
             SessionModel.assigned_locker.station_index == station_index,  # pylint: disable=no-member
-            In(SessionModel.session_state, [
-                SessionState.CANCELED,
-                SessionState.ABANDONED,
-                SessionState.STALE,
-                SessionState.EXPIRED]),
+            In(SessionModel.session_state, EXPECTED_STATES),
             fetch_links=True
         ).first_or_none())
         if session.exists:
-            logger.info(
-                (f"Station '{callsign}' reported {LockerState.LOCKED} "
-                 f"at locker {station_index}, but the assigned session "
-                 f"'#{session.id}' is in {session.doc.session_state}."))
-            return
+            raise InvalidSessionStateException(
+                session_id=session.id,
+                actual_state=session.doc.session_state,
+                expected_states=[EXPECTED_STATES]
+            )
 
         raise TaskNotFoundException(
             task_type=TaskType.REPORT,
@@ -147,11 +148,11 @@ async def handle_lock_report(
             locker_id=locker.id, raise_http=False)
 
     # 4: Check whether the locker was actually registered as unlocked
-    if locker.reported_state != LockerState.UNLOCKED.value:
+    if locker.doc.locker_state != LockerState.UNLOCKED.value:
         raise InvalidLockerStateException(
             locker_id=locker.id,
             expected_state=LockerState.UNLOCKED,
-            actual_state=locker.reported_state,
+            actual_state=locker.doc.locker_state,
             raise_http=False)
 
     # 5: Find the assigned session
