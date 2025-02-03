@@ -3,10 +3,8 @@ from typing import Dict, List
 import configparser
 from dotenv import load_dotenv
 
-
 from src.models.session_models import SessionState
 
-# This is extremely dumb, but it works
 load_dotenv('.env')
 
 config = configparser.ConfigParser()

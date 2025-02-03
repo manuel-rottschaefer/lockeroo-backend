@@ -10,14 +10,11 @@ class UserPool():
         self.userbase = [str(uuid4()) for _ in range(20)]
         self.available_users = self.userbase.copy()
 
-    def get_available_user(self):
+    def pick_user(self):
         if len(self.available_users) == 0:
             return None
         user = self.available_users.pop()
-        # logger.debug(f"User {user} retrieved from available users.")
         return user
 
-    def return_user(self, user_id: uuid4):
+    def drop_user(self, user_id: uuid4):
         self.available_users.append(user_id)
-        # logger.debug(f"Users available: {len(self.available_users)}")
-        # logger.debug(f"User {user_id} returned to available users.")
