@@ -13,7 +13,7 @@ class Entity():
         if name == "doc":
             # Return the document attribute
             return self.doc
-        else:
+        elif "view" not in name and name != "exists":
             # Forward attribute access to the document
             attr = getattr(self.doc, name)
             if callable(attr):

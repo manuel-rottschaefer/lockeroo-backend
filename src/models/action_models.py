@@ -67,12 +67,22 @@ class ActionModel(Document):  # pylint: disable=too-many-ancestors
 
 class ActionView(View):  # pylint: disable=too-many-ancestors
     """Database representation of a action"""
-    id: str
+    id: ObjId = Field(None, alias="_id")
     assigned_session: ObjId
 
     # Action Properties
     timestamp: datetime
     action_type: ActionType
+
+    @ dataclass
+    class Settings:
+        source = ActionModel
+        projection = {
+            "id": "$_id",
+            "assigned_session": "$assigned_session",
+            "timestamp": "$timestamp",
+            "action_type": "$action_type"
+        }
 
     @ dataclass
     class Config:

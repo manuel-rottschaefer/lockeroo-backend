@@ -2,12 +2,11 @@
 # Types
 from logging import INFO, WARNING
 from typing import List
-
+from uuid import UUID
 # Beanie
 from beanie import PydanticObjectId as ObjId
 # Exceptions
 from fastapi import HTTPException
-
 # Models
 from src.models.session_models import SessionState
 
@@ -15,7 +14,7 @@ from src.models.session_models import SessionState
 class SessionNotFoundException(Exception):
     """Exception raised when a station cannot be found by a given query."""
 
-    def __init__(self, user_id: ObjId = None, raise_http: bool = True):
+    def __init__(self, user_id: UUID = None, raise_http: bool = True):
         self.user_id = user_id
         self.log_level = INFO
 

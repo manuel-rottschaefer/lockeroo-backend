@@ -11,8 +11,8 @@ from src.models.locker_models import (
 # Models
 from src.models.session_models import (
     SessionModel,
-    ReducedSessionView,
     SessionState,
+    ReducedSessionView,
     ACTIVE_SESSION_STATES)
 from src.models.station_models import (
     StationModel,

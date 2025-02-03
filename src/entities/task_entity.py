@@ -89,7 +89,7 @@ class Task(Entity):
             TaskItemModel.task_state == TaskState.PENDING,
             fetch_links=True
         ).count() > 0:
-            # task_expiration_manager.restart()
+            task_expiration_manager.restart()
             return Task()
 
         # 2: Get the next task in queue
@@ -105,6 +105,8 @@ class Task(Entity):
             #  TODO: Verify that lock is required and useful in preventing duplicate task launches
             async with Lock():
                 await next_task.evaluate_queue_state()
+        else:
+            task_expiration_manager.restart()
 
     ### Queue utilities###
     async def evaluate_queue_state(self) -> None:
@@ -324,7 +326,7 @@ class Task(Entity):
         if self.doc.target == TaskTarget.TERMINAL:
             await self.evaluate_next()
 
-        # 6: Restart the expiration manager
+        # 6: Save session state and restart the expiration manager
         task_expiration_manager.restart()
 
     async def cancel(self) -> None:
@@ -396,8 +398,8 @@ class Task(Entity):
         Raises:
             AssertionError: If the task is not pending or has no timeout states defined
         """
-        logger.debug(f"Handling expiration of task '{self.id}'")
         # 1: Sync the task and check if its still pending
+        # logger.debug(f"Handling expiration of task '{self.id}'")
         await self.doc.sync()
         # 2: If task is still pending, set it to expired
         assert (self.doc.task_state == TaskState.PENDING

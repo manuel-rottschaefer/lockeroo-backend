@@ -101,9 +101,9 @@ async def get_session_history(session_id: ObjId, user: User) -> Optional[List[Ac
     """Get all actions of a session."""
     session: Session = Session(await SessionModel.get(session_id), session_id)
     if not session.exists:
-        raise SessionNotFoundException(user_id=user.id)
+        raise SessionNotFoundException(user_id=user.fief_id)
     if session.doc.assigned_user.id != user.id:
-        raise UserNotAuthorizedException(user_id=user.id)
+        raise UserNotAuthorizedException(user_id=user.fief_id)
 
     return await ActionModel.find(
         ActionModel.assigned_session == session_id
@@ -160,17 +160,16 @@ async def handle_creation_request(
 
     # 4: Check if the user has a locker reservation
     reservation: Task = Task(await TaskItemModel.find(
-        TaskItemModel.target == TaskTarget.USER,
+        # TaskItemModel.assigned_station.callsign == station.doc.callsign,  # pylint: disable=no-member
+        TaskItemModel.assigned_user.fief_id == user.doc.fief_id,  # pylint: disable=no-member
         TaskItemModel.task_type == TaskType.RESERVATION,
         TaskItemModel.task_state == TaskState.PENDING,
-        # TODO: There are problems with the user identification here.
-        # TaskItemModel.assigned_user.id == user.id,  # pylint: disable=no-member
         fetch_links=True
     ).first_or_none())
     if reservation.exists:
-        locker: Locker = Locker(await reservation.assigned_locker)
-        await reservation.complete()
-
+        locker: Locker = Locker(reservation.doc.assigned_locker)
+        reservation.doc.task_state = TaskState.COMPLETED
+        await reservation.doc.save_changes()
     else:
         # 5: Try to find an available locker at the station
         locker: Locker = await Locker().find_available(
@@ -485,7 +484,7 @@ async def handle_payment_request(session_id: ObjId, user: User) -> Optional[Sess
         session: SessionModel = await SessionModel.get(session_id)
         await session.fetch_link(SessionModel.assigned_station)
         if not session.exists():
-            raise SessionNotFoundException(user_id=user.id)
+            raise SessionNotFoundException(user_id=user.fief_id)
         raise TaskNotFoundException(
             task_type=TaskType.REPORT,
             assigned_station=session.assigned_station.id,

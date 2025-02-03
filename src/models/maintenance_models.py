@@ -67,7 +67,7 @@ class MaintenanceModel(Document):  # pylint: disable=too-many-ancestors
 
 class MaintenanceView(View):  # pylint: disable=too-many-ancestors
     """Entity of a station maintenance event"""
-    id: str
+    id: ObjId = Field(None, alias="_id")
 
     assigned_station: str
 
@@ -80,6 +80,20 @@ class MaintenanceView(View):  # pylint: disable=too-many-ancestors
 
     state: MaintenanceState
     assigned_staff: str
+
+    @ dataclass
+    class Settings:
+        source = MaintenanceModel
+        projection = {
+            "id": "$_id",
+            "assigned_station": "$assigned_station.callsign",
+            "scheduled_for": "$scheduled_for",
+            "planned_duration": "$planned_duration",
+            "started": "$started",
+            "completed": "$completed",
+            "state": "$state",
+            "assigned_staff": "$assigned_staff"
+        }
 
     @ dataclass
     class Config:

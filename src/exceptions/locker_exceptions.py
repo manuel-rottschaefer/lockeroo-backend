@@ -1,14 +1,14 @@
 """This module provides exception classes for locker management."""
 # Types
 from typing import Optional
-
 # Beanie
 from beanie import PydanticObjectId as ObjId
 # Exceptions
 from fastapi import HTTPException
-
 # Models
 from src.models.locker_models import LockerState, LockerType
+# Logging
+from src.services.logging_services import logger
 
 
 class LockerNotFoundException(Exception):
@@ -24,7 +24,7 @@ class LockerNotFoundException(Exception):
         self.station_index = station_index
 
         if raise_http:
-            raise HTTPException(status_code=500, detail=self.__str__())
+            raise HTTPException(status_code=404, detail=self.__str__())
 
     def __str__(self):
         if self.locker_id:
@@ -46,7 +46,7 @@ class LockerNotAvailableException(Exception):
         self.locker_type = locker_type
 
         if raise_http:
-            raise HTTPException(status_code=204, detail=self.__str__())
+            raise HTTPException(status_code=200, detail=self.__str__())
 
     def __str__(self):
         return (
@@ -80,11 +80,13 @@ class InvalidLockerStateException(Exception):
         self.expected_state = expected_state
         self.actual_state = actual_state
 
+        logger.error(self.__str__())
+
         if raise_http:
             raise HTTPException(status_code=400, detail=self.__str__())
 
     def __str__(self):
-        return (f"Invalid state of locker '#{self.locker_id}'.)"
+        return (f"Invalid state of locker '#{self.locker_id}'. "
                 f"Expected: {self.expected_state}, Actual: {self.actual_state}")
 
 

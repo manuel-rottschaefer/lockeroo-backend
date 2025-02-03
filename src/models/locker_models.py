@@ -149,7 +149,7 @@ class ReducedLockerView(View):  # Internal use only
     class Settings:  # pylint: disable=too-few-public-methods
         source = LockerModel
         projection = {
-            "id": "$id",
+            "id": "$_id",
             "locker_type": "$locker_type.name",
             "locker_state": {"$toString": "$locker_state"}
         }

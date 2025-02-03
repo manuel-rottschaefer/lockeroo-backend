@@ -175,7 +175,7 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
         await self.fetch_link(SessionModel.assigned_locker)
         logger.debug(
             (f"Created session '#{self.id}' for user "
-             f"'#{self.assigned_user.id}' at locker "  # pylint: disable=no-member
+             f"'{self.assigned_user.fief_id}' at locker "  # pylint: disable=no-member
              f"'#{self.assigned_locker.id}'."))  # pylint: disable=no-member
 
     @ dataclass
@@ -202,7 +202,7 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
 class SessionView(View):
     """Used for serving information about an active session"""
     # Identification
-    id: str
+    id: ObjId = Field(alias=None)
     assigned_user: UUID
 
     station: str
@@ -210,6 +210,18 @@ class SessionView(View):
 
     service_type: SessionTypes
     session_state: SessionState
+
+    @ dataclass
+    class Settings:
+        source = SessionModel
+        projection = {
+            "id": {"$toString": "$_id"},
+            "assigned_user": "$assigned_user.fief_id",
+            "station": "$assigned_station.callsign",
+            "locker_index": "$assigned_locker.station_index",
+            "service_type": "$session_type",
+            "session_state": "$session_state"
+        }
 
     @ dataclass
     class Config:
@@ -223,25 +235,21 @@ class SessionView(View):
             "session_state": "created"
         }
 
-    @ dataclass
-    class Settings:
-        source = SessionModel
-        is_root = False
-        projection = {
-            "id": {"$toString": "$_id"},
-            "user": "$user.fief_id",
-            "assigned_station": {"$toString": "$assigned_station._id"},
-            "station_index": "$assigned_locker.station_index",
-            "session_type": "$session_type",
-            "session_state": "$session_state.name",
-        }
-
 
 class ReducedSessionView(View):
     """Used for serving information about an active session"""
-    id: str
+    id: ObjId = Field(alias=None)
     session_state: SessionState
-    assigned_locker: str
+    assigned_locker: ObjId
+
+    @ dataclass
+    class Settings:
+        source = SessionModel
+        projection = {
+            "id": {"$toString": "$_id"},
+            "session_state": "$session_state",
+            "assigned_locker": "$assigned_locker._id"
+        }
 
     @ dataclass
     class Config:
@@ -252,17 +260,9 @@ class ReducedSessionView(View):
             "assigned_locker": "60d5ec49f1d2b2a5d8f8b8b8"
         }
 
-    @ dataclass
-    class Settings:
-        source = SessionModel
-        projection = {
-            "id": {"$toString": "$_id"},
-            "session_state": "$session_state",
-            "assigned_locker": {"$toString": "$assigned_locker._id"}
-        }
-
 
 class CreatedSessionView(SessionView):
+    id: ObjId = Field(alias=None)
     websocket_token: str
 
     @ dataclass
@@ -288,10 +288,20 @@ class ActiveSessionView(SessionView):
 class WebsocketUpdate(View):
     """Used for serving information about an active session"""
     # Identification
-    id: str
+    id: ObjId = Field(None, alias="_id")
     session_state: str
     timeout: Optional[datetime]
     queue_position: Optional[int]
+
+    @ dataclass
+    class Settings:
+        source = SessionModel
+        projection = {
+            "id": "$_id",
+            "session_state": "$session_state",
+            "timeout": "$timeout",
+            "queue_position": "$queue_position"
+        }
 
     @ dataclass
     class Config:
@@ -306,7 +316,7 @@ class WebsocketUpdate(View):
 
 class ConcludedSessionView(View):
     """Used for serving information about a completed session"""
-    id: str
+    id: ObjId = Field(None, alias="_id")
     station: str
     locker_index: int
     service_type: SessionTypes
@@ -316,6 +326,19 @@ class ConcludedSessionView(View):
     # finalPrice: Optional[float] = None
     total_duration: float
     active_duration: float
+
+    @ dataclass
+    class Settings:
+        source = SessionModel
+        projection = {
+            "id": {"$toString": "$_id"},
+            "station": "$assigned_station.callsign",
+            "locker_index": "$assigned_locker.station_index",
+            "service_type": "$session_type",
+            "session_state": "$session_state",
+            "total_duration": {"$toDouble": "$total_duration"},
+            "active_duration": {"$toDouble": "$active_duration"}
+        }
 
     @ dataclass
     class Config:

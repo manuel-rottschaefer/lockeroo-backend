@@ -70,8 +70,8 @@ if STATION_TYPES is None:
 async def get_all_stations() -> List[StationView]:
     """Returns a list of all installed stations."""
     return await StationModel.find(
-        StationModel.installed_at < datetime.now()
-    ).limit(100)
+        # StationModel.installed_at < datetime.now()
+    ).limit(100).project(StationView).to_list()
 
 
 async def discover(lat: float, lon: float, radius: int,
@@ -210,8 +210,8 @@ async def handle_reservation_request(
             raise_http=True)
 
     # 3: Check if a locker of the requested type is available
-    locker_type = next(i for i in LOCKER_TYPES if i.name ==
-                       locker_type.lower())
+    locker_type = next(
+        i for i in LOCKER_TYPES if i.name == locker_type.lower())
     available_locker = await Locker.find_available(station, locker_type)
     if not available_locker.exists:
         raise LockerNotAvailableException(
@@ -220,6 +220,9 @@ async def handle_reservation_request(
             raise_http=True)
 
     # 4: Create a reservation task, to be completed by a session creation
+    logger.debug((
+        f"Created reservation for user '{user.doc.fief_id}' "
+        f"locker '#{available_locker.id}'."))
     await Task(await TaskItemModel(
         target=TaskTarget.USER,
         task_type=TaskType.RESERVATION,

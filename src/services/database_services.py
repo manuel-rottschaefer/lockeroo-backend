@@ -1,13 +1,12 @@
 """Provides utility functions for the database."""
-
 # Basics
+from uuid import UUID
+from bson import Binary
 import json
 import os
-
-from beanie import PydanticObjectId as ObjId, init_beanie
 # Database utilities
 from motor.motor_asyncio import AsyncIOMotorClient
-
+from beanie import PydanticObjectId as ObjId, init_beanie
 # Models
 from src.models.action_models import ActionModel
 from src.models.billing_models import BillModel
@@ -43,7 +42,7 @@ async def setup():
             BillModel,
             PaymentModel,
             ReviewModel
-        ],
+        ]
     )
 
 
@@ -71,24 +70,36 @@ async def resolve_station_reference(station_ref):
 async def restore_json_mock_data(directory):
     """Load JSON files into the database"""
     logger.info("Restoring mock data")
-    # This is a workaround to ensure that the collections are created in the correct order
+
     for filename in sorted(os.listdir(directory), reverse=True):
         if not filename.endswith(".json"):
             continue
 
         collection_name = filename.split(".")[0]
         collection = db[collection_name]
-        await collection.drop()
+        await collection.drop()  # Drop the collection first
+
         with open(os.path.join(directory, filename), "r", encoding="utf-8") as f:
             data = json.load(f)
             if data and isinstance(data, list):
-                for document in data:
-                    if "station" in document and "$callsign" in document["station"]:
-                        station_id = await resolve_station_reference(document["station"])
-                        if station_id:
-                            document["station"]['$id'] = station_id
-                            del document["station"]["$callsign"]
-                    await collection.insert_one(convert_oid(document))
+                # Map lockers to their stations
+                if filename == 'lockers.json':
+                    stations = await db.stations.find().to_list(length=None)
+                    for locker in data:
+                        for station in stations:
+                            if locker['station']['$callsign'] == station['callsign']:
+                                locker['station']['$id'] = station['_id']
+                                del locker["station"]["$callsign"]
+                                break
+
+                # Create UUIDs for users
+                if filename == 'users.json':
+                    for user in data:
+                        print(user['fief_id'])
+                        user['fief_id'] = Binary.from_uuid(
+                            UUID(user['fief_id']))
+
+                await collection.insert_many(data)
 
 
 async def restore_mongodb_data(directory):

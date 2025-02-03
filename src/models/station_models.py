@@ -185,7 +185,7 @@ class StationView(View):
             "city_name": 1,
             "address": 1,
             "location": 1,
-            "nearby_public_transit": 1
+            "nearby_public_transport": 1
         }
 
     @ dataclass

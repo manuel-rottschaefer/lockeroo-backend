@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 # Beanie
 from beanie import Document
@@ -28,7 +28,9 @@ class UserModel(Document):  # pylint: disable=too-many-ancestors
 
     # Identification
     id: ObjId = Field(None, alias="_id")
-    fief_id: UUID = Field(None, description="Unique identifier of user.")
+    fief_id: UUID = Field(
+        default_factory=uuid4,
+        description="Unique identifier of user.")
     first_name: Optional[str] = Field(None, description="First name of user.")
     last_name: Optional[str] = Field(None, description="Last name of user.")
     email: Optional[str] = Field(
@@ -76,7 +78,7 @@ class UserModel(Document):  # pylint: disable=too-many-ancestors
 class UserSummary(View):
     """Summary of a user entity."""
     # Identification
-    id: str
+    id: ObjId = Field(None, alias="_id")
     first_name: str
     last_name: str
     email: Optional[str]
@@ -105,7 +107,7 @@ class UserSummary(View):
 class UserQuickStats(View):
     """Quick stats of a user entity."""
     # Identification
-    id: str
+    id: ObjId = Field(None, alias="_id")
     total_sessions: int = 0
     total_session_duration: int = 0
 

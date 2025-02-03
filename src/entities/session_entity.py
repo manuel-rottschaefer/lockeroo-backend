@@ -41,7 +41,7 @@ class Session(Entity):
         # await self.doc.fetch_all_links()
         # TODO: Improve this
         return SessionView(
-            id=str(self.doc.id),
+            id=self.doc.id,
             station=str(self.doc.assigned_station.id),
             assigned_user=self.doc.assigned_user.fief_id,
             locker_index=self.doc.assigned_locker.station_index if self.assigned_locker else None,
@@ -54,7 +54,7 @@ class Session(Entity):
     def created_view(self) -> CreatedSessionView:
         """Return a view of the session that is suitable for creation."""
         return CreatedSessionView(
-            id=str(self.doc.id),
+            id=self.doc.id,
             assigned_user=self.doc.assigned_user.fief_id,
             station=str(self.doc.assigned_station.id),
             locker_index=self.doc.assigned_locker.station_index,

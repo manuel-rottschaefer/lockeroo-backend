@@ -58,13 +58,24 @@ class ReviewModel(Document):  # pylint: disable=too-many-ancestors
 class ReviewView(View):  # pylint: disable=too-many-ancestors
     """View of the Review Model"""
     # Identification
-    id: str
+    id: ObjId = Field(None, alias="_id")
 
     submitted_at: datetime
 
     experience_rating: int
     cleanliness_rating: int
     details: str
+
+    @ dataclass
+    class Settings:
+        source = ReviewModel
+        projection = {
+            "id": "$_id",
+            "submitted_at": "$submitted_at",
+            "experience_rating": "$experience_rating",
+            "cleanliness_rating": "$cleanliness_rating",
+            "details": "$details"
+        }
 
     @ dataclass
     class Config:

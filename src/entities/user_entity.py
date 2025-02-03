@@ -27,7 +27,7 @@ class User(Entity):
     async def has_active_session(self) -> bool:
         """Check whether the user has an active session."""
         session: SessionModel = await SessionModel.find_one(
-            SessionModel.assigned_user == self.doc.id,
+            SessionModel.assigned_user.id == self.doc.id,  # pylint: disable=no-member
             In(SessionModel.session_state, ACTIVE_SESSION_STATES)
         )
         return session is not None

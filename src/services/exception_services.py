@@ -12,6 +12,7 @@ from functools import wraps
 from fastapi import HTTPException
 
 from src.exceptions.station_exceptions import InvalidTerminalStateException
+from src.exceptions.locker_exceptions import LockerNotAvailableException
 
 
 def handle_exceptions(logging_service):
@@ -26,6 +27,8 @@ def handle_exceptions(logging_service):
                 raise e
             except InvalidTerminalStateException as e:
                 logging_service.error(str(e))
+            except LockerNotAvailableException as e:
+                logging_service.debug(str(e))
             except Exception as e:
                 logging_service.error(
                     (f"Unhandled exception: {traceback.format_exc()}"))
