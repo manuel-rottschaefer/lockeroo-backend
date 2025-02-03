@@ -6,7 +6,6 @@
     "hw_version": "V1",
     "sw_version": "1.0.0",
     "installed_at": "2024-09-01T00:00:00Z",
-    "installed_locker_count": 18,
     "locker_layout": {
       "locker_count": 18,
       "column_count": 6,
@@ -67,44 +66,43 @@
   {
     "full_name": "München Marienplatz",
     "callsign": "MUCMAR",
-    "station_type": "V1M",
+    "station_type": "V1L",
     "hw_version": "V1",
     "sw_version": "1.0.0",
     "installed_at": "2024-10-01T00:00:00Z",
-    "installed_locker_count": 18,
     "locker_layout": {
-      "locker_count": 18,
-      "column_count": 6,
-      "max_row_count": 4,
+      "locker_count": 16,
+      "column_count": 8,
+      "max_row_count": 2,
       "layout": [
         [
-          "medium",
-          "medium",
-          "medium"
-        ],
-        [
-          "medium",
-          "medium",
-          "medium"
-        ],
-        [
-          "small",
-          "small",
-          "small",
-          "small"
-        ],
-        [
-          "small",
-          "small",
-          "small",
-          "small"
-        ],
-        [
-          "large",
           "large"
         ],
         [
-          "large",
+          "medium",
+          "medium"
+        ],
+        [
+          "medium",
+          "medium"
+        ],
+        [
+          "medium",
+          "medium"
+        ],
+        [
+          "medium",
+          "medium"
+        ],
+        [
+          "medium",
+          "medium"
+        ],
+        [
+          "medium",
+          "medium"
+        ],
+        [
           "large"
         ]
       ]
@@ -136,7 +134,6 @@
     "hw_version": "V1",
     "sw_version": "1.0.0",
     "installed_at": "2024-11-01T00:00:00Z",
-    "installed_locker_count": 18,
     "locker_layout": {
       "locker_count": 18,
       "column_count": 6,
