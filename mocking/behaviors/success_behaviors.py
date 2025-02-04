@@ -1,6 +1,6 @@
 """Session behaviors that end in SessionState.COMPLETED."""
 from mocking.dep.abilities import MockingSession
-from src.models.session_models import SessionState
+from src.models.session_models import SessionState, PaymentType
 
 
 class RegularSession(MockingSession):
@@ -106,6 +106,84 @@ class Abandon1stPaymentThenNormal(MockingSession):
         self.user_request_payment()
         self.await_state(SessionState.PAYMENT)
         self.wait_for_timeout(SessionState.PAYMENT)
+        self.verify_state(SessionState.ACTIVE)
+
+        self.user_request_payment()
+        self.await_state(SessionState.PAYMENT)
+        self.delay_action(SessionState.PAYMENT)
+
+        self.station_report_payment()
+        self.await_state(SessionState.RETRIEVAL)
+        self.delay_action(SessionState.RETRIEVAL)
+
+        self.station_report_locker_close()
+        self.await_state(SessionState.COMPLETED)
+        self.verify_state(SessionState.COMPLETED, final=True)
+
+
+class HoldThenPayment(MockingSession):
+    """Hold a session, then continue to payment."""
+
+    def run(self):  # pylint: disable=missing-function-docstring
+        self.user_request_session(payment_method=PaymentType.APP)
+        self.verify_state(SessionState.PAYMENT_SELECTED)
+        self.delay_action(SessionState.PAYMENT_SELECTED)
+
+        self.user_request_verification()
+        self.await_state(SessionState.VERIFICATION)
+        self.delay_action(SessionState.VERIFICATION)
+
+        self.station_report_verification()
+        self.await_state(SessionState.STASHING)
+        self.delay_action(SessionState.STASHING)
+
+        self.station_report_locker_close()
+        self.await_state(SessionState.ACTIVE)
+        self.delay_action(SessionState.ACTIVE)
+
+        self.user_request_hold()
+        self.await_state(SessionState.HOLD)
+        self.delay_action(SessionState.HOLD)
+
+        self.user_request_payment()
+        self.await_state(SessionState.PAYMENT)
+        self.delay_action(SessionState.PAYMENT)
+
+        self.station_report_payment()
+        self.await_state(SessionState.RETRIEVAL)
+        self.delay_action(SessionState.RETRIEVAL)
+
+        self.station_report_locker_close()
+        self.await_state(SessionState.COMPLETED)
+        self.verify_state(SessionState.COMPLETED, final=True)
+
+
+class HoldThenNormal(MockingSession):
+    """Hold a session, then resume to active and complete it."""
+
+    def run(self):  # pylint: disable=missing-function-docstring
+        self.user_request_session(payment_method=PaymentType.APP)
+        self.verify_state(SessionState.PAYMENT_SELECTED)
+        self.delay_action(SessionState.PAYMENT_SELECTED)
+
+        self.user_request_verification()
+        self.await_state(SessionState.VERIFICATION)
+        self.delay_action(SessionState.VERIFICATION)
+
+        self.station_report_verification()
+        self.await_state(SessionState.STASHING)
+        self.delay_action(SessionState.STASHING)
+
+        self.station_report_locker_close()
+        self.await_state(SessionState.ACTIVE)
+        self.delay_action(SessionState.ACTIVE)
+
+        self.user_request_hold()
+        self.await_state(SessionState.HOLD)
+        self.delay_action(SessionState.HOLD)
+
+        self.station_report_locker_close()
+        self.await_state(SessionState.ACTIVE)
         self.verify_state(SessionState.ACTIVE)
 
         self.user_request_payment()

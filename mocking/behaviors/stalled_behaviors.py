@@ -22,6 +22,33 @@ class AbandonStashing(MockingSession):
         self.verify_state(SessionState.STALE, final=True)
 
 
+class AbandonHold(MockingSession):
+    """Abandon session after holding."""
+
+    def run(self):  # pylint: disable=missing-function-docstring
+        self.user_request_session()
+        self.verify_state(SessionState.PAYMENT_SELECTED)
+        self.delay_action(SessionState.PAYMENT_SELECTED)
+
+        self.user_request_verification()
+        self.await_state(SessionState.VERIFICATION)
+        self.delay_action(SessionState.VERIFICATION)
+
+        self.station_report_verification()
+        self.await_state(SessionState.STASHING)
+        self.delay_action(SessionState.STASHING)
+
+        self.station_report_locker_close()
+        self.await_state(SessionState.ACTIVE)
+        self.delay_action(SessionState.ACTIVE)
+
+        self.user_request_hold()
+        self.await_state(SessionState.HOLD)
+        self.wait_for_timeout(SessionState.HOLD)
+
+        self.verify_state(SessionState.STALE, final=True)
+
+
 class AbandonRetrieval(MockingSession):
     """Abandon session after retrieval."""
 
