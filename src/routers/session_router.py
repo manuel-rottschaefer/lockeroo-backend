@@ -19,7 +19,7 @@ from src.models.session_models import (
     CreatedSessionView,
     ActiveSessionView,
     ConcludedSessionView,
-    PaymentTypes)
+    PaymentType)
 from src.models.locker_models import LOCKER_TYPE_NAMES
 # Services
 from src.services import session_services
@@ -98,7 +98,7 @@ async def request_new_session(
     locker_type: Annotated[str, Query(
         enum=LOCKER_TYPE_NAMES,
         description='Type of locker to be used.')],
-    payment_method: Annotated[PaymentTypes, Query(
+    payment_method: Annotated[PaymentType, Query(
         description='Payment method to be used.')],
     _user: Annotated[str, Header(
         alias="user", example=uuid4(),
@@ -150,7 +150,7 @@ async def choose_session_payment_method(
     session_id: Annotated[str, Path(
         pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
         description='Unique identifier of the session.')],
-    payment_method: Annotated[PaymentTypes, Query(
+    payment_method: Annotated[PaymentType, Query(
         description='Payment method to be used.')],
     _user: Annotated[str, Header(
         alias="user", example=uuid4(),

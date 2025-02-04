@@ -100,7 +100,7 @@ FOLLOW_UP_STATES: Dict[SessionState, Union[SessionState, None]] = {
     SessionState.VERIFICATION: SessionState.STASHING,
     SessionState.STASHING: SessionState.ACTIVE,
     SessionState.ACTIVE: SessionState.PAYMENT,
-    SessionState.HOLD: SessionState.PAYMENT,
+    SessionState.HOLD: SessionState.ACTIVE,
     SessionState.PAYMENT: SessionState.RETRIEVAL,
     SessionState.RETRIEVAL: SessionState.COMPLETED,
     SessionState.COMPLETED: None,
@@ -111,10 +111,10 @@ FOLLOW_UP_STATES: Dict[SessionState, Union[SessionState, None]] = {
 }
 
 
-class PaymentTypes(str, Enum):
+class PaymentType(str, Enum):
     """All possible payment methods."""
     TERMINAL = "terminal"
-    ONLINE = "online"
+    APP = "online"
 
 
 class SessionModel(Document):  # pylint: disable=too-many-ancestors
@@ -135,7 +135,7 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     session_type: SessionTypes = Field(
         default=SessionTypes.PERSONAL, description="The type of session service.\
             Affects price and session flow.")
-    payment_method: Optional[PaymentTypes] = Field(
+    payment_method: Optional[PaymentType] = Field(
         default=None, description="The type of payment method.\
             Affects ability to hold and resume sessions.")
 

@@ -20,7 +20,7 @@ from mocking.dep.exceptions import handle_invalid_state
 from mocking.dep.user_pool import UserPool
 from src.models.locker_models import LockerTypeAvailabilityView
 from src.models.session_models import (
-    PaymentTypes,
+    PaymentType,
     SessionView,
     ActiveSessionView,
     CreatedSessionView,
@@ -46,7 +46,8 @@ locust_logger = LocustLogger().logger
 # Read the expiration window
 config = configparser.ConfigParser()
 config.read('mocking/.env')
-QUEUE_EXPIRATION = float(config.get('QUICK_TIMEOUTS', 'QUEUE'))
+section = config.get('TESTING_MODE', 'MODE') + "_DELAYS"
+QUEUE_EXPIRATION = float(config.get(section, 'QUEUE'))
 
 
 class MockingSession:
@@ -66,7 +67,7 @@ class MockingSession:
             ConcludedSessionView]
         self.awaited_state: Optional[SessionState] = None
         self.station_callsign: Optional[str] = None
-        self.payment_method: PaymentTypes
+        self.payment_method: PaymentType
         self.has_reservation: bool = False
 
         # Initialization
@@ -75,7 +76,7 @@ class MockingSession:
         self.choose_user()
 
     def choose_payment_method(self) -> None:
-        self.payment_method = PaymentTypes.TERMINAL
+        self.payment_method = PaymentType.TERMINAL
 
     def choose_user(self) -> None:
         self.user_id = user_pool.pick_user()
@@ -220,7 +221,7 @@ class MockingSession:
             f"at station '{self.station_callsign}'."))
         self.has_reservation = True
 
-    def user_request_session(self, select_payment: bool = True) -> None:
+    def user_request_session(self, payment_method=PaymentType.TERMINAL) -> None:
         """Try to request a new session at the locker station."""
         if self.has_reservation:
             self.logger.debug(
@@ -231,7 +232,7 @@ class MockingSession:
             self.endpoint + '/sessions/create', params={
                 'station_callsign': self.station_callsign,
                 'locker_type': locker_type,
-                'payment_method': self.payment_method if select_payment else None
+                'payment_method': payment_method
             }, headers=self.headers, timeout=3)
         if res.status_code != 201:
             self.terminate_session()
@@ -285,6 +286,19 @@ class MockingSession:
         res.raise_for_status()
 
         self.session = SessionView(**res.json())
+
+    def user_request_hold(self) -> None:
+        """Try to request a session hold."""
+        res = self.client.put(
+            f'{self.endpoint}/sessions/{self.session.id}/hold',
+            headers=self.headers, timeout=3)
+        if res.status_code != 202:
+            self.terminate_session()
+        res.raise_for_status()
+        self.session = SessionView(**res.json())
+        self.logger.info(
+            (f"Requested 'HOLD' for session '#{self.session.id}' "
+             f"at station '{self.station_callsign}'."))
 
     def user_request_payment(self) -> None:
         """Try to request payment for a session."""

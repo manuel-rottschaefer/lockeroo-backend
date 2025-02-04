@@ -47,7 +47,7 @@ from src.models.session_models import (
     ConcludedSessionView,
     CreatedSessionView,
     ActiveSessionView,
-    PaymentTypes,
+    PaymentType,
     SessionModel,
     SessionState)
 from src.models.station_models import StationModel
@@ -264,7 +264,7 @@ async def handle_payment_selection(
             actual_state=task.assigned_session.session_state)
     # TODO: Evaluate if we need to re-check they payment method
     # payment_method: str = payment_method.lower()
-    # if payment_method not in PaymentTypes:
+    # if payment_method not in PaymentType:
     #    raise InvalidPaymentMethodException(
     #        session_id=session_id,
     #        payment_method=payment_method)
@@ -411,7 +411,7 @@ async def handle_hold_request(
         InvalidPaymentMethodException: If the payment method does not allow holding."""
     # 1: Find the session and check whether it belongs to the user
     session: Session = Session(await SessionModel.get(session_id), session_id)
-    await session.doc.assigned_user.fetch_link(SessionModel.assigned_user)
+    await session.doc.fetch_link(SessionModel.assigned_user)
     if session.doc.assigned_user.id != user.id:
         raise UserNotAuthorizedException(user_id=user.id)
 
@@ -423,7 +423,7 @@ async def handle_hold_request(
             actual_state=session.session_state)
 
     # 3: Check whether the user has chosen the app method for payment.
-    if session.payment_method == PaymentTypes.TERMINAL:
+    if session.payment_method == PaymentType.TERMINAL:
         raise InvalidPaymentMethodException(
             session_id=session_id,
             payment_method=session.payment_method)

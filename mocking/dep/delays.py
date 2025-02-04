@@ -12,7 +12,8 @@ config.read('mocking/.env')
 
 
 def get_delay_range(key) -> float:
-    value = config.get('QUICK_TIMEOUTS', key).replace(' ', '')
+    section = config.get('TESTING_MODE', 'MODE') + "_DELAYS"
+    value = config.get(section, key).replace(' ', '')
     if value:
         return list(map(float, value.split(',')))
     return 0

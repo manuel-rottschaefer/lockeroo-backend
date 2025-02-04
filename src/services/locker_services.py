@@ -159,12 +159,15 @@ async def handle_lock_report(
     assert task.assigned_session, f"Task '#{task.id}' has no assigned session."
     session: Session = Session(task.assigned_session)
 
-    assert (session.doc.session_state in [
+    accepted_states = [
+        SessionState.HOLD,
         SessionState.STASHING,
         SessionState.RETRIEVAL,
         SessionState.CANCELED]
-    ), (f"Session '#{session.id}' is in {session.session_state}, expected "
-        f"{[SessionState.STASHING, SessionState.ACTIVE, SessionState.RETRIEVAL]}.")
+
+    assert (session.doc.session_state in accepted_states
+            ), (f"Session '#{session.id}' is in {session.session_state}"
+                f", expected {accepted_states}.")
 
     # 6: If those checks pass, update the locker and create an action
     await locker.register_state(LockerState.LOCKED)
