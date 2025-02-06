@@ -162,10 +162,10 @@ async def reserve_locker_at_station(
         user=access_info)
 
 
-@station_router.patch(
+@station_router.put(
     '/{callsign}/reset_queue',
     response_model=StationView,
-    status_code=status.HTTP_202_ACCEPTED,)
+    status_code=status.HTTP_202_ACCEPTED)
 @ handle_exceptions(logger)
 async def reset_station_queue(
         callsign: Annotated[str, Path(
@@ -176,7 +176,23 @@ async def reset_station_queue(
     return await station_services.reset_queue(callsign=callsign)
 
 
-@station_router.put(
+@ station_router.get(
+    '/{callsign}/state',
+    response_model=StationView,
+    status_code=status.HTTP_200_OK)
+@ handle_exceptions(logger)
+async def get_station_state(
+        _callsign: Annotated[str, Path(
+            pattern='^[A-Z]{6}$', example="MUCODE",
+            description="Unique identifier of the station.")],
+) -> StationView:
+    """Get the high-level station state which indicates general availability."""
+    pass  # TODO: Implement this
+    # return await station_services.get_station_state(
+    #    callsign=callsign)
+
+
+@station_router.patch(
     '/{callsign}/state',
     response_model=StationView,
     status_code=status.HTTP_202_ACCEPTED,)

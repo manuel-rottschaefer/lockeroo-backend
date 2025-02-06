@@ -23,11 +23,6 @@ from src.entities.task_entity import (
     TaskTarget,
     TaskType)
 from src.entities.user_entity import User
-from src.exceptions.locker_exceptions import (
-    InvalidLockerTypeException,
-    LockerNotAvailableException,
-    LockerNotFoundException)
-from src.exceptions.payment_exceptions import InvalidPaymentMethodException
 # Exceptions
 from src.exceptions.session_exceptions import (
     InvalidSessionStateException,
@@ -39,19 +34,24 @@ from src.exceptions.task_exceptions import TaskNotFoundException
 from src.exceptions.user_exceptions import (
     UserHasActiveSessionException,
     UserNotAuthorizedException)
+from src.exceptions.locker_exceptions import (
+    InvalidLockerTypeException,
+    LockerNotAvailableException,
+    LockerNotFoundException)
+from src.exceptions.payment_exceptions import InvalidPaymentMethodException
+# Models
 from src.models.action_models import ActionModel, ActionType
-from src.models.locker_models import LOCKER_TYPES
+from src.models.locker_models import LOCKER_TYPES, LockerState
 from src.models.session_models import (
     ACTIVE_SESSION_STATES,
     SessionView,
     ConcludedSessionView,
     CreatedSessionView,
     ActiveSessionView,
-    PaymentType,
+    PaymentMethod,
     SessionModel,
     SessionState)
 from src.models.station_models import StationModel
-# Models
 from src.models.task_models import TaskItemModel
 from src.services import websocket_services
 # Services
@@ -199,7 +199,6 @@ async def handle_creation_request(
         assigned_session=session.doc,
         assigned_station=station.doc,
         timeout_states=[SessionState.EXPIRED],
-        moves_session=False
     ).insert())
     await task.activate()
 
@@ -301,7 +300,6 @@ async def handle_payment_selection(
         assigned_session=session.doc,
         assigned_station=session.assigned_station,
         timeout_states=[SessionState.EXPIRED],
-        moves_session=False
     ).insert()).activate()
 
     return ActiveSessionView(
@@ -371,17 +369,20 @@ async def handle_verification_request(
     if not session.assigned_station:
         raise StationNotFoundException(station_id=session.assigned_station.id)
 
-    # 4: Complete the previous task and create a new one
+    # 4: Launch a verification process at the station or via the app
     await task.complete()
-    await Task(await TaskItemModel(
-        target=TaskTarget.TERMINAL,
-        task_type=TaskType.CONFIRMATION,
-        assigned_user=session.doc.assigned_user,
-        assigned_session=session.doc,
-        assigned_station=session.assigned_station,
-        timeout_states=[SessionState.ABORTED],
-        moves_session=False
-    ).insert()).evaluate_queue_state()
+    if session.payment_method == PaymentMethod.TERMINAL:
+        await Task(await TaskItemModel(
+            target=TaskTarget.TERMINAL,
+            task_type=TaskType.CONFIRMATION,
+            assigned_user=session.doc.assigned_user,
+            assigned_session=session.doc,
+            assigned_station=session.assigned_station,
+            timeout_states=[SessionState.ABORTED],
+        ).insert()).evaluate_queue_state()
+    else:
+        session.set_state(session.next_state)
+        await session.doc.save_changes()
 
     await ActionModel(
         assigned_session=session.doc, action_type=ActionType.REQUEST_VERIFICATION).insert()
@@ -409,13 +410,35 @@ async def handle_hold_request(
         UserNotAuthorizedException: If the user is not authorized.
         InvalidSessionStateException: If the session is not active or on hold.
         InvalidPaymentMethodException: If the payment method does not allow holding."""
+
+    # 1: Find the task awaiting a user action
+    task: Task = Task(await TaskItemModel.find(
+        TaskItemModel.target == TaskTarget.USER,
+        TaskItemModel.task_type == TaskType.REPORT,
+        TaskItemModel.task_state == TaskState.PENDING,
+        TaskItemModel.assigned_session.id == session_id,  # pylint: disable=no-member
+        fetch_links=True
+    ).sort((
+        TaskItemModel.created_at, SortDirection.ASCENDING
+    )).first_or_none())
+    if not task.exists:
+        raise TaskNotFoundException(
+            task_type=TaskType.REPORT,
+            assigned_station=None,
+            raise_http=False)
+
     # 1: Find the session and check whether it belongs to the user
     session: Session = Session(await SessionModel.get(session_id), session_id)
-    await session.doc.fetch_link(SessionModel.assigned_user)
+    await session.doc.fetch_all_links()
     if session.doc.assigned_user.id != user.id:
         raise UserNotAuthorizedException(user_id=user.id)
 
-    # 2: Check whether the session is active
+    # 2: Get the assigned session and verify its state
+    await task.doc.fetch_all_links()
+    session: Session = Session(task.assigned_session)
+
+    if session.doc.assigned_user.id != user.id:
+        raise UserNotAuthorizedException(user_id=user.id)
     if session.session_state != SessionState.ACTIVE:
         raise InvalidSessionStateException(
             session_id=session_id,
@@ -423,27 +446,28 @@ async def handle_hold_request(
             actual_state=session.session_state)
 
     # 3: Check whether the user has chosen the app method for payment.
-    if session.payment_method == PaymentType.TERMINAL:
+    if session.payment_method == PaymentMethod.TERMINAL:
         raise InvalidPaymentMethodException(
             session_id=session_id,
             payment_method=session.payment_method)
 
     # 4: Get the locker and assign an open request
-    locker: Locker = await Locker(session.assigned_locker)
+    locker: Locker = Locker(session.assigned_locker)
     if not locker.exists:
         raise LockerNotFoundException(locker_id=session.assigned_locker)
 
-    # 5: Create the task awaiting station confirmation of unlocking
-    await Task(TaskItemModel(
+    # 5: Complete the previous task, then instruct locker to open
+    await task.complete()
+    await Task(await TaskItemModel(
         target=TaskTarget.LOCKER,
         task_type=TaskType.CONFIRMATION,
         assigned_user=session.doc.assigned_user,
         assigned_station=session.doc.assigned_station,
         assigned_session=session.doc,
         assigned_locker=locker.doc,
-        timeout_states=[SessionState.ACTIVE, SessionState.ABORTED],
-        moves_session=False
-    ).insert()).evaluate_queue_state()
+        timeout_states=[SessionState.ACTIVE,
+                        SessionState.ABORTED],
+    ).insert()).activate()
 
     await ActionModel(
         assigned_session=session.doc, action_type=ActionType.REQUEST_HOLD).insert()
@@ -452,6 +476,42 @@ async def handle_hold_request(
 
 
 async def handle_payment_request(session_id: ObjId, user: User) -> Optional[SessionView]:
+    """Handles a payment request submitted by a user."""
+    # 1: Find the session and check whether it belongs to the user
+    session: Session = Session(await SessionModel.get(session_id), session_id)
+    await session.doc.fetch_all_links()
+    if session.doc.assigned_user.id != user.id:
+        raise UserNotAuthorizedException(user_id=user.id)
+
+    # 2: Launch the payment initiation handler depending on the selected payment method
+    if session.doc.payment_method == PaymentMethod.TERMINAL:
+        await handle_terminal_payment_request(session, user)
+
+    elif session.doc.payment_method == PaymentMethod.APP:
+        await handle_app_payment_request(session, user)
+
+    return await session.view
+
+
+async def handle_app_payment_request(session: Session, _user: User) -> Optional[SessionView]:
+    """Handles a payment request submitted by a user."""
+    # 1: Check if the session is in the correct state for an app payment.
+    expected_states = [
+        SessionState.ACTIVE,
+        SessionState.HOLD
+    ]
+    if session.doc.session_state not in expected_states:
+        raise InvalidSessionStateException(
+            session_id=session.id,
+            expected_states=expected_states,
+            actual_state=session.doc.session_state)
+
+    # 2: Move the session to the next state.
+    session.set_state(SessionState.PAYMENT)
+    await session.doc.save_changes()
+
+
+async def handle_terminal_payment_request(session: Session, user: User) -> Optional[SessionView]:
     """Handles a payment request submitted by a user.
 
     Finds a pending task that is awaiting such a request.
@@ -474,35 +534,26 @@ async def handle_payment_request(session_id: ObjId, user: User) -> Optional[Sess
         TaskItemModel.target == TaskTarget.USER,
         TaskItemModel.task_type == TaskType.REPORT,
         TaskItemModel.task_state == TaskState.PENDING,
-        TaskItemModel.assigned_session.id == session_id,  # pylint: disable=no-member
+        TaskItemModel.assigned_session.id == session.doc.id,  # pylint: disable=no-member
+        # TaskItemModel.assigned_user.id == user.doc.id,  # pylint: disable=no-member
         fetch_links=True
     ).sort((
         TaskItemModel.created_at, SortDirection.ASCENDING
     )).first_or_none())
     if not task.exists:
-        # Get the session by ID
-        session: SessionModel = await SessionModel.get(session_id)
-        await session.fetch_link(SessionModel.assigned_station)
-        if not session.exists():
+        if not session.exists:
             raise SessionNotFoundException(user_id=user.fief_id)
         raise TaskNotFoundException(
             task_type=TaskType.REPORT,
             assigned_station=session.assigned_station.id,
             raise_http=False)
 
-    # 2: Get the assigned session and station
-    # await task.doc.fetch_link(TaskItemModel.assigned_session)
-    session: Session = Session(task.assigned_session)
-
-    # 3: Validate session result
-    if session.doc.assigned_user.id != user.id:
-        raise UserNotAuthorizedException(user_id=user.id)
-
+    # 2: Check if the session is in the correct state
     ACCEPTED_STATES = [SessionState.ACTIVE,  # pylint: disable=invalid-name
                        SessionState.HOLD]
     if session.session_state not in ACCEPTED_STATES:
         raise InvalidSessionStateException(
-            session_id=session_id,
+            session_id=session.id,
             expected_states=ACCEPTED_STATES,
             actual_state=session.session_state)
 
@@ -522,12 +573,144 @@ async def handle_payment_request(session_id: ObjId, user: User) -> Optional[Sess
         assigned_station=session.assigned_station,
         timeout_states=[session.session_state,
                         SessionState.EXPIRED],
-        moves_session=False,
     ).insert()).evaluate_queue_state()
 
     # 6: Log the request
     await ActionModel(
         assigned_session=session.doc, action_type=ActionType.REQUEST_PAYMENT).insert()
+
+
+async def handle_verification_completion(
+        session_id: ObjId, user: User) -> Optional[SessionView]:
+    """Handles a verification completion request submitted by a user.
+    Finds the session that the user wants to complete the verification for.
+    If such a session is found, the user authorization is confirmed,
+    the session state is updated and a new task awaiting the verification request is created.
+
+    Args:
+        session_id (ObjId): The ID of the session
+        user (User): The user that is submitting the request
+    Returns:
+        A SessionView dict if the session exists.
+    Raises:
+        SessionNotFoundException: If the session is not found.
+    """
+    # 1: Find the session and check whether it belongs to the user
+    session: Session = Session(await SessionModel.get(session_id), session_id)
+    await session.doc.fetch_all_links()
+    if session.doc.assigned_user.id != user.id:
+        raise UserNotAuthorizedException(user_id=user.id)
+
+    # 2: Check if the session is in the correct state
+    accepted_states = [SessionState.VERIFICATION]
+    if session.doc.session_state not in accepted_states:
+        raise InvalidSessionStateException(
+            session_id=session_id,
+            expected_states=accepted_states,
+            actual_state=session.doc.session_state)
+
+    # 3: Check if the session has the correct payment method
+    if session.payment_method != PaymentMethod.APP:
+        raise InvalidPaymentMethodException(
+            session_id=session_id,
+            payment_method=session.payment_method)
+
+    # 4: Get the locker and assign an open request
+    locker: Locker = Locker(session.assigned_locker)
+    if not locker.exists:
+        raise LockerNotFoundException(locker_id=session.assigned_locker)
+
+    await Task(await TaskItemModel(
+        target=TaskTarget.LOCKER,
+        task_type=TaskType.CONFIRMATION,
+        assigned_user=session.doc.assigned_user,
+        assigned_station=session.doc.assigned_station,
+        assigned_session=session.doc,
+        assigned_locker=locker.doc,
+        timeout_states=[SessionState.ABORTED],
+    ).insert()).activate()
+
+    # TODO: Add action for payment
+
+    return await session.view
+
+
+async def handle_payment_completion(
+        session_id: ObjId, user: User) -> Optional[SessionView]:
+    """Handles a payment completion request submitted by a user.
+    A payment completion request can only be submitted for sessions
+    that are not using terminal payment.
+
+    Finds the session that the user wants to complete the payment for.
+    If such a session is found, the user authorization is confirmed,
+    the session state is updated and a new task awaiting the verification request is created.
+
+    Args:
+        session_id (ObjId): The ID of the session
+        user (User): The user that is submitting the request
+    Returns:
+        A SessionView dict if the session exists.
+    Raises:
+        SessionNotFoundException: If the session is not found.
+        UserNotAuthorizedException: If the user is not authorized.
+        InvalidSessionStateException: If the session is not active or on hold."""
+
+    # 1: Find the session and check whether it belongs to the user
+    session: Session = Session(await SessionModel.get(session_id), session_id)
+    await session.doc.fetch_all_links()
+    if session.doc.assigned_user.id != user.id:
+        raise UserNotAuthorizedException(user_id=user.id)
+
+    # 2: Check if the session is in the correct state
+    accepted_states = [SessionState.PAYMENT]
+    if session.session_state not in accepted_states:
+        raise InvalidSessionStateException(
+            session_id=session_id,
+            expected_states=accepted_states,
+            actual_state=session.session_state)
+
+    # 3: Check if the session has the correct payment method
+    if session.payment_method != PaymentMethod.APP:
+        raise InvalidPaymentMethodException(
+            session_id=session_id,
+            payment_method=session.payment_method)
+
+    # 4: Get the locker and assign an open request
+    locker: Locker = Locker(session.assigned_locker)
+    if not locker.exists:
+        raise LockerNotFoundException(locker_id=session.assigned_locker)
+
+    # 5: If the locker is not yet open (from holding), open it.
+    # else, directly await locker closing from retrieval.
+
+    # Wait for locker to open
+    if locker.doc.locker_state == LockerState.LOCKED:
+        await Task(await TaskItemModel(
+            target=TaskTarget.LOCKER,
+            task_type=TaskType.CONFIRMATION,
+            assigned_user=session.doc.assigned_user,
+            assigned_station=session.doc.assigned_station,
+            assigned_session=session.doc,
+            assigned_locker=locker.doc,
+            timeout_states=[SessionState.ACTIVE,
+                            SessionState.ABORTED],
+        ).insert()).activate()
+
+    else:
+        session.set_state(SessionState.RETRIEVAL)
+        await session.doc.save_changes()
+        # Wait for station to report locker close
+        await Task(await TaskItemModel(
+            target=TaskTarget.LOCKER,
+            task_type=TaskType.REPORT,
+            assigned_user=session.doc.assigned_user,
+            assigned_station=session.doc.assigned_station,
+            assigned_session=session.doc,
+            assigned_locker=locker.doc,
+            timeout_states=[SessionState.STALE],
+        ).insert()).activate()
+
+    # TODO: Add action for payment
 
     return await session.view
 
@@ -589,7 +772,9 @@ async def handle_cancel_request(session_id: ObjId, user: User
     await session.broadcast_update()
     await session.handle_conclude()
     await ActionModel(
-        assigned_session=session.doc, action_type=ActionType.REQUEST_CANCEL).insert()
+        assigned_session=session.doc,
+        action_type=ActionType.REQUEST_CANCEL
+    ).insert()
 
     return ConcludedSessionView(
         id=str(session.id),

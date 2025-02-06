@@ -230,7 +230,7 @@ async def handle_reservation_request(
         assigned_station=station.doc,
         assigned_locker=available_locker.doc,
         timeout_states=[SessionState.EXPIRED],
-        moves_session=False
+
     ).insert()).activate()
 
 
@@ -328,7 +328,6 @@ async def handle_terminal_report(
         assigned_station=station.doc,
         assigned_session=session.doc,
         timeout_states=[SessionState.ABORTED],
-        moves_session=False,
     ).insert()).activate()
 
     await task.complete()
@@ -388,24 +387,24 @@ async def handle_terminal_state_confirmation(
         await Task(await TaskItemModel(
             target=TaskTarget.TERMINAL,
             task_type=TaskType.REPORT,
+            queued_state=session.next_state,
             assigned_user=session.assigned_user,
             assigned_station=station.doc,
             assigned_session=session.doc,
             timeout_states=([SessionState.EXPIRED] if session.timeout_count >= 1
                             else [SessionState.PAYMENT_SELECTED, SessionState.EXPIRED]),
-            moves_session=True,
         ).insert()).activate()
 
     elif confirmed_state == TerminalState.PAYMENT:
         await Task(await TaskItemModel(
             target=TaskTarget.TERMINAL,
             task_type=TaskType.REPORT,
+            queued_state=session.next_state,
             assigned_user=session.assigned_user,
             assigned_station=station.doc,
             assigned_session=session.doc,
             timeout_states=([SessionState.EXPIRED] if session.timeout_count >= 1
                             else [session.doc.session_state, SessionState.EXPIRED]),
-            moves_session=True,
         ).insert()).activate()
 
     elif session.doc.session_state not in ACTIVE_SESSION_STATES:
@@ -422,7 +421,6 @@ async def handle_terminal_state_confirmation(
                 assigned_station=station.doc,
                 assigned_session=session.doc,
                 timeout_states=[SessionState.EXPIRED],
-                moves_session=False,
             ).insert()).activate()
         else:
             # Create a task to await the unlocking
@@ -434,7 +432,6 @@ async def handle_terminal_state_confirmation(
                 assigned_session=session.doc,
                 assigned_locker=session.assigned_locker,
                 timeout_states=[SessionState.ABORTED],
-                moves_session=False,
             ).insert()).activate()
 
     else:

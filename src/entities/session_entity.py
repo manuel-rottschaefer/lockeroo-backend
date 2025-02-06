@@ -8,7 +8,7 @@ from src.entities.entity_utils import Entity
 from src.models.action_models import ActionModel
 from src.models.locker_models import LockerModel
 from src.models.session_models import (
-    FOLLOW_UP_STATES,
+    SESSION_STATE_FLOW,
     SessionModel,
     SessionState,
     SessionView,
@@ -107,7 +107,8 @@ class Session(Entity):
     @ property
     def next_state(self) -> SessionState:
         """Return the next logical state of the session."""
-        return FOLLOW_UP_STATES[self.session_state]
+
+        return SESSION_STATE_FLOW[self.session_state]
 
     async def broadcast_update(self, task: TaskItemModel = None) -> None:
         """Send a websocket update to the client."""

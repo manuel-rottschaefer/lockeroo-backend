@@ -1,6 +1,6 @@
 """Session behaviors that end in SessionState.COMPLETED."""
 from mocking.dep.abilities import MockingSession
-from src.models.session_models import SessionState, PaymentType
+from src.models.session_models import SessionState, PaymentMethod
 
 
 class RegularSession(MockingSession):
@@ -125,7 +125,8 @@ class HoldThenPayment(MockingSession):
     """Hold a session, then continue to payment."""
 
     def run(self):  # pylint: disable=missing-function-docstring
-        self.user_request_session(payment_method=PaymentType.APP)
+        self.set_payment_method(PaymentMethod.APP)
+        self.user_request_session()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
 
@@ -133,7 +134,7 @@ class HoldThenPayment(MockingSession):
         self.await_state(SessionState.VERIFICATION)
         self.delay_action(SessionState.VERIFICATION)
 
-        self.station_report_verification()
+        self.stripe_report_verification()
         self.await_state(SessionState.STASHING)
         self.delay_action(SessionState.STASHING)
 
@@ -149,7 +150,7 @@ class HoldThenPayment(MockingSession):
         self.await_state(SessionState.PAYMENT)
         self.delay_action(SessionState.PAYMENT)
 
-        self.station_report_payment()
+        self.stripe_report_payment()
         self.await_state(SessionState.RETRIEVAL)
         self.delay_action(SessionState.RETRIEVAL)
 
@@ -162,7 +163,8 @@ class HoldThenNormal(MockingSession):
     """Hold a session, then resume to active and complete it."""
 
     def run(self):  # pylint: disable=missing-function-docstring
-        self.user_request_session(payment_method=PaymentType.APP)
+        self.set_payment_method(PaymentMethod.APP)
+        self.user_request_session()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
 
@@ -170,7 +172,7 @@ class HoldThenNormal(MockingSession):
         self.await_state(SessionState.VERIFICATION)
         self.delay_action(SessionState.VERIFICATION)
 
-        self.station_report_verification()
+        self.stripe_report_verification()
         self.await_state(SessionState.STASHING)
         self.delay_action(SessionState.STASHING)
 
@@ -190,9 +192,9 @@ class HoldThenNormal(MockingSession):
         self.await_state(SessionState.PAYMENT)
         self.delay_action(SessionState.PAYMENT)
 
-        self.station_report_payment()
-        self.await_state(SessionState.RETRIEVAL)
+        self.stripe_report_payment()
         self.delay_action(SessionState.RETRIEVAL)
+        self.verify_state(SessionState.RETRIEVAL)
 
         self.station_report_locker_close()
         self.await_state(SessionState.COMPLETED)

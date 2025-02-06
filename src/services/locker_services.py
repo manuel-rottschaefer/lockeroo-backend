@@ -67,30 +67,35 @@ async def handle_unlock_confirmation(
     assert task.assigned_session, f"Task '#{task.id}' has no assigned session."
     session: Session = Session(task.assigned_session)
 
+    # Verify session state for terminal payment sessions
     expected_states = [
         SessionState.VERIFICATION,
         SessionState.PAYMENT,
-        SessionState.HOLD]
-    assert (session.doc.session_state in expected_states
-            ), (f"Session '#{session.id}' is in {session.session_state}, expected "
-                f"{expected_states}.")
+        SessionState.ACTIVE]
+    assert (session.doc.session_state in expected_states), (
+        f"Session '#{session.id}' is in {session.session_state}, expected "
+        f"{expected_states}.")
 
-    # 6: If those checks pass, update the locker and create an action
+    # 6: If those checks pass, register locker state and complete task
     await locker.register_state(LockerState.UNLOCKED)
-
-    # 7: Complete the task and restart the expiration manager
     await task.complete()
 
     # 8: Create a queue item for the user to lock the locker
+    # TODO: FIXME this is not an optimal solution
+    next_state = session.next_state if session.doc.session_state in [
+        SessionState.VERIFICATION,
+        SessionState.PAYMENT
+    ] else SessionState.HOLD
+
     await Task(await TaskItemModel(
         target=TaskTarget.LOCKER,
         task_type=TaskType.REPORT,
+        queued_state=next_state,
         assigned_user=session.doc.assigned_user,
         assigned_session=session.doc,
         assigned_station=locker.doc.station,
         assigned_locker=locker.doc,
         timeout_states=[SessionState.STALE],
-        moves_session=True,
     ).insert()).activate()
 
 
@@ -111,7 +116,7 @@ async def handle_lock_report(
     if not task.exists:
         # Try to find a session that matches the locker
         # and is in a non-complete and non-active state
-        EXPECTED_STATES = [
+        expected_states = [
             SessionState.CANCELED,
             SessionState.ABANDONED,
             SessionState.STALE,
@@ -119,14 +124,15 @@ async def handle_lock_report(
         session: Session = Session(await SessionModel.find(
             SessionModel.assigned_locker.station.callsign == callsign,  # pylint: disable=no-member
             SessionModel.assigned_locker.station_index == station_index,  # pylint: disable=no-member
-            In(SessionModel.session_state, EXPECTED_STATES),
+            SessionModel.assigned_user.id == task.assigned_user.id,    # pylint: disable=no-member
+            In(SessionModel.session_state, expected_states),
             fetch_links=True
         ).first_or_none())
         if session.exists:
             raise InvalidSessionStateException(
                 session_id=session.id,
                 actual_state=session.doc.session_state,
-                expected_states=[EXPECTED_STATES]
+                expected_states=[expected_states]
             )
 
         raise TaskNotFoundException(
@@ -164,13 +170,13 @@ async def handle_lock_report(
         SessionState.STASHING,
         SessionState.RETRIEVAL,
         SessionState.CANCELED]
-
     assert (session.doc.session_state in accepted_states
             ), (f"Session '#{session.id}' is in {session.session_state}"
                 f", expected {accepted_states}.")
 
-    # 6: If those checks pass, update the locker and create an action
+    # 6: If those checks pass, register locker state and complete task
     await locker.register_state(LockerState.LOCKED)
+    await task.complete()
 
     action_type: ActionType = (
         ActionType.LOCK_AFTER_STASHING if session.doc.session_state == SessionState.STASHING
@@ -178,12 +184,8 @@ async def handle_lock_report(
     await ActionModel(
         assigned_session=session.doc, action_type=action_type).insert()
 
-    # 7: Complete the task and restart the expiration manager
-    await task.complete()
-
-    # 8: Catch completed sessions
-    next_state: SessionState = session.next_state
-    if next_state == SessionState.COMPLETED:
+    # 7: Catch completed sessions
+    if session.next_state == SessionState.COMPLETED:
         session.set_state(SessionState.COMPLETED)
         session.doc.completed_at = datetime.now()
         # TODO: Should be redundant with handle_conclude, but is not
@@ -193,7 +195,7 @@ async def handle_lock_report(
             assigned_session=session.doc, action_type=ActionType.COMPLETE).insert()
         return await session.handle_conclude()
 
-    # Catch canceled sessions
+    # 8: Catch canceled sessions
     if session.doc.session_state == SessionState.CANCELED:
         return
 
@@ -201,9 +203,10 @@ async def handle_lock_report(
     await Task(await TaskItemModel(
         task_type=TaskType.REPORT,
         target=TaskTarget.USER,
+        assigned_user=session.doc.assigned_user,
         assigned_session=session.doc,
         assigned_station=locker.doc.station,
         assigned_locker=locker.doc,
         timeout_states=[SessionState.ABANDONED],
-        moves_session=True,
+        queued_state=session.next_state
     ).insert()).activate()

@@ -15,13 +15,14 @@ from src.entities.task_entity import task_expiration_manager
 # Database
 import src.services.database_services as database
 # Routers
-from src.routers.session_router import session_router
 from src.routers.station_router import station_router
-from src.routers.auth_router import auth_router
+from src.routers.session_router import session_router
+from src.routers.payment_router import payment_router
 from src.routers.review_router import review_router
-from src.routers.admin_router import admin_router
 from src.routers.maintenance_router import maintenance_router
 from src.routers.dashboard_router import dashboard_router
+from src.routers.auth_router import auth_router
+from src.routers.admin_router import admin_router
 
 # Load environment variables
 load_dotenv('.env')
@@ -73,17 +74,19 @@ app.include_router(station_router, prefix="/stations",
                    tags=["Station"])
 app.include_router(session_router, prefix="/sessions",
                    tags=["Sessions"])
+app.include_router(payment_router, prefix="/payments",
+                   tags=["Payments"])
 # app.include_router(user_router, prefix="/users", tags=["Users"])
-app.include_router(maintenance_router, prefix='/maintenace',
-                   tags=['Maintenance'])
-app.include_router(auth_router, prefix='/auth',
-                   tags=['Authentification'])
 app.include_router(review_router, prefix='/review',
                    tags=['Reviews'])
-app.include_router(admin_router, prefix='/admin',
-                   tags=['Admin'])
+app.include_router(maintenance_router, prefix='/maintenace',
+                   tags=['Maintenance'])
 app.include_router(dashboard_router, prefix='/dashboard',
                    tags=['Dashboard'])
+app.include_router(auth_router, prefix='/auth',
+                   tags=['Authentification'])
+app.include_router(admin_router, prefix='/admin',
+                   tags=['Admin'])
 
 
 if __name__ == "__main__":

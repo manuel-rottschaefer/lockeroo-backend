@@ -94,7 +94,7 @@ SESSION_TIMEOUTS: Dict[SessionState, int] = {
     SessionState.ABORTED: float(getenv("ABORTED", '0'))
 }
 
-FOLLOW_UP_STATES: Dict[SessionState, Union[SessionState, None]] = {
+SESSION_STATE_FLOW: Dict[SessionState, Union[SessionState, None]] = {
     SessionState.CREATED: SessionState.PAYMENT_SELECTED,
     SessionState.PAYMENT_SELECTED: SessionState.VERIFICATION,
     SessionState.VERIFICATION: SessionState.STASHING,
@@ -111,10 +111,10 @@ FOLLOW_UP_STATES: Dict[SessionState, Union[SessionState, None]] = {
 }
 
 
-class PaymentType(str, Enum):
+class PaymentMethod(str, Enum):
     """All possible payment methods."""
     TERMINAL = "terminal"
-    APP = "online"
+    APP = "app"
 
 
 class SessionModel(Document):  # pylint: disable=too-many-ancestors
@@ -135,7 +135,7 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     session_type: SessionTypes = Field(
         default=SessionTypes.PERSONAL, description="The type of session service.\
             Affects price and session flow.")
-    payment_method: Optional[PaymentType] = Field(
+    payment_method: Optional[PaymentMethod] = Field(
         default=None, description="The type of payment method.\
             Affects ability to hold and resume sessions.")
 
@@ -174,8 +174,7 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     async def log_creation(self):
         await self.fetch_link(SessionModel.assigned_locker)
         logger.debug(
-            (f"Created session '#{self.id}' for user "
-             f"'{self.assigned_user.fief_id}' at locker "  # pylint: disable=no-member
+            (f"Created session '#{self.id}' at locker "  # pylint: disable=no-member
              f"'#{self.assigned_locker.id}'."))  # pylint: disable=no-member
 
     @ dataclass
@@ -316,7 +315,7 @@ class WebsocketUpdate(View):
 
 class ConcludedSessionView(View):
     """Used for serving information about a completed session"""
-    id: ObjId = Field(None, alias="_id")
+    id: ObjId = Field(alias=None)
     station: str
     locker_index: int
     service_type: SessionTypes

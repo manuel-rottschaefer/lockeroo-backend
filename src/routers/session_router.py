@@ -17,9 +17,8 @@ from src.models.action_models import ActionView
 from src.models.session_models import (
     SessionView,
     CreatedSessionView,
-    ActiveSessionView,
     ConcludedSessionView,
-    PaymentType)
+    PaymentMethod)
 from src.models.locker_models import LOCKER_TYPE_NAMES
 # Services
 from src.services import session_services
@@ -98,11 +97,11 @@ async def request_new_session(
     locker_type: Annotated[str, Query(
         enum=LOCKER_TYPE_NAMES,
         description='Type of locker to be used.')],
-    payment_method: Annotated[PaymentType, Query(
-        description='Payment method to be used.')],
     _user: Annotated[str, Header(
         alias="user", example=uuid4(),
         description="The user who is requesting a new session.")],
+    payment_method: Annotated[PaymentMethod, Query(
+        description='Payment method to be used.')] = None,
     access_info: User = Depends(require_auth),
 ) -> Optional[CreatedSessionView]:
     """Handle request to create a new session"""
@@ -117,7 +116,7 @@ async def request_new_session(
         )
 
 
-@ session_router.put(
+@ session_router.patch(
     '/{session_id}/cancel',
     response_model=Optional[ConcludedSessionView],
     status_code=status.HTTP_202_ACCEPTED,
@@ -140,58 +139,7 @@ async def request_session_cancel(
     )
 
 
-@ session_router.put(
-    '/{session_id}/payment/select',
-    response_model=Optional[ActiveSessionView],
-    status_code=status.HTTP_202_ACCEPTED,
-    description="Select a payment method for a session")
-@ handle_exceptions(logger)
-async def choose_session_payment_method(
-    session_id: Annotated[str, Path(
-        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
-        description='Unique identifier of the session.')],
-    payment_method: Annotated[PaymentType, Query(
-        description='Payment method to be used.')],
-    _user: Annotated[str, Header(
-        alias="user", example=uuid4(),
-        description="User UUID (only for debug)")],
-    access_info: User = Depends(require_auth),
-):
-    """Handle request to select a payment method"""
-    logger.info((f"User '#{access_info.id}' is choosing a "
-                f"payment method for session '#{session_id}'."))
-    return await session_services.handle_payment_selection(
-        user=access_info,
-        session_id=ObjId(session_id),
-        payment_method=payment_method
-    )
-
-
-@ session_router.put(
-    '/{session_id}/payment/verify',
-    response_model=Optional[SessionView],
-    status_code=status.HTTP_202_ACCEPTED,
-    description='Request to enter the verification queue of a session')
-@ handle_exceptions(logger)
-async def request_session_verification(
-    session_id: Annotated[str, Path(
-        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
-        description='Unique identifier of the session.')],
-    _user: Annotated[str, Header(
-        alias="user", example=uuid4(),
-        description="User UUID (only for debug)")],
-    access_info: User = Depends(require_auth)
-):
-    """Handle request to enter the verification queue of a session"""
-    logger.info(
-        (f"User '#{access_info.id}' is requesting to conduct a "
-         f"verification for session '#{session_id}'."))
-    return await session_services.handle_verification_request(
-        session_id=ObjId(session_id),
-        user=access_info)
-
-
-@ session_router.put(
+@ session_router.patch(
     '/{session_id}/hold',
     response_model=Optional[SessionView],
     status_code=status.HTTP_202_ACCEPTED,
@@ -211,31 +159,6 @@ async def request_session_hold(
         (f"User '#{access_info.id}' is trying to "
          f"hold session '#{session_id}'."))
     return await session_services.handle_hold_request(
-        session_id=ObjId(session_id),
-        user=access_info
-    )
-
-
-@ session_router.put(
-    '/{session_id}/payment',
-    response_model=Optional[SessionView],
-    status_code=status.HTTP_202_ACCEPTED,
-    description='Request to enter the payment phase of a session')
-@ handle_exceptions(logger)
-async def request_session_payment(
-    session_id: Annotated[str, Path(
-        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
-        description='Unique identifier of the session.')],
-    _user: Annotated[str, Header(
-        alias="user", example=uuid4(),
-        description="User UUID (only for debug)")],
-    access_info: User = Depends(require_auth)
-):
-    """Handle request to enter the payment phase of a session"""
-    logger.info(
-        (f"User '#{access_info.id}' is requesting to "
-         f"conduct a payment for session '#{session_id}'."))
-    return await session_services.handle_payment_request(
         session_id=ObjId(session_id),
         user=access_info
     )

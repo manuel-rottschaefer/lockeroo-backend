@@ -21,7 +21,7 @@ maintenance_router = APIRouter()
 
 
 @maintenance_router.get(
-    '/maintenance/{callsign}/next',
+    '/{callsign}/next',
     status_code=status.HTTP_200_OK,
     response_model=MaintenanceView)
 @ handle_exceptions(logger)
@@ -40,8 +40,8 @@ async def get_next_scheduled_maintenance(
     )
 
 
-@ maintenance_router.post(
-    '/maintenance/{callsign}/schedule',
+@ maintenance_router.patch(
+    '/{callsign}/schedule',
     status_code=status.HTTP_201_CREATED,
     response_model=MaintenanceView,
 )
@@ -63,7 +63,7 @@ async def request_maintenance_scheduling(
 
 
 @ maintenance_router.put(
-    '/maintenance/{callsign}/cancel',
+    '/{callsign}/cancel',
     status_code=status.HTTP_200_OK,
     response_model=MaintenanceView)
 @ handle_exceptions(logger)
@@ -87,7 +87,7 @@ async def request_maintenance_cancelation(
 
 
 @ maintenance_router.put(
-    '/maintenance/{callsign}/complete',
+    '/{callsign}/complete',
     status_code=status.HTTP_200_OK,
     response_model=MaintenanceView)
 @ handle_exceptions(logger)

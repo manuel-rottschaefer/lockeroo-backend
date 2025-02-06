@@ -1,10 +1,9 @@
 """Abilities for the locust user mocker"""
 import json
 import threading
-import configparser
 from time import sleep
 from os import getenv
-from random import choice, uniform
+from random import choice, random
 from datetime import datetime, timedelta
 
 from typing import List, Optional, Union
@@ -20,7 +19,7 @@ from mocking.dep.exceptions import handle_invalid_state
 from mocking.dep.user_pool import UserPool
 from src.models.locker_models import LockerTypeAvailabilityView
 from src.models.session_models import (
-    PaymentType,
+    PaymentMethod,
     SessionView,
     ActiveSessionView,
     CreatedSessionView,
@@ -43,11 +42,7 @@ mqtt_client.loop_start()
 # Initialize the logger once
 locust_logger = LocustLogger().logger
 
-# Read the expiration window
-config = configparser.ConfigParser()
-config.read('mocking/.env')
-section = config.get('TESTING_MODE', 'MODE') + "_DELAYS"
-QUEUE_EXPIRATION = float(config.get(section, 'QUEUE'))
+QUEUE_EXPIRATION = 300
 
 
 class MockingSession:
@@ -67,16 +62,21 @@ class MockingSession:
             ConcludedSessionView]
         self.awaited_state: Optional[SessionState] = None
         self.station_callsign: Optional[str] = None
-        self.payment_method: PaymentType
+        self.payment_method: PaymentMethod
         self.has_reservation: bool = False
+        self.session = None
+        self.res: dict
 
         # Initialization
         self.choose_station()
         self.choose_payment_method()
         self.choose_user()
 
+    def set_payment_method(self, method: PaymentMethod):
+        self.payment_method = method
+
     def choose_payment_method(self) -> None:
-        self.payment_method = PaymentType.TERMINAL
+        self.payment_method = PaymentMethod.TERMINAL
 
     def choose_user(self) -> None:
         self.user_id = user_pool.pick_user()
@@ -129,8 +129,9 @@ class MockingSession:
     def delay_action(self, session_state: SessionState):
         """Emulate a user delay based on the session state.
         The delay should be less than the session timeout."""
-        sleep_duration = uniform(ACTION_DELAYS[session_state]
-                                 [0], ACTION_DELAYS[session_state][1])
+        lower = ACTION_DELAYS[session_state][0]
+        upper = ACTION_DELAYS[session_state][1]
+        sleep_duration = lower + (upper - lower) * (random() ** 3)
         sleep(sleep_duration)
 
     @ handle_invalid_state
@@ -158,11 +159,22 @@ class MockingSession:
                 expected_states=[expected_state]
             )
 
-    def terminate_session(self):
+    def terminate_session(self, invalid_status=False):
+        """Terminate the current session and free up the user ID."""
         sleep(5)  # Wait five seconds before freeing up the user ID
-        # self.logger.debug((
-        #    f"Terminating session '#{self.session.id}' of "
-        #    f"user {self.user_id}"))
+        if self.session.id == None:
+            self.session = {'id': 'Unknown'}
+        if self.res.status_code == 422:
+            self.logger.error(
+                "Failed to terminate session due to request error.")
+        elif invalid_status:
+            self.logger.error((
+                f"Terminating session '#{self.session.id}' "
+                f"due to invalid status code."))
+        else:
+            self.logger.debug((
+                f"Terminating session '#{self.session.id}' of "
+                f"user {self.user_id}"))
         user_pool.drop_user(self.user_id)
         self.task_set.interrupt()
 
@@ -172,14 +184,16 @@ class MockingSession:
 
     def choose_station(self):
         """Request a list of stations from the backend and choose a random one."""
-        res = self.client.get(
+        self.res = self.client.get(
             f'{self.endpoint}/stations/', timeout=3
         )
-        if res.status_code != 200:
-            self.terminate_session()
-        res.raise_for_status()
+        if self.res.status_code != 200:
+            self.logger.error(f"Invalid status code '{self.res.status_code}' "
+                              f" for station info request.")
+            self.terminate_session(invalid_status=True)
+        self.res.raise_for_status()
         avail_station_codes: List[str] = [
-            station['callsign'] for station in res.json()
+            station['callsign'] for station in self.res.json()
         ]
         if len(avail_station_codes):
             self.station_callsign = choice(avail_station_codes)
@@ -187,13 +201,15 @@ class MockingSession:
 
     def find_available_locker(self) -> Optional[str]:
         """Try to find an available locker at the locker station."""
-        res = self.client.get(
+        self.res = self.client.get(
             f'{self.endpoint}/stations/{self.station_callsign}/lockers', timeout=3)
-        if res.status_code != 200:
-            self.terminate_session()
-        res.raise_for_status()
+        if self.res.status_code != 200:
+            self.logger.error(f"Invalid status code '{self.res.status_code}' "
+                              f" for locker info request.")
+            self.terminate_session(invalid_status=True)
+        self.res.raise_for_status()
         avail_locker_types: List[LockerTypeAvailabilityView] = [
-            LockerTypeAvailabilityView(**i) for i in res.json() if i['is_available']]
+            LockerTypeAvailabilityView(**i) for i in self.res.json() if i['is_available']]
         if not avail_locker_types:
             # Wait here so a locker can become available
             self.terminate_session()
@@ -209,36 +225,40 @@ class MockingSession:
     def user_request_reservation(self) -> None:
         """Request a session reservation at the station."""
         locker_type = self.find_available_locker()
-        res = self.client.post(
+        self.res = self.client.post(
             self.endpoint + f'/stations/{self.station_callsign}/reservation',
             params={'locker_type': locker_type
                     }, headers=self.headers, timeout=3)
-        if res.status_code != 202:
-            self.terminate_session()
-        res.raise_for_status()
-        self.logger.debug((
-            f"Requested reservation for user '{self.user_id}' "
+        if self.res.status_code != 202:
+            self.logger.error(f"Invalid status code '{self.res.status_code}' "
+                              f" for reservation request.")
+            self.terminate_session(invalid_status=True)
+        self.res.raise_for_status()
+        self.logger.info((
+            f"Requested 'RESERVATION' for user '{self.user_id}' "
             f"at station '{self.station_callsign}'."))
         self.has_reservation = True
 
-    def user_request_session(self, payment_method=PaymentType.TERMINAL) -> None:
+    def user_request_session(self, select_payment: bool = True) -> None:
         """Try to request a new session at the locker station."""
         if self.has_reservation:
             self.logger.debug(
                 f"Activating reservation for user '{self.user_id}'.")
         # self.logger.info('-' * 64)
         locker_type = self.find_available_locker()
-        res = self.client.post(
+        self.res = self.client.post(
             self.endpoint + '/sessions/create', params={
                 'station_callsign': self.station_callsign,
                 'locker_type': locker_type,
-                'payment_method': payment_method
+                'payment_method': self.payment_method if select_payment else None
             }, headers=self.headers, timeout=3)
-        if res.status_code != 201:
-            self.terminate_session()
-        res.raise_for_status()
+        if self.res.status_code != 201:
+            self.logger.error(f"Invalid status code '{self.res.status_code}' "
+                              f" for creation request.")
+            self.terminate_session(invalid_status=True)
+        self.res.raise_for_status()
 
-        self.session = CreatedSessionView(**res.json())
+        self.session = CreatedSessionView(**self.res.json())
         self.subscribe_to_updates()
         self.logger.info(
             f"Requested session '#{self.session.id}' for user "
@@ -247,68 +267,77 @@ class MockingSession:
 
     def user_request_cancel_session(self) -> None:
         """Try to cancel a session."""
-        res = self.client.put(
+        self.res = self.client.patch(
             f'{self.endpoint}/sessions/{self.session.id}/cancel',
             headers=self.headers, timeout=3)
-        if res.status_code != 202:
-            self.terminate_session()
-        res.raise_for_status()
-        self.session = ConcludedSessionView(**res.json())
+        if self.res.status_code != 202:
+            self.logger.error(f"Invalid status code '{self.res.status_code}' "
+                              f" for cancel request.")
+            self.terminate_session(invalid_status=True)
+        self.res.raise_for_status()
+        self.session = ConcludedSessionView(**self.res.json())
         self.logger.info((
             f"Requested cancelation of session '#{self.session.id}' at "
             f"station '{self.station_callsign}'."))
 
     def user_select_payment_method(self) -> None:
         """Try to select a payment method for a session."""
-        res = self.client.put(
-            f'{self.endpoint}/sessions/{self.session.id}/payment/select', params={
+        self.res = self.client.put(
+            f'{self.endpoint}/payments/{self.session.id}/method/select', params={
                 'payment_method': self.payment_method.value
             }, headers=self.headers, timeout=3)
-        if res.status_code != 202:
-            self.terminate_session()
-        res.raise_for_status()
-        self.session = ActiveSessionView(**res.json())
+        if self.res.status_code != 202:
+            self.logger.error(
+                "Invalid status code for payment selection request.")
+            self.terminate_session(invalid_status=True)
+        self.res.raise_for_status()
+        self.session = ActiveSessionView(**self.res.json())
         self.logger.info(
             (f"Selected 'PAYMENT' method for session '#{self.session.id}' "
              f"at station '{self.station_callsign}'."))
 
     def user_request_verification(self) -> None:
         """Try to request verification for a session."""
+        self.res = self.client.patch(
+            f'{self.endpoint}/payments/{self.session.id}/verification/initiate',
+            headers=self.headers, timeout=3)
+        if self.res.status_code != 202:
+            self.logger.error(f"Invalid status code '{self.res.status_code}' "
+                              f" for verification request.")
+            self.terminate_session(invalid_status=True)
+        self.res.raise_for_status()
+
+        self.session = SessionView(**self.res.json())
         self.logger.info(
             (f"Requested 'VERIFICATION' for session '#{self.session.id}' "
              f"at station '{self.station_callsign}'."))
 
-        res = self.client.put(
-            f'{self.endpoint}/sessions/{self.session.id}/payment/verify',
-            headers=self.headers, timeout=3)
-        if res.status_code != 202:
-            self.terminate_session()
-        res.raise_for_status()
-
-        self.session = SessionView(**res.json())
-
     def user_request_hold(self) -> None:
         """Try to request a session hold."""
-        res = self.client.put(
+        self.res = self.client.patch(
             f'{self.endpoint}/sessions/{self.session.id}/hold',
             headers=self.headers, timeout=3)
-        if res.status_code != 202:
-            self.terminate_session()
-        res.raise_for_status()
-        self.session = SessionView(**res.json())
+        if self.res.status_code != 202:
+            self.logger.error(f"Invalid status code '{self.res.status_code}' "
+                              f"for hold request.")
+            self.terminate_session(invalid_status=True)
+        self.res.raise_for_status()
+        self.session = SessionView(**self.res.json())
         self.logger.info(
             (f"Requested 'HOLD' for session '#{self.session.id}' "
              f"at station '{self.station_callsign}'."))
 
     def user_request_payment(self) -> None:
         """Try to request payment for a session."""
-        res = self.client.put(
-            f'{self.endpoint}/sessions/{self.session.id}/payment',
+        self.res = self.client.patch(
+            f'{self.endpoint}/payments/{self.session.id}/initiate',
             headers=self.headers, timeout=3)
-        if res.status_code != 202:
-            self.terminate_session()
-        res.raise_for_status()
-        self.session = SessionView(**res.json())
+        if self.res.status_code != 202:
+            self.logger.error(
+                "Invalid status code for payment initiation request.")
+            self.terminate_session(invalid_status=True)
+        self.res.raise_for_status()
+        self.session = SessionView(**self.res.json())
         self.logger.info(
             (f"Requested 'PAYMENT' for session '#{self.session.id}' "
              f"at station '{self.station_callsign}'."))
@@ -348,3 +377,35 @@ class MockingSession:
         self.mqtt_client.publish((
             f"stations/{self.station_callsign}/locker/"
             f"{self.session.locker_index}/report"), 'LOCKED', qos=2)
+
+    ########################
+    ###  STRIPE ACTIONS  ###
+    ########################
+
+    def stripe_report_verification(self):
+        """Report a successfull stripe verification"""
+        self.res = self.client.put(
+            f'{self.endpoint}/payments/{self.session.id}/verification/complete',
+            headers=self.headers, timeout=3)
+        if self.res.status_code != 202:
+            self.logger.error(f"Invalid status code '{self.res.status_code}' "
+                              f" for verification request.")
+            self.terminate_session(invalid_status=True)
+        self.res.raise_for_status()
+        self.session = SessionView(**self.res.json())
+        self.logger.info(
+            (f"Completed 'VERIFICATION' for session '#{self.session.id}' "
+             f"at station '{self.station_callsign}'."))
+
+    def stripe_report_payment(self):
+        """Report a successfull stripe payment"""
+        self.res = self.client.patch(
+            f'{self.endpoint}/payments/{self.session.id}/complete',
+            headers=self.headers, timeout=3)
+        if self.res.status_code != 202:
+            self.terminate_session(invalid_status=True)
+        self.res.raise_for_status()
+        self.session = SessionView(**self.res.json())
+        self.logger.info(
+            (f"Completed 'PAYMENT' for session '#{self.session.id}' "
+             f"at station '{self.station_callsign}'."))

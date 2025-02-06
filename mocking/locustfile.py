@@ -15,7 +15,7 @@ class RandomizedBehaviors(TaskSet):
     """TaskSet for regular session behavior"""
 
     ### Success Behaviors ###
-    @ task(0)
+    @ task(70)
     def regular_session(self):
         success_behaviors.RegularSession(self, self.user).run()
 
@@ -28,11 +28,11 @@ class RandomizedBehaviors(TaskSet):
     def abandon_first_payment_then_normal(self):
         success_behaviors.Abandon1stPaymentThenNormal(self, self.user).run()
 
-    @ task(2000)
+    @ task(2)
     def hold_then_normal(self):
         success_behaviors.HoldThenNormal(self, self.user).run()
 
-    @ task(2000)
+    @ task(2)
     def hold_then_payment(self):
         success_behaviors.HoldThenPayment(self, self.user).run()
 
@@ -84,7 +84,7 @@ class RandomizedBehaviors(TaskSet):
     def abandon_stashing(self):
         stalled_behaviors.AbandonStashing(self, self.user).run()
 
-    @ task(2000)
+    @ task(2)
     def abandon_hold(self):
         stalled_behaviors.AbandonHold(self, self.user).run()
 
@@ -98,7 +98,7 @@ class UnitTestBehaviors(SequentialTaskSet):
 
     @ task
     def test_all_session_behaviors(self):
-        """Test regular session behavior"""
+        """Test all session behaviors"""
         ### Success Behaviors ###
         success_behaviors.RegularSession(self, self.user).run()
         success_behaviors.Abandon1stVerifyThenNormal(self, self.user).run()

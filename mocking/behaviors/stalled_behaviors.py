@@ -1,6 +1,6 @@
 """Session behaviors that end in SessionState.STALE."""
 from mocking.dep.abilities import MockingSession
-from src.models.session_models import SessionState
+from src.models.session_models import SessionState, PaymentMethod
 
 
 class AbandonStashing(MockingSession):
@@ -26,6 +26,7 @@ class AbandonHold(MockingSession):
     """Abandon session after holding."""
 
     def run(self):  # pylint: disable=missing-function-docstring
+        self.set_payment_method(PaymentMethod.APP)
         self.user_request_session()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
@@ -34,7 +35,7 @@ class AbandonHold(MockingSession):
         self.await_state(SessionState.VERIFICATION)
         self.delay_action(SessionState.VERIFICATION)
 
-        self.station_report_verification()
+        self.stripe_report_verification()
         self.await_state(SessionState.STASHING)
         self.delay_action(SessionState.STASHING)
 

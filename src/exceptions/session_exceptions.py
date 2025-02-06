@@ -38,6 +38,7 @@ class InvalidSessionStateException(Exception):
         self.log_level = WARNING
 
         if raise_http:
+            print(self.__str__())
             raise HTTPException(status_code=400, detail=self.__str__())
 
     def __str__(self):

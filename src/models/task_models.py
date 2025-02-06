@@ -71,8 +71,8 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     queue_position: int = Field(
         0, description="The position of the task in the queue.")
 
-    moves_session: bool = Field(
-        False, description="Whether the session moves to the next state on task activation.")
+    queued_state: Optional[SessionState] = Field(
+        None, description="The next session state when the task is activated.")
 
     timeout_states: List[SessionState] = Field(
         default=[SessionState.EXPIRED],
@@ -129,7 +129,7 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
             "target": "user",
             "task_state": "queued",
             "queue_position": 0,
-            "moves_session": False,
+            "queued_state": None,
             "timeout_states": ["expired"],
             "from_expired": False,
             "expiration_window": 0,

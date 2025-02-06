@@ -132,9 +132,9 @@ class Task(Entity):
         ).sort(
             (TaskItemModel.created_at, SortDirection.ASCENDING)
         ).to_list()
-
-        # If there are pending tasks, quit
-        if any(task.task_state == TaskState.PENDING for task in tasks):
+        # If there are no tasks or a task is pending, quit
+        if (len(tasks) == 0 or any(
+                task.task_state == TaskState.PENDING for task in tasks)):
             return
 
         # 2: Decrease queue position for each task
@@ -166,7 +166,7 @@ class Task(Entity):
             return
 
         # 4: Activate the next task
-        if not next_task.doc.moves_session:
+        if next_task.doc.queued_state is None:
             session = Session(next_task.doc.assigned_session)
             await session.broadcast_update(next_task)
 
@@ -242,10 +242,11 @@ class Task(Entity):
             if self.doc.task_type != TaskType.RESERVATION else None)
 
         # 2: Execute specific actions based on the task type
+        # TODO: Add target here as a safety check
         if (self.doc.task_type == TaskType.REPORT
             and session.doc.session_state != SessionState.CANCELED
-                and self.doc.moves_session):
-            session.set_state(session.next_state)
+                and self.doc.queued_state is not None):
+            session.set_state(self.doc.queued_state)
             await session.broadcast_update(self.doc)
 
         elif (self.doc.task_type == TaskType.CONFIRMATION
@@ -257,7 +258,9 @@ class Task(Entity):
               and self.doc.target == TaskTarget.LOCKER):
             await self.doc.fetch_link(TaskItemModel.assigned_locker)
             locker: Locker = Locker(self.doc.assigned_locker)
-            if locker.doc.locker_state != LockerState.LOCKED:
+            # A locker may only be unlocked if the session is stale
+            if (locker.doc.locker_state != LockerState.LOCKED
+                    and session.doc.session_state != SessionState.STALE):
                 raise InvalidLockerStateException(
                     locker_id=locker.doc.id,
                     actual_state=locker.doc.locker_state,
@@ -274,7 +277,7 @@ class Task(Entity):
         self.doc.expires_at = timeout_date
         self.doc.expiration_window = timeout_window
 
-        if self.doc.moves_session:
+        if self.doc.queued_state is not None:
             await session.doc.save_changes()
         await self.doc.save_changes()
         task_expiration_manager.restart()
@@ -364,7 +367,6 @@ class Task(Entity):
                     assigned_session=self.doc.assigned_session,
                     assigned_station=self.doc.assigned_station,
                     timeout_states=[SessionState.ABORTED],
-                    moves_session=False
                 ).insert()).activate()
 
         # If the task targeted an open locker, send an instruction for it to be locked
@@ -379,7 +381,6 @@ class Task(Entity):
                     assigned_station=self.doc.assigned_station,
                     assigned_locker=self.doc.assigned_locker,
                     timeout_states=[SessionState.STALE],
-                    moves_session=False
                 ).insert()).activate()
                 task_expiration_manager.restart()
 
@@ -439,7 +440,6 @@ class Task(Entity):
                 assigned_station=station.doc,
                 assigned_session=session.doc,
                 timeout_states=[SessionState.ABORTED],
-                moves_session=False,
                 is_expiration_retry=True
             ).insert()).activate()
             task_activated = True
@@ -454,15 +454,15 @@ class Task(Entity):
                 assigned_station=station.doc,
                 assigned_session=session.doc,
                 timeout_states=self.doc.timeout_states[1:],
-                moves_session=False,
             ).insert()).activate()
             task_activated = True
 
         # 7: If no task was activated, evaluate the next task
         if not task_activated or len(self.doc.timeout_states) == 1:
             await self.evaluate_next()
-        else:
-            task_expiration_manager.restart()
+        # else:
+        # TODO: Check if this can be made conditional
+        task_expiration_manager.restart()
 
 
 async def expiration_manager_loop() -> None:
