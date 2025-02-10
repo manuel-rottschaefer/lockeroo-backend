@@ -12,7 +12,7 @@ from src.exceptions.locker_exceptions import (
     InvalidLockerReportException,
     InvalidLockerStateException)
 # Models
-from src.models.action_models import ActionModel, ActionType
+from src.models.action_models import ActionModel
 from src.models.session_models import SessionModel, SessionState
 from src.models.task_models import (
     TaskItemModel,
@@ -178,12 +178,6 @@ async def handle_lock_report(
     await locker.register_state(LockerState.LOCKED)
     await task.complete()
 
-    action_type: ActionType = (
-        ActionType.LOCK_AFTER_STASHING if session.doc.session_state == SessionState.STASHING
-        else ActionType.LOCK_AFTER_RETRIEVAL)
-    await ActionModel(
-        assigned_session=session.doc, action_type=action_type).insert()
-
     # 7: Catch completed sessions
     if session.next_state == SessionState.COMPLETED:
         session.set_state(SessionState.COMPLETED)
@@ -192,7 +186,8 @@ async def handle_lock_report(
         await session.doc.save_changes()
         await session.broadcast_update()
         await ActionModel(
-            assigned_session=session.doc, action_type=ActionType.COMPLETE).insert()
+            assigned_session=session.doc,
+            action_type=SessionState.COMPLETED).insert()
         return await session.handle_conclude()
 
     # 8: Catch canceled sessions

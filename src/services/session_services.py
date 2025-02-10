@@ -40,7 +40,7 @@ from src.exceptions.locker_exceptions import (
     LockerNotFoundException)
 from src.exceptions.payment_exceptions import InvalidPaymentMethodException
 # Models
-from src.models.action_models import ActionModel, ActionType
+from src.models.action_models import ActionModel
 from src.models.locker_models import LOCKER_TYPES, LockerState
 from src.models.session_models import (
     ACTIVE_SESSION_STATES,
@@ -106,7 +106,7 @@ async def get_session_history(session_id: ObjId, user: User) -> Optional[List[Ac
         raise UserNotAuthorizedException(user_id=user.fief_id)
 
     return await ActionModel.find(
-        ActionModel.assigned_session == session_id
+        ActionModel.assigned_session.id == session.doc.id  # pylint: disable=no-member
     )
 
 
@@ -204,7 +204,9 @@ async def handle_creation_request(
 
     # 8: Log the action
     await ActionModel(
-        assigned_session=session.doc, action_type=ActionType.CREATE).insert()
+        assigned_session=session.doc,
+        action_type=SessionState.CREATED
+    ).insert()
 
     return session.created_view
 
@@ -384,9 +386,6 @@ async def handle_verification_request(
         session.set_state(session.next_state)
         await session.doc.save_changes()
 
-    await ActionModel(
-        assigned_session=session.doc, action_type=ActionType.REQUEST_VERIFICATION).insert()
-
     return await session.view
 
 
@@ -468,9 +467,6 @@ async def handle_hold_request(
         timeout_states=[SessionState.ACTIVE,
                         SessionState.ABORTED],
     ).insert()).activate()
-
-    await ActionModel(
-        assigned_session=session.doc, action_type=ActionType.REQUEST_HOLD).insert()
 
     return await session.view
 
@@ -575,10 +571,6 @@ async def handle_terminal_payment_request(session: Session, user: User) -> Optio
                         SessionState.EXPIRED],
     ).insert()).evaluate_queue_state()
 
-    # 6: Log the request
-    await ActionModel(
-        assigned_session=session.doc, action_type=ActionType.REQUEST_PAYMENT).insert()
-
 
 async def handle_verification_completion(
         session_id: ObjId, user: User) -> Optional[SessionView]:
@@ -629,8 +621,6 @@ async def handle_verification_completion(
         assigned_locker=locker.doc,
         timeout_states=[SessionState.ABORTED],
     ).insert()).activate()
-
-    # TODO: Add action for payment
 
     return await session.view
 
@@ -710,8 +700,6 @@ async def handle_payment_completion(
             timeout_states=[SessionState.STALE],
         ).insert()).activate()
 
-    # TODO: Add action for payment
-
     return await session.view
 
 
@@ -773,7 +761,7 @@ async def handle_cancel_request(session_id: ObjId, user: User
     await session.handle_conclude()
     await ActionModel(
         assigned_session=session.doc,
-        action_type=ActionType.REQUEST_CANCEL
+        action_type=SessionState.CANCELED
     ).insert()
 
     return ConcludedSessionView(

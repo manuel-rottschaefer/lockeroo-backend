@@ -6,32 +6,16 @@ detailed session history data and better understand special cases.
 from dataclasses import dataclass
 # Types
 from datetime import datetime
-from enum import Enum
-
 # Beanie
 from beanie import Document, View, Link, before_event, Insert
 from beanie import PydanticObjectId as ObjId
 from pydantic import Field, PydanticUserError
-
 # Models
-from src.models.session_models import SessionModel
-
-
-class ActionType(str, Enum):
-    """A list of actions that a user can do """
-    CREATE = "create"
-    SELECT_PAYMENT = "selectPayment"
-    REQUEST_VERIFICATION = "requestVerification"
-    LOCK_AFTER_STASHING = "lockAfterStashing"
-    REQUEST_HOLD = "requestHold"
-    REQUEST_PAYMENT = "requestPayment"
-    LOCK_AFTER_RETRIEVAL = "lockerAfterRetrieval"
-    REQUEST_CANCEL = "requestCancel"
-    COMPLETE = "complete"
+from src.models.session_models import SessionModel, SessionState
 
 
 class ActionModel(Document):  # pylint: disable=too-many-ancestors
-    """Database representation of a action"""
+    """Database representation of an action, a record of an event in a session."""
     # Identification
     id: ObjId = Field(None, alias="_id")
 
@@ -44,7 +28,7 @@ class ActionModel(Document):  # pylint: disable=too-many-ancestors
         None, description="The timestamp of when this action was registered."
     )
 
-    action_type: ActionType = Field(
+    action_type: SessionState = Field(
         None, description="The type of action expressed as a session state name")
 
     @ before_event(Insert)
@@ -72,7 +56,7 @@ class ActionView(View):  # pylint: disable=too-many-ancestors
 
     # Action Properties
     timestamp: datetime
-    action_type: ActionType
+    action_type: SessionState
 
     @ dataclass
     class Settings:

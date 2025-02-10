@@ -18,15 +18,16 @@ from src.models.session_models import (
     SESSION_TIMEOUTS,
     SessionState)
 # Models
+from src.models.action_models import ActionModel
 from src.models.station_models import TerminalState
 from src.models.task_models import (
     TaskItemModel,
     TaskState,
     TaskTarget,
     TaskType)
-from src.services.logging_services import logger_service as logger
 # Services
 from src.services.mqtt_services import fast_mqtt
+from src.services.logging_services import logger_service as logger
 # Exceptions
 from src.exceptions.locker_exceptions import InvalidLockerStateException
 
@@ -242,11 +243,16 @@ class Task(Entity):
             if self.doc.task_type != TaskType.RESERVATION else None)
 
         # 2: Execute specific actions based on the task type
-        # TODO: Add target here as a safety check
         if (self.doc.task_type == TaskType.REPORT
             and session.doc.session_state != SessionState.CANCELED
                 and self.doc.queued_state is not None):
+            # Move session to next state
             session.set_state(self.doc.queued_state)
+            await session.doc.save_changes()
+            await ActionModel(
+                assigned_session=session.doc,
+                action_type=self.doc.queued_state
+            ).insert()
             await session.broadcast_update(self.doc)
 
         elif (self.doc.task_type == TaskType.CONFIRMATION
@@ -276,9 +282,6 @@ class Task(Entity):
         self.doc.activated_at = datetime.now()
         self.doc.expires_at = timeout_date
         self.doc.expiration_window = timeout_window
-
-        if self.doc.queued_state is not None:
-            await session.doc.save_changes()
         await self.doc.save_changes()
         task_expiration_manager.restart()
 
@@ -312,8 +315,6 @@ class Task(Entity):
 
         # 3: Reset the session timeout counter
         if self.doc.target == TaskTarget.TERMINAL and self.doc.task_type == TaskType.REPORT:
-            # TODO: Optimise this
-            # await self.doc.fetch_link(TaskItemModel.assigned_session)
             self.doc.assigned_session.timeout_count = 0
             await self.doc.assigned_session.save_changes()
 
