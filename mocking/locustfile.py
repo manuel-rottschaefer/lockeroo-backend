@@ -15,7 +15,7 @@ class RandomizedBehaviors(TaskSet):
     """TaskSet for regular session behavior"""
 
     ### Success Behaviors ###
-    @ task(70)
+    @ task(700)
     def regular_session(self):
         success_behaviors.RegularSession(self, self.user).run()
 
