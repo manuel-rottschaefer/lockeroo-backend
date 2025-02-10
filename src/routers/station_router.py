@@ -135,8 +135,6 @@ async def get_locker_by_index(
         station_index=station_index,
     )
 
-# TODO: Own reservation router
-
 
 @station_router.post(
     '/{callsign}/reservation',
@@ -162,52 +160,6 @@ async def reserve_locker_at_station(
         user=access_info)
 
 
-@station_router.put(
-    '/{callsign}/reset_queue',
-    response_model=StationView,
-    status_code=status.HTTP_202_ACCEPTED)
-@ handle_exceptions(logger)
-async def reset_station_queue(
-        callsign: Annotated[str, Path(
-            pattern='^[A-Z]{6}$', example="MUCODE",
-            description="Unique identifier of the station.")],
-) -> StationView:
-    """Reset the queue at the station. This is helpful if the queue is stale."""
-    return await station_services.reset_queue(callsign=callsign)
-
-
-@ station_router.get(
-    '/{callsign}/state',
-    response_model=StationView,
-    status_code=status.HTTP_200_OK)
-@ handle_exceptions(logger)
-async def get_station_state(
-        _callsign: Annotated[str, Path(
-            pattern='^[A-Z]{6}$', example="MUCODE",
-            description="Unique identifier of the station.")],
-) -> StationView:
-    """Get the high-level station state which indicates general availability."""
-    pass  # TODO: Implement this
-    # return await station_services.get_station_state(
-    #    callsign=callsign)
-
-
-@station_router.patch(
-    '/{callsign}/state',
-    response_model=StationView,
-    status_code=status.HTTP_202_ACCEPTED,)
-@ handle_exceptions(logger)
-async def set_station_state(
-        callsign: Annotated[str, Path(
-            pattern='^[A-Z]{6}$', example="MUCODE",
-            description="Unique identifier of the station.")],
-        state: StationState) -> StationView:
-    """Set the high-level station state which indicates general availability."""
-    return await station_services.set_station_state(
-        callsign=callsign,
-        station_state=state)
-
-
 @station_router.delete(
     '/{callsign}/reserve_cancel',
     response_model=None,
@@ -229,6 +181,51 @@ async def request_reservation_cancelation(
         callsign=callsign,
         user=access_info
     )
+
+
+@station_router.put(
+    '/{callsign}/reset_queue',
+    response_model=StationView,
+    status_code=status.HTTP_202_ACCEPTED)
+@ handle_exceptions(logger)
+async def reset_station_queue(
+        callsign: Annotated[str, Path(
+            pattern='^[A-Z]{6}$', example="MUCODE",
+            description="Unique identifier of the station.")],
+) -> StationView:
+    """Reset the queue at the station. This is helpful if the queue is stale."""
+    return await station_services.reset_queue(callsign=callsign)
+
+
+@ station_router.get(
+    '/{callsign}/state',
+    response_model=StationView,
+    status_code=status.HTTP_200_OK)
+@ handle_exceptions(logger)
+async def get_station_state(
+        callsign: Annotated[str, Path(
+            pattern='^[A-Z]{6}$', example="MUCODE",
+            description="Unique identifier of the station.")],
+) -> StationView:
+    """Get the high-level station state which indicates general availability."""
+    return await station_services.get_station_state(
+        callsign=callsign)
+
+
+@station_router.patch(
+    '/{callsign}/state',
+    response_model=StationView,
+    status_code=status.HTTP_202_ACCEPTED,)
+@ handle_exceptions(logger)
+async def set_station_state(
+        callsign: Annotated[str, Path(
+            pattern='^[A-Z]{6}$', example="MUCODE",
+            description="Unique identifier of the station.")],
+        state: StationState) -> StationView:
+    """Set the high-level station state which indicates general availability."""
+    return await station_services.set_station_state(
+        callsign=callsign,
+        station_state=state)
 
 
 @validate_mqtt_topic('stations/+/terminal/confirm', [ObjId])

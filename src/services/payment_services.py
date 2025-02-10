@@ -1,11 +1,9 @@
 """This module provides services for payments."""
-
+# Basics
+from pathlib import Path
+import yaml
 # Types
 from typing import Dict
-
-# Configuration
-import yaml
-
 # Models
 from src.models.payment_models import PricingModel
 # Services
@@ -14,21 +12,37 @@ from src.services.logging_services import logger_service as logger
 # Singleton for pricing models
 PRICING_MODELS: Dict[str, PricingModel] = None
 
-# TODO: Convert this to a function
-CONFIG_PATH = 'src/config/pricing_models.yml'
 
-if PRICING_MODELS is None:
+def load_pricing_models(path: str) -> Dict[str, PricingModel]:
+    """Loads pricing models from a YAML configuration file.
+
+    Args:
+        path: Path to the YAML configuration file.
+
+    Returns:
+        A dictionary mapping model names to PricingModel instances, or an empty
+        dictionary if an error occurs or the file is not found.
+    """
+    path_obj = Path(path)  # Use Path for better file handling
+
+    if not path_obj.exists():
+        logger.warning(f"Configuration file not found: {path}.")
+        return {}
+
     try:
-        with open(CONFIG_PATH, 'r', encoding='utf-8') as cfg:
+        with open(path_obj, 'r', encoding='utf-8') as cfg:
             type_dicts = yaml.safe_load(cfg)
-            PRICING_MODELS = {name: PricingModel(name=name, **details)
-                              for name, details in type_dicts.items()}
-    except FileNotFoundError:
-        logger.warning(f"Configuration file not found: {CONFIG_PATH}.")
-        PRICING_MODELS = {}
+            if type_dicts is None:  # Handle empty YAML file
+                return {}
+            return {name: PricingModel(name=name, **details)
+                    for name, details in type_dicts.items()}
     except yaml.YAMLError as e:
         logger.warning(f"Error parsing YAML configuration: {e}")
-        PRICING_MODELS = {}
+        return {}
     except TypeError as e:
         logger.warning(f"Data structure mismatch: {e}")
-        PRICING_MODELS = {}
+        return {}
+
+
+if PRICING_MODELS is None:
+    PRICING_MODELS = load_pricing_models('src/config/pricing_models.yml')

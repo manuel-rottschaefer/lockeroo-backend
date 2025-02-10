@@ -88,7 +88,6 @@ async def get_session_history(
     status_code=status.HTTP_201_CREATED,
     description='Request a new session at a given station')
 async def request_new_session(
-    # TODO: Fix the parameters
     # station_callsign: str,
     station_callsign: Annotated[str, Query(
         pattern='^[A-Z]{6}$',
@@ -98,9 +97,11 @@ async def request_new_session(
         enum=LOCKER_TYPE_NAMES,
         description='Type of locker to be used.')],
     _user: Annotated[str, Header(
-        alias="user", example=uuid4(),
+        alias="user", example=str(uuid4()),
+        # pattern='^[a-fA-F0-9]{24}$',
         description="The user who is requesting a new session.")],
     payment_method: Annotated[PaymentMethod, Query(
+        example=PaymentMethod.TERMINAL,
         description='Payment method to be used.')] = None,
     access_info: User = Depends(require_auth),
 ) -> Optional[CreatedSessionView]:

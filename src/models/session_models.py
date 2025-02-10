@@ -65,6 +65,8 @@ class SessionState(str, Enum):
     ABORTED = "aborted"
     # User has left his stuff in the locker
     ABANDONED = "abandoned"
+    # The session got a request or information that should not occur
+    TERMINATED = "terminated"
 
 
 ACTIVE_SESSION_STATES: List[SessionState] = [

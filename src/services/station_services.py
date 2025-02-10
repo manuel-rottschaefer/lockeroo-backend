@@ -93,6 +93,16 @@ async def get_details(callsign: str) -> Optional[StationView]:
     return station
 
 
+async def get_station_state(callsign: str) -> Optional[StationState]:
+    """Get the state of a station."""
+    station: Station = Station(await StationModel.find(
+        StationModel.callsign == callsign
+    ).first_or_none(),
+        callsign=callsign
+    )
+    return station.station_state
+
+
 async def get_active_session_count(callsign: str) -> Optional[int]:
     """Get the amount of currently active sessions at this station."""
     station: Station = Station(await StationModel.find(
@@ -301,10 +311,10 @@ async def handle_terminal_report(
     # 3: Get the assigned session
     assert (task.assigned_session is not None
             ), f"Task '#{task.id}' exists but has no assigned session."
+    await task.assigned_session.sync()
     session = Session(task.assigned_session)
 
     # 4: Check whether the station is currently told to await an action
-    # await station.doc.sync()
     if station.terminal_state != expected_terminal_state:
         raise InvalidTerminalStateException(
             station_callsign=callsign,
@@ -408,6 +418,7 @@ async def handle_terminal_state_confirmation(
         ).insert()).activate()
 
     elif session.doc.session_state not in ACTIVE_SESSION_STATES:
+        # TODO: What is this?? An early exit here should be handled differently
         return
 
     elif confirmed_state == TerminalState.IDLE:
