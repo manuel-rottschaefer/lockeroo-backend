@@ -7,24 +7,17 @@
     },
     "callsign": "MUCODE#001",
     "station_index": 1,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
+    "position": [
+      1,
+      1
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -36,24 +29,17 @@
     },
     "callsign": "MUCODE#002",
     "station_index": 2,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
+    "position": [
+      1,
+      2
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -65,24 +51,17 @@
     },
     "callsign": "MUCODE#003",
     "station_index": 3,
-    "locker_type": {
-      "name": "small",
-      "description": "Small items and bags.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        10,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": false,
-      "maintenance_interval": 45
-    },
+    "position": [
+      1,
+      3
+    ],
+    "locker_type": "small",
+    "pricing_model": "storage-small",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -94,24 +73,17 @@
     },
     "callsign": "MUCODE#004",
     "station_index": 4,
-    "locker_type": {
-      "name": "small",
-      "description": "Small items and bags.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        10,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": false,
-      "maintenance_interval": 45
-    },
+    "position": [
+      1,
+      4
+    ],
+    "locker_type": "small",
+    "pricing_model": "storage-small",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -123,24 +95,17 @@
     },
     "callsign": "MUCODE#005",
     "station_index": 5,
-    "locker_type": {
-      "name": "large",
-      "description": "Luggage and suitcases",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        40,
-        40,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": false,
-      "maintenance_interval": 30
-    },
+    "position": [
+      1,
+      5
+    ],
+    "locker_type": "large",
+    "pricing_model": "storage-large",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -152,24 +117,17 @@
     },
     "callsign": "MUCODE#006",
     "station_index": 6,
-    "locker_type": {
-      "name": "large",
-      "description": "Luggage and suitcases",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        40,
-        40,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": false,
-      "maintenance_interval": 30
-    },
+    "position": [
+      1,
+      6
+    ],
+    "locker_type": "large",
+    "pricing_model": "storage-large",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -181,24 +139,17 @@
     },
     "callsign": "MUCODE#007",
     "station_index": 7,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
+    "position": [
+      2,
+      1
+    ],
+    "locker_type": "small",
+    "pricing_model": "storage-small",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -210,24 +161,17 @@
     },
     "callsign": "MUCODE#008",
     "station_index": 8,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
+    "position": [
+      2,
+      2
+    ],
+    "locker_type": "small",
+    "pricing_model": "storage-small",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -239,24 +183,17 @@
     },
     "callsign": "MUCODE#009",
     "station_index": 9,
-    "locker_type": {
-      "name": "small",
-      "description": "Small items and bags.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        10,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": false,
-      "maintenance_interval": 45
-    },
+    "position": [
+      3,
+      1
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -268,24 +205,17 @@
     },
     "callsign": "MUCODE#010",
     "station_index": 10,
-    "locker_type": {
-      "name": "small",
-      "description": "Small items and bags.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        10,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": false,
-      "maintenance_interval": 45
-    },
+    "position": [
+      3,
+      2
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -297,24 +227,17 @@
     },
     "callsign": "MUCODE#011",
     "station_index": 11,
-    "locker_type": {
-      "name": "small",
-      "description": "Small items and bags.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        10,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": false,
-      "maintenance_interval": 45
-    },
+    "position": [
+      3,
+      3
+    ],
+    "locker_type": "small",
+    "pricing_model": "storage-small",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -326,24 +249,17 @@
     },
     "callsign": "MUCODE#012",
     "station_index": 12,
-    "locker_type": {
-      "name": "small",
-      "description": "Small items and bags.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        10,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": false,
-      "maintenance_interval": 45
-    },
+    "position": [
+      3,
+      4
+    ],
+    "locker_type": "small",
+    "pricing_model": "storage-small",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -355,24 +271,17 @@
     },
     "callsign": "MUCODE#013",
     "station_index": 13,
-    "locker_type": {
-      "name": "large",
-      "description": "Luggage and suitcases",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        40,
-        40,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": false,
-      "maintenance_interval": 30
-    },
+    "position": [
+      4,
+      1
+    ],
+    "locker_type": "small",
+    "pricing_model": "storage-small",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -384,24 +293,17 @@
     },
     "callsign": "MUCODE#014",
     "station_index": 14,
-    "locker_type": {
-      "name": "large",
-      "description": "Luggage and suitcases",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        40,
-        40,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": false,
-      "maintenance_interval": 30
-    },
+    "position": [
+      4,
+      2
+    ],
+    "locker_type": "small",
+    "pricing_model": "storage-small",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -413,24 +315,17 @@
     },
     "callsign": "MUCODE#015",
     "station_index": 15,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
+    "position": [
+      4,
+      3
+    ],
+    "locker_type": "large",
+    "pricing_model": "storage-large",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -442,24 +337,17 @@
     },
     "callsign": "MUCODE#016",
     "station_index": 16,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
+    "position": [
+      4,
+      4
+    ],
+    "locker_type": "large",
+    "pricing_model": "storage-large",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -471,24 +359,17 @@
     },
     "callsign": "MUCODE#017",
     "station_index": 17,
-    "locker_type": {
-      "name": "small",
-      "description": "Small items and bags.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        10,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": false,
-      "maintenance_interval": 45
-    },
+    "position": [
+      5,
+      1
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -500,459 +381,105 @@
     },
     "callsign": "MUCODE#018",
     "station_index": 18,
-    "locker_type": {
-      "name": "small",
-      "description": "Small items and bags.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        10,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": false,
-      "maintenance_interval": 45
-    },
+    "position": [
+      5,
+      2
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
   {
     "station": {
       "$ref": "stations",
-      "$callsign": "MUCHBF",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
-    "callsign": "MUCHBF#001",
-    "station_index": 1,
-    "locker_type": {
-      "name": "large",
-      "description": "Luggage and suitcases",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        40,
-        40,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": false,
-      "maintenance_interval": 30
-    },
+    "callsign": "MUCODE#019",
+    "station_index": 19,
+    "position": [
+      5,
+      3
+    ],
+    "locker_type": "small",
+    "pricing_model": "storage-small",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
   {
     "station": {
       "$ref": "stations",
-      "$callsign": "MUCHBF",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
-    "callsign": "MUCHBF#002",
-    "station_index": 2,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
+    "callsign": "MUCODE#020",
+    "station_index": 20,
+    "position": [
+      5,
+      4
+    ],
+    "locker_type": "small",
+    "pricing_model": "storage-small",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
   {
     "station": {
       "$ref": "stations",
-      "$callsign": "MUCHBF",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
-    "callsign": "MUCHBF#003",
-    "station_index": 3,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
+    "callsign": "MUCODE#021",
+    "station_index": 21,
+    "position": [
+      6,
+      1
+    ],
+    "locker_type": "small",
+    "pricing_model": "storage-small",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
   {
     "station": {
       "$ref": "stations",
-      "$callsign": "MUCHBF",
+      "$callsign": "MUCODE",
       "$db": "lockeroo"
     },
-    "callsign": "MUCHBF#004",
-    "station_index": 4,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
+    "callsign": "MUCODE#022",
+    "station_index": 22,
+    "position": [
+      6,
+      2
+    ],
+    "locker_type": "small",
+    "pricing_model": "storage-small",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
-    "total_session_count": 0,
-    "total_session_duration": 0
-  },
-  {
-    "station": {
-      "$ref": "stations",
-      "$callsign": "MUCHBF",
-      "$db": "lockeroo"
-    },
-    "callsign": "MUCHBF#005",
-    "station_index": 5,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
-    "availability": "operational",
-    "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
-    "total_session_count": 0,
-    "total_session_duration": 0
-  },
-  {
-    "station": {
-      "$ref": "stations",
-      "$callsign": "MUCHBF",
-      "$db": "lockeroo"
-    },
-    "callsign": "MUCHBF#006",
-    "station_index": 6,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
-    "availability": "operational",
-    "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
-    "total_session_count": 0,
-    "total_session_duration": 0
-  },
-  {
-    "station": {
-      "$ref": "stations",
-      "$callsign": "MUCHBF",
-      "$db": "lockeroo"
-    },
-    "callsign": "MUCHBF#007",
-    "station_index": 7,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
-    "availability": "operational",
-    "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
-    "total_session_count": 0,
-    "total_session_duration": 0
-  },
-  {
-    "station": {
-      "$ref": "stations",
-      "$callsign": "MUCHBF",
-      "$db": "lockeroo"
-    },
-    "callsign": "MUCHBF#008",
-    "station_index": 8,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
-    "availability": "operational",
-    "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
-    "total_session_count": 0,
-    "total_session_duration": 0
-  },
-  {
-    "station": {
-      "$ref": "stations",
-      "$callsign": "MUCHBF",
-      "$db": "lockeroo"
-    },
-    "callsign": "MUCHBF#009",
-    "station_index": 9,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
-    "availability": "operational",
-    "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
-    "total_session_count": 0,
-    "total_session_duration": 0
-  },
-  {
-    "station": {
-      "$ref": "stations",
-      "$callsign": "MUCHBF",
-      "$db": "lockeroo"
-    },
-    "callsign": "MUCHBF#010",
-    "station_index": 10,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
-    "availability": "operational",
-    "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
-    "total_session_count": 0,
-    "total_session_duration": 0
-  },
-  {
-    "station": {
-      "$ref": "stations",
-      "$callsign": "MUCHBF",
-      "$db": "lockeroo"
-    },
-    "callsign": "MUCHBF#011",
-    "station_index": 11,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
-    "availability": "operational",
-    "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
-    "total_session_count": 0,
-    "total_session_duration": 0
-  },
-  {
-    "station": {
-      "$ref": "stations",
-      "$callsign": "MUCHBF",
-      "$db": "lockeroo"
-    },
-    "callsign": "MUCHBF#012",
-    "station_index": 12,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
-    "availability": "operational",
-    "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
-    "total_session_count": 0,
-    "total_session_duration": 0
-  },
-  {
-    "station": {
-      "$ref": "stations",
-      "$callsign": "MUCHBF",
-      "$db": "lockeroo"
-    },
-    "callsign": "MUCHBF#013",
-    "station_index": 13,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
-    "availability": "operational",
-    "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
-    "total_session_count": 0,
-    "total_session_duration": 0
-  },
-  {
-    "station": {
-      "$ref": "stations",
-      "$callsign": "MUCHBF",
-      "$db": "lockeroo"
-    },
-    "callsign": "MUCHBF#014",
-    "station_index": 14,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
-    "availability": "operational",
-    "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
-    "total_session_count": 0,
-    "total_session_duration": 0
-  },
-  {
-    "station": {
-      "$ref": "stations",
-      "$callsign": "MUCHBF",
-      "$db": "lockeroo"
-    },
-    "callsign": "MUCHBF#015",
-    "station_index": 15,
-    "locker_type": {
-      "name": "large",
-      "description": "Luggage and suitcases",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        40,
-        40,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": false,
-      "maintenance_interval": 30
-    },
-    "availability": "operational",
-    "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -964,24 +491,17 @@
     },
     "callsign": "MUCMAR#001",
     "station_index": 1,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
+    "position": [
+      1,
+      1
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -993,24 +513,17 @@
     },
     "callsign": "MUCMAR#002",
     "station_index": 2,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
+    "position": [
+      1,
+      2
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -1022,24 +535,17 @@
     },
     "callsign": "MUCMAR#003",
     "station_index": 3,
-    "locker_type": {
-      "name": "small",
-      "description": "Small items and bags.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        10,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": false,
-      "maintenance_interval": 45
-    },
+    "position": [
+      1,
+      3
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -1051,24 +557,17 @@
     },
     "callsign": "MUCMAR#004",
     "station_index": 4,
-    "locker_type": {
-      "name": "small",
-      "description": "Small items and bags.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        10,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": false,
-      "maintenance_interval": 45
-    },
+    "position": [
+      1,
+      4
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -1080,24 +579,17 @@
     },
     "callsign": "MUCMAR#005",
     "station_index": 5,
-    "locker_type": {
-      "name": "large",
-      "description": "Luggage and suitcases",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        40,
-        40,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": false,
-      "maintenance_interval": 30
-    },
+    "position": [
+      1,
+      5
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -1109,24 +601,17 @@
     },
     "callsign": "MUCMAR#006",
     "station_index": 6,
-    "locker_type": {
-      "name": "large",
-      "description": "Luggage and suitcases",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        40,
-        40,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": false,
-      "maintenance_interval": 30
-    },
+    "position": [
+      1,
+      6
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -1138,24 +623,17 @@
     },
     "callsign": "MUCMAR#007",
     "station_index": 7,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
+    "position": [
+      2,
+      1
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -1167,24 +645,17 @@
     },
     "callsign": "MUCMAR#008",
     "station_index": 8,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
+    "position": [
+      2,
+      2
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -1196,24 +667,17 @@
     },
     "callsign": "MUCMAR#009",
     "station_index": 9,
-    "locker_type": {
-      "name": "small",
-      "description": "Small items and bags.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        10,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": false,
-      "maintenance_interval": 45
-    },
+    "position": [
+      2,
+      3
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -1225,24 +689,17 @@
     },
     "callsign": "MUCMAR#010",
     "station_index": 10,
-    "locker_type": {
-      "name": "small",
-      "description": "Small items and bags.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        10,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": false,
-      "maintenance_interval": 45
-    },
+    "position": [
+      2,
+      4
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -1254,24 +711,17 @@
     },
     "callsign": "MUCMAR#011",
     "station_index": 11,
-    "locker_type": {
-      "name": "small",
-      "description": "Small items and bags.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        10,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": false,
-      "maintenance_interval": 45
-    },
+    "position": [
+      2,
+      5
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -1283,24 +733,17 @@
     },
     "callsign": "MUCMAR#012",
     "station_index": 12,
-    "locker_type": {
-      "name": "small",
-      "description": "Small items and bags.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        10,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": false,
-      "maintenance_interval": 45
-    },
+    "position": [
+      2,
+      6
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -1312,24 +755,17 @@
     },
     "callsign": "MUCMAR#013",
     "station_index": 13,
-    "locker_type": {
-      "name": "large",
-      "description": "Luggage and suitcases",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        40,
-        40,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": false,
-      "maintenance_interval": 30
-    },
+    "position": [
+      3,
+      1
+    ],
+    "locker_type": "small",
+    "pricing_model": "storage-small",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -1341,24 +777,17 @@
     },
     "callsign": "MUCMAR#014",
     "station_index": 14,
-    "locker_type": {
-      "name": "large",
-      "description": "Luggage and suitcases",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        40,
-        40,
-        40
-      ],
-      "pricing_model": "storage-medium",
-      "has_outlet": false,
-      "maintenance_interval": 30
-    },
+    "position": [
+      3,
+      2
+    ],
+    "locker_type": "small",
+    "pricing_model": "storage-small",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -1370,24 +799,17 @@
     },
     "callsign": "MUCMAR#015",
     "station_index": 15,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
+    "position": [
+      3,
+      3
+    ],
+    "locker_type": "small",
+    "pricing_model": "storage-small",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -1399,24 +821,17 @@
     },
     "callsign": "MUCMAR#016",
     "station_index": 16,
-    "locker_type": {
-      "name": "medium",
-      "description": "Bags and small luggage.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        20,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": true,
-      "maintenance_interval": 30
-    },
+    "position": [
+      3,
+      4
+    ],
+    "locker_type": "small",
+    "pricing_model": "storage-small",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -1428,24 +843,17 @@
     },
     "callsign": "MUCMAR#017",
     "station_index": 17,
-    "locker_type": {
-      "name": "small",
-      "description": "Small items and bags.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        10,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": false,
-      "maintenance_interval": 45
-    },
+    "position": [
+      3,
+      5
+    ],
+    "locker_type": "small",
+    "pricing_model": "storage-small",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   },
@@ -1457,24 +865,699 @@
     },
     "callsign": "MUCMAR#018",
     "station_index": 18,
-    "locker_type": {
-      "name": "small",
-      "description": "Small items and bags.",
-      "stations": [
-        "ML_B_W_1"
-      ],
-      "dimensions": [
-        20,
-        10,
-        40
-      ],
-      "pricing_model": "storage-small",
-      "has_outlet": false,
-      "maintenance_interval": 45
-    },
+    "position": [
+      3,
+      6
+    ],
+    "locker_type": "small",
+    "pricing_model": "storage-small",
     "availability": "operational",
     "locker_state": "locked",
-    "last_service_at": "2024-08-01T00:00:00Z",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "MUCMAR",
+      "$db": "lockeroo"
+    },
+    "callsign": "MUCMAR#019",
+    "station_index": 19,
+    "position": [
+      4,
+      1
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "MUCMAR",
+      "$db": "lockeroo"
+    },
+    "callsign": "MUCMAR#020",
+    "station_index": 20,
+    "position": [
+      4,
+      2
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "MUCMAR",
+      "$db": "lockeroo"
+    },
+    "callsign": "MUCMAR#021",
+    "station_index": 21,
+    "position": [
+      4,
+      3
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "MUCMAR",
+      "$db": "lockeroo"
+    },
+    "callsign": "MUCMAR#022",
+    "station_index": 22,
+    "position": [
+      4,
+      4
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "MUCHBF",
+      "$db": "lockeroo"
+    },
+    "callsign": "MUCHBF#001",
+    "station_index": 1,
+    "position": [
+      1,
+      1
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "MUCHBF",
+      "$db": "lockeroo"
+    },
+    "callsign": "MUCHBF#002",
+    "station_index": 2,
+    "position": [
+      1,
+      2
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "MUCHBF",
+      "$db": "lockeroo"
+    },
+    "callsign": "MUCHBF#003",
+    "station_index": 3,
+    "position": [
+      1,
+      3
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "MUCHBF",
+      "$db": "lockeroo"
+    },
+    "callsign": "MUCHBF#004",
+    "station_index": 4,
+    "position": [
+      1,
+      4
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "MUCHBF",
+      "$db": "lockeroo"
+    },
+    "callsign": "MUCHBF#005",
+    "station_index": 5,
+    "position": [
+      2,
+      1
+    ],
+    "locker_type": "large",
+    "pricing_model": "storage-large",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "MUCHBF",
+      "$db": "lockeroo"
+    },
+    "callsign": "MUCHBF#006",
+    "station_index": 6,
+    "position": [
+      2,
+      2
+    ],
+    "locker_type": "large",
+    "pricing_model": "storage-large",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "MUCHBF",
+      "$db": "lockeroo"
+    },
+    "callsign": "MUCHBF#007",
+    "station_index": 7,
+    "position": [
+      2,
+      3
+    ],
+    "locker_type": "large",
+    "pricing_model": "storage-large",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "MUCHBF",
+      "$db": "lockeroo"
+    },
+    "callsign": "MUCHBF#008",
+    "station_index": 8,
+    "position": [
+      2,
+      4
+    ],
+    "locker_type": "large",
+    "pricing_model": "storage-large",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLUI",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLUI#001",
+    "station_index": 1,
+    "position": [
+      1,
+      1
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLUI",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLUI#002",
+    "station_index": 2,
+    "position": [
+      1,
+      2
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLUI",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLUI#003",
+    "station_index": 3,
+    "position": [
+      1,
+      3
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLUI",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLUI#004",
+    "station_index": 4,
+    "position": [
+      1,
+      4
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLUI",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLUI#005",
+    "station_index": 5,
+    "position": [
+      2,
+      1
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLUI",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLUI#006",
+    "station_index": 6,
+    "position": [
+      2,
+      2
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLUI",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLUI#007",
+    "station_index": 7,
+    "position": [
+      2,
+      3
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLUI",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLUI#008",
+    "station_index": 8,
+    "position": [
+      3,
+      1
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLUI",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLUI#009",
+    "station_index": 9,
+    "position": [
+      3,
+      2
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLUI",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLUI#010",
+    "station_index": 10,
+    "position": [
+      3,
+      3
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLWT",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLWT#001",
+    "station_index": 1,
+    "position": [
+      1,
+      1
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLWT",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLWT#002",
+    "station_index": 2,
+    "position": [
+      1,
+      2
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLWT",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLWT#003",
+    "station_index": 3,
+    "position": [
+      1,
+      3
+    ],
+    "locker_type": "medium",
+    "pricing_model": "storage-medium",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLWT",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLWT#004",
+    "station_index": 4,
+    "position": [
+      1,
+      4
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLWT",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLWT#005",
+    "station_index": 5,
+    "position": [
+      1,
+      5
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLWT",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLWT#006",
+    "station_index": 6,
+    "position": [
+      1,
+      6
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLWT",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLWT#007",
+    "station_index": 7,
+    "position": [
+      2,
+      1
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLWT",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLWT#008",
+    "station_index": 8,
+    "position": [
+      2,
+      2
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
+  },
+  {
+    "station": {
+      "$ref": "stations",
+      "$callsign": "DARLWT",
+      "$db": "lockeroo"
+    },
+    "callsign": "DARLWT#009",
+    "station_index": 9,
+    "position": [
+      2,
+      3
+    ],
+    "locker_type": "mini",
+    "pricing_model": "storage-mini",
+    "availability": "operational",
+    "locker_state": "locked",
+    "charger_installed": true,
+    "charger_available": true,
+    "last_service_at": "2024-09-01T00:00:00Z",
     "total_session_count": 0,
     "total_session_duration": 0
   }

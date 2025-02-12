@@ -2,47 +2,10 @@
   {
     "full_name": "München Odeonsplatz",
     "callsign": "MUCODE",
-    "station_type": "V1M",
+    "station_type": "ML_BW",
     "hw_version": "V1",
     "sw_version": "1.0.0",
     "installed_at": "2024-09-01T00:00:00Z",
-    "locker_layout": {
-      "locker_count": 18,
-      "column_count": 6,
-      "max_row_count": 4,
-      "layout": [
-        [
-          "medium",
-          "medium",
-          "medium"
-        ],
-        [
-          "medium",
-          "medium",
-          "medium"
-        ],
-        [
-          "small",
-          "small",
-          "small",
-          "small"
-        ],
-        [
-          "small",
-          "small",
-          "small",
-          "small"
-        ],
-        [
-          "large",
-          "large"
-        ],
-        [
-          "large",
-          "large"
-        ]
-      ]
-    },
     "station_state": "available",
     "terminal_state": "idle",
     "scheduled_maintenance_at": "2024-12-01T00:00:00Z",
@@ -54,59 +17,22 @@
     "is_charging_available": false,
     "city_name": "München",
     "address": "Odeonsplatz 1",
+    "nearby_public_transport": "Odeonsplatz",
     "location": {
       "coordinates": [
         48.143,
         11.577
       ],
       "type": "Point"
-    },
-    "nearby_public_transport": "Odeonsplatz"
+    }
   },
   {
     "full_name": "München Marienplatz",
     "callsign": "MUCMAR",
-    "station_type": "V1L",
+    "station_type": "ML_CW",
     "hw_version": "V1",
     "sw_version": "1.0.0",
     "installed_at": "2024-10-01T00:00:00Z",
-    "locker_layout": {
-      "locker_count": 16,
-      "column_count": 8,
-      "max_row_count": 2,
-      "layout": [
-        [
-          "large"
-        ],
-        [
-          "medium",
-          "medium"
-        ],
-        [
-          "medium",
-          "medium"
-        ],
-        [
-          "medium",
-          "medium"
-        ],
-        [
-          "medium",
-          "medium"
-        ],
-        [
-          "medium",
-          "medium"
-        ],
-        [
-          "medium",
-          "medium"
-        ],
-        [
-          "large"
-        ]
-      ]
-    },
     "station_state": "available",
     "terminal_state": "idle",
     "scheduled_maintenance_at": "2024-12-01T00:00:00Z",
@@ -118,59 +44,22 @@
     "is_charging_available": false,
     "city_name": "München",
     "address": "Marienplatz 1",
+    "nearby_public_transport": "Marienplatz",
     "location": {
       "coordinates": [
         48.137,
         11.575
       ],
       "type": "Point"
-    },
-    "nearby_public_transport": "Marienplatz"
+    }
   },
   {
     "full_name": "München Hauptbahnhof",
     "callsign": "MUCHBF",
-    "station_type": "V1M",
+    "station_type": "ML_HS",
     "hw_version": "V1",
     "sw_version": "1.0.0",
     "installed_at": "2024-11-01T00:00:00Z",
-    "locker_layout": {
-      "locker_count": 18,
-      "column_count": 6,
-      "max_row_count": 4,
-      "layout": [
-        [
-          "medium",
-          "medium",
-          "medium"
-        ],
-        [
-          "medium",
-          "medium",
-          "medium"
-        ],
-        [
-          "small",
-          "small",
-          "small",
-          "small"
-        ],
-        [
-          "small",
-          "small",
-          "small",
-          "small"
-        ],
-        [
-          "large",
-          "large"
-        ],
-        [
-          "large",
-          "large"
-        ]
-      ]
-    },
     "station_state": "available",
     "terminal_state": "idle",
     "scheduled_maintenance_at": "2024-12-01T00:00:00Z",
@@ -182,13 +71,67 @@
     "is_charging_available": false,
     "city_name": "München",
     "address": "Hauptbahnhof 1",
+    "nearby_public_transport": "Hauptbahnhof",
     "location": {
       "coordinates": [
-        48.140,
-        11.558
+        48.14,
+        11.56
       ],
       "type": "Point"
-    },
-    "nearby_public_transport": "Hauptbahnhof"
+    }
+  },
+  {
+    "full_name": "Darmstadt Luisenplatz",
+    "callsign": "DARLUI",
+    "station_type": "ZI_CC",
+    "hw_version": "V1",
+    "sw_version": "1.0.0",
+    "installed_at": "2024-11-01T00:00:00Z",
+    "station_state": "available",
+    "terminal_state": "idle",
+    "scheduled_maintenance_at": "2024-12-01T00:00:00Z",
+    "maintenance_due_at": "false",
+    "total_session_count": 0,
+    "total_session_duration": 0,
+    "last_service_date": "2024-09-01T00:00:00Z",
+    "is_storage_available": true,
+    "is_charging_available": false,
+    "city_name": "Darmstadt",
+    "address": "Am Luisenplatz 1",
+    "nearby_public_transport": "Luisenplatz",
+    "location": {
+      "coordinates": [
+        49.873,
+        8.651
+      ],
+      "type": "Point"
+    }
+  },
+  {
+    "full_name": "Darmstadt Löwentor",
+    "callsign": "DARLWT",
+    "station_type": "ZI_OF",
+    "hw_version": "V1",
+    "sw_version": "1.0.0",
+    "installed_at": "2024-11-01T00:00:00Z",
+    "station_state": "available",
+    "terminal_state": "idle",
+    "scheduled_maintenance_at": "2024-12-01T00:00:00Z",
+    "maintenance_due_at": "false",
+    "total_session_count": 0,
+    "total_session_duration": 0,
+    "last_service_date": "2024-09-01T00:00:00Z",
+    "is_storage_available": true,
+    "is_charging_available": false,
+    "city_name": "Darmstadt",
+    "address": "Bernhard Sälzer Platz",
+    "nearby_public_transport": "Darmstadt Ostbahnhof",
+    "location": {
+      "coordinates": [
+        49.876,
+        8.673
+      ],
+      "type": "Point"
+    }
   }
 ]
