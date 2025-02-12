@@ -5,10 +5,13 @@ mini:
   dimensions:
     - 20
     - 10
-    - 40
-  pricing_model: phones-wallets
   has_outlet: true
   maintenance_interval: 45
+  pricing_model:
+    base_fee: 50
+    charge_fee: 0
+    base_duration: 30
+    rate_minute: 1
 
 small:
   description: Small items and bags.
@@ -16,32 +19,41 @@ small:
     - ML_B_W_1
   dimensions:
     - 20
-    - 10
-    - 40
-  pricing_model: storage-small
+    - 15
   has_outlet: False
   maintenance_interval: 45
+  pricing_model:
+    base_fee: 75
+    charge_fee: 0
+    base_duration: 60
+    rate_minute: 1.5
   
 medium:
   description: Bags and small luggage.
   stations:
     - ML_B_W_1
   dimensions:
-    - 20
-    - 20
-    - 40
-  pricing_model: storage-small
+    - 30
+    - 30
   has_outlet: true
   maintenance_interval: 30
+  pricing_model:
+    base_fee: 100
+    charge_fee: 0
+    base_duration: 60
+    rate_minute: 2
 
 large:
-  description: Luggage and suitcases
+  description: Luggage and suitcases.
   stations:
     - ML_B_W_1
   dimensions:
-    - 40
-    - 40
-    - 40
-  pricing_model: storage-medium
+    - 30
+    - 45
   has_outlet: false
   maintenance_interval: 30
+  pricing_model:
+    base_fee: 150
+    charge_fee: 0
+    base_duration: 60
+    rate_minute: 1

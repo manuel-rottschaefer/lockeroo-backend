@@ -15,9 +15,13 @@ __pycache__/
 *.csv
 *.zip
 
-# Ignore IDE configurations
+# Ignore project configuration packages
+pyproject.toml
 .vscode
 .idea
+
+# Ignore database dumps
+static/database/base_dump/*
 
 # Ignore docker
 docker-compose.yml
@@ -31,12 +35,4 @@ Obsidian/*
 snapshots/*
 kanpilot.toml
 docs/*
-
-# Ignore environments (API Keys in there!!)
-environments
-
-# Ignore project configuration packages
-pyproject.toml
-
-# Ignore the MongoDB Base Dump
-src/config/database/base_dump/*
+launch/*

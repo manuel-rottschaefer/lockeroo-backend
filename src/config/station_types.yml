@@ -1,10 +1,106 @@
- MobileLocker-Base-Wide:
-  code: ML_B_W_1
+ML-Base-Wide:
+  code: ML_BW
   version: 1.0
-  description: First type to be deployed, rented from MobileLocker.eu
-  locker_amount: 18
+  manufacturer: "Mobile Locker Co."
+  description: Flexible service optimized for city and transport hubs
   render: static/renders/stations/ML_B_W_1.png
   has_gsm: True
   has_wifi: False
   has_solar: False
   is_embedded: False
+  locker_layout: {
+      locker_count: 22,
+      col_count: 6,
+      row_count: 6,
+      layout: [
+        ["medium", "medium", "small", "small", "large", "large"],
+        ["small", "small"],
+        ["medium", "medium", "small", "small"],
+        ["small", "small", "large", "large"],
+        ["medium", "medium", "small", "small"],
+        ["small", "small"]
+      ]
+    }
+
+ML-City-Wide:
+  code: ML_CW
+  version: 1.0
+  manufacturer: "Mobile Locker Co."
+  description: Ideal for phone-centric urban areas
+  render: static/renders/stations/ML_B_W_1.png
+  has_gsm: True
+  has_wifi: False
+  has_solar: False
+  is_embedded: False
+  locker_layout: {
+      locker_count: 22,
+      col_count: 6,
+      row_count: 4,
+      layout: [
+        ["mini", "mini", "mini", "mini", "mini", "mini"],
+        ["mini", "mini", "mini", "mini", "mini", "mini"],
+        ["small", "small", "small", "small", "small", "small"],
+        ["medium", "medium", "medium", "medium"],
+      ]
+    }
+
+Ziegler-City-Compact:
+  code: ZI_CC
+  version: 1.0
+  manufacturer: "Ziegler GmbH"
+  description: Short-term storage for shoping and sightseeing
+  render: static/renders/stations/ML_B_W_1.png
+  has_gsm: True
+  has_wifi: False
+  has_solar: False
+  is_embedded: False
+  locker_layout: {
+      locker_count: 10,
+      col_count: 4,
+      row_count: 3,
+      layout: [
+        ["mini", "mini", "mini", "medium"],
+        ["mini", "mini", "mini"],
+        ["medium", "medium", "medium"],
+      ]
+    }
+
+Ziegler_Outdoor_Flat:
+  code: ZI_OF
+  version: 1.0
+  manufacturer: "Ziegler GmbH"
+  description: Small lockers for phones and outdoor gear
+  render: static/renders/stations/ML_B_W_1.png
+  has_gsm: True
+  has_wifi: False
+  has_solar: True
+  is_embedded: False
+  locker_layout: {
+      locker_count: 9,
+      col_count: 6,
+      row_count: 2,
+      layout: [
+        ["medium", "medium", "medium", "mini", "mini", "mini"],
+        ["mini", "mini", "mini"],
+      ]
+    }
+
+ML-Hub-Small:
+  code: ML_HS
+  version: 1.0
+  manufacturer: "Mobile Locker Co."
+  description: Big Storage for busy transport hubs
+  render: static/renders/stations/ML_B_W_1.png
+  has_gsm: True
+  has_wifi: False
+  has_solar: False
+  is_embedded: False
+  locker_layout: {
+      locker_count: 8,
+      col_count: 4,
+      row_count: 2,
+      layout: [
+        ["medium", "medium", "medium", "medium"],
+        ["large", "large", "large", "large"],
+      ]
+    }
