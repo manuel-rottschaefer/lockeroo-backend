@@ -13,7 +13,8 @@ from src.exceptions.locker_exceptions import (
     InvalidLockerStateException)
 # Models
 from src.models.action_models import ActionModel
-from src.models.session_models import SessionModel, SessionState
+from src.models.session_models import (
+    SessionModel, SessionState, ACTIVE_SESSION_STATES, PaymentMethod)
 from src.models.task_models import (
     TaskItemModel,
     TaskState,
@@ -38,6 +39,8 @@ async def handle_unlock_confirmation(
         TaskItemModel.target == TaskTarget.LOCKER,
         TaskItemModel.task_type == TaskType.CONFIRMATION,
         TaskItemModel.task_state == TaskState.PENDING,
+        In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
+           ACTIVE_SESSION_STATES),
         TaskItemModel.assigned_station.callsign == callsign,  # pylint: disable=no-member
         TaskItemModel.assigned_locker.station_index == station_index,  # pylint: disable=no-member
         fetch_links=True
@@ -87,6 +90,19 @@ async def handle_unlock_confirmation(
         SessionState.PAYMENT
     ] else SessionState.HOLD
 
+    if next_state == SessionState.HOLD and session.doc.payment_method == PaymentMethod.APP:
+        # Also create a task that allows the user to start the
+        # payment process without closing the locker
+        await Task(await TaskItemModel(
+            target=TaskTarget.USER,
+            task_type=TaskType.REPORT,
+            assigned_user=session.doc.assigned_user,
+            assigned_session=session.doc,
+            assigned_station=locker.doc.station,
+            assigned_locker=locker.doc,
+            timeout_states=[SessionState.STALE],
+        ).insert()).activate()
+
     await Task(await TaskItemModel(
         target=TaskTarget.LOCKER,
         task_type=TaskType.REPORT,
@@ -107,6 +123,8 @@ async def handle_lock_report(
         TaskItemModel.target == TaskTarget.LOCKER,
         TaskItemModel.task_type == TaskType.REPORT,
         TaskItemModel.task_state == TaskState.PENDING,
+        In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
+           ACTIVE_SESSION_STATES),
         TaskItemModel.assigned_station.callsign == callsign,  # pylint: disable=no-member
         TaskItemModel.assigned_locker.station_index == station_index,  # pylint: disable=no-member
         fetch_links=True
@@ -124,7 +142,6 @@ async def handle_lock_report(
         session: Session = Session(await SessionModel.find(
             SessionModel.assigned_locker.station.callsign == callsign,  # pylint: disable=no-member
             SessionModel.assigned_locker.station_index == station_index,  # pylint: disable=no-member
-            SessionModel.assigned_user.id == task.assigned_user.id,    # pylint: disable=no-member
             In(SessionModel.session_state, expected_states),
             fetch_links=True
         ).first_or_none())

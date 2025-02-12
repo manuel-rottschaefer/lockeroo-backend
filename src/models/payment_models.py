@@ -28,29 +28,6 @@ class PaymentState(Enum):
     ABORTED = 'aborted'
 
 
-class PricingModel(BaseModel):
-    """Config representation of pricing models."""
-    name: str = Field(description="Name of the pricing model")
-    base_fee: int = Field(
-        description="Minimal charge when starting a session (cent).")
-    charge_fee: int = Field(
-        description="Additional fee for connecting a device to the outlet.")
-    base_duration: int = Field(
-        description="Minutes until the charge exceeds the base charge.")
-    rate_minute: float = Field(
-        description="Charge for every started minue (cent)")
-
-    @ dataclass
-    class Config:
-        json_schema_extra = {
-            "name": "Standard",
-            "base_fee": 100,
-            "charge_fee": 50,
-            "base_duration": 60,
-            "rate_minute": 0.5
-        }
-
-
 class PaymentModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a payment object in the database"""
     ### Identification ###
@@ -73,7 +50,7 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
     last_updated: datetime = Field(
         datetime.now(), description='The timestamp of the last update to this payment.')
 
-    @ after_event(SaveChanges)
+    @after_event(SaveChanges)
     async def check_pending(self):
         """Check if this payment is now pending."""
         self.assigned_station: StationModel
@@ -88,11 +65,11 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
 
         await self.doc.save_changes()
 
-    @ dataclass
+    @dataclass
     class Settings:
         name = "payments"
 
-    @ dataclass
+    @dataclass
     class Config:
         json_schema_extra = {
             "assigned_station": "60d5ec49f1d2b2a5d8f8b8b8",
@@ -104,7 +81,7 @@ class PaymentModel(Document):  # pylint: disable=too-many-ancestors
 
 
 try:
-    for model in [PaymentModel, PricingModel]:
+    for model in [PaymentModel]:
         model.model_json_schema()
 except PydanticUserError as exc_info:
     assert exc_info.code == 'invalid-for-json-schema'

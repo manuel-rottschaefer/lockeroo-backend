@@ -124,7 +124,7 @@ class Session(Entity):
     def set_state(self, state: SessionState) -> None:
         """Set the state of the session."""
         self.doc.session_state = state
-        logger.debug(
+        logger.info(
             f"Session '#{self.doc.id}' set to {self.doc.session_state}.")
 
     async def handle_conclude(self) -> None:

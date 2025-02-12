@@ -17,6 +17,7 @@ from src.entities.task_entity import Task
 # Models
 from src.models.locker_models import (
     LockerModel,
+    LockerType,
     LOCKER_TYPES,
     ReducedLockerView,
     LockerTypeAvailabilityView)
@@ -37,7 +38,6 @@ from src.models.task_models import (
 # Exceptions
 from src.exceptions.locker_exceptions import LockerNotFoundException
 from src.exceptions.session_exceptions import InvalidSessionStateException
-
 from src.exceptions.station_exceptions import (
     InvalidTerminalStateException)
 from src.exceptions.task_exceptions import TaskNotFoundException
@@ -187,6 +187,8 @@ async def reset_queue(callsign: str) -> StationView:
     # 2: Get all stale queue items at the station
     tasks: List[TaskItemModel] = await TaskItemModel.find(
         TaskItemModel.assigned_station.id == station.doc.id,  # pylint: disable=no-member
+        In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
+           ACTIVE_SESSION_STATES),
         TaskItemModel.task_state == TaskState.PENDING
     ).sort((TaskItemModel.created_at, SortDirection.ASCENDING)).first_or_none()
 
@@ -220,8 +222,8 @@ async def handle_reservation_request(
             raise_http=True)
 
     # 3: Check if a locker of the requested type is available
-    locker_type = next(
-        i for i in LOCKER_TYPES if i.name == locker_type.lower())
+    locker_type_map = {locker.name.lower(): locker for locker in LOCKER_TYPES}
+    locker_type: LockerType = locker_type_map.get(locker_type.lower(), None)
     available_locker = await Locker.find_available(station, locker_type)
     if not available_locker.exists:
         raise LockerNotAvailableException(
@@ -230,9 +232,9 @@ async def handle_reservation_request(
             raise_http=True)
 
     # 4: Create a reservation task, to be completed by a session creation
-    logger.debug((
+    logger.info((
         f"Created reservation for user '{user.doc.fief_id}' "
-        f"locker '#{available_locker.id}'."))
+        f"at locker '#{available_locker.id}'."))
     await Task(await TaskItemModel(
         target=TaskTarget.USER,
         task_type=TaskType.RESERVATION,
@@ -263,6 +265,8 @@ async def handle_reservation_cancel_request(
         TaskItemModel.task_state == TaskState.PENDING,
         TaskItemModel.assigned_user == user.doc,
         TaskItemModel.assigned_station == station.doc,
+        In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
+           ACTIVE_SESSION_STATES),
         fetch_links=True
     ).sort((
         TaskItemModel.created_at, SortDirection.ASCENDING
@@ -346,8 +350,9 @@ async def handle_terminal_report(
 async def handle_terminal_state_confirmation(
         callsign: str, confirmed_state: TerminalState):
     """Process a station report about its terminal state."""
-    logger.info(f"Station '{callsign}' confirmed terminal in {
-                confirmed_state}.")
+    logger.info((
+        f"Station '{callsign}' confirmed terminal "
+        f"in {confirmed_state}."))
 
     # 1: Find the affected station
     station: Station = Station(await StationModel.find(
@@ -370,6 +375,8 @@ async def handle_terminal_state_confirmation(
         TaskItemModel.target == TaskTarget.TERMINAL,
         TaskItemModel.task_type == TaskType.CONFIRMATION,
         TaskItemModel.task_state == TaskState.PENDING,
+        In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
+           ACTIVE_SESSION_STATES),
         fetch_links=True
     ).sort((
         TaskItemModel.created_at, SortDirection.DESCENDING
@@ -392,7 +399,11 @@ async def handle_terminal_state_confirmation(
     # 6: Complete previous task
     await pending_task.complete()
 
-    # 7: Create next task according to the session context
+    # 7: Do not create followup tasks if the session is canceled
+    if session.doc.session_state not in ACTIVE_SESSION_STATES:
+        return
+
+    # 8: Create next task according to the session context
     if confirmed_state == TerminalState.VERIFICATION:
         await Task(await TaskItemModel(
             target=TaskTarget.TERMINAL,
@@ -416,10 +427,6 @@ async def handle_terminal_state_confirmation(
             timeout_states=([SessionState.EXPIRED] if session.timeout_count >= 1
                             else [session.doc.session_state, SessionState.EXPIRED]),
         ).insert()).activate()
-
-    elif session.doc.session_state not in ACTIVE_SESSION_STATES:
-        # TODO: What is this?? An early exit here should be handled differently
-        return
 
     elif confirmed_state == TerminalState.IDLE:
         # TODO: Find a better way to check if the task is from an expired one

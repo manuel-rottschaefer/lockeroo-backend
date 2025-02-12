@@ -44,5 +44,5 @@ def load_pricing_models(path: str) -> Dict[str, PricingModel]:
         return {}
 
 
-if PRICING_MODELS is None:
-    PRICING_MODELS = load_pricing_models('src/config/pricing_models.yml')
+# if PRICING_MODELS is None:
+#    PRICING_MODELS = load_pricing_models('src/config/pricing_models.yml')

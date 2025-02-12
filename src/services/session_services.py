@@ -52,7 +52,8 @@ from src.models.session_models import (
     SessionModel,
     SessionState)
 from src.models.station_models import StationModel
-from src.models.task_models import TaskItemModel
+from src.models.task_models import (
+    TaskItemModel, TaskPositionView)
 from src.services import websocket_services
 # Services
 from src.services.logging_services import logger_service as logger
@@ -71,11 +72,11 @@ async def get_details(session_id: ObjId, user: User) -> Optional[SessionView]:
     # If the session is completed, return the concluded view, otherwise the active view
     if session.session_state in ACTIVE_SESSION_STATES:
         # Fetch a queued task
-        task: Task = Task(await TaskItemModel.find(
+        task: TaskPositionView = await TaskItemModel.find(
             TaskItemModel.assigned_session.id == session_id,  # pylint: disable=no-member
             TaskItemModel.task_state == TaskState.QUEUED,
             TaskItemModel.expires_at > datetime.now()
-        ).first_or_none())
+        ).project(TaskPositionView).first_or_none()
 
         return ActiveSessionView(
             id=str(session.doc.id),
@@ -84,7 +85,7 @@ async def get_details(session_id: ObjId, user: User) -> Optional[SessionView]:
             locker_index=session.doc.assigned_locker.station_index,
             service_type=session.doc.session_type,
             session_state=session.doc.session_state,
-            queue_position=task.queue_position if task.exists else 0
+            queue_position=task.queue_position if task else 0
         )
 
     return ConcludedSessionView(
@@ -242,6 +243,8 @@ async def handle_payment_selection(
         TaskItemModel.task_type == TaskType.REPORT,
         TaskItemModel.task_state == TaskState.PENDING,
         TaskItemModel.assigned_session.id == session_id,  # pylint: disable=no-member
+        In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
+           ACTIVE_SESSION_STATES),
         fetch_links=True
     ).sort((
         TaskItemModel.created_at, SortDirection.ASCENDING
@@ -344,6 +347,8 @@ async def handle_verification_request(
         TaskItemModel.task_type == TaskType.REPORT,
         TaskItemModel.task_state == TaskState.PENDING,
         TaskItemModel.assigned_session.id == session_id,  # pylint: disable=no-member
+        In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
+           ACTIVE_SESSION_STATES),
         fetch_links=True
     ).sort((
         TaskItemModel.created_at, SortDirection.ASCENDING
@@ -416,6 +421,8 @@ async def handle_hold_request(
         TaskItemModel.task_type == TaskType.REPORT,
         TaskItemModel.task_state == TaskState.PENDING,
         TaskItemModel.assigned_session.id == session_id,  # pylint: disable=no-member
+        In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
+           ACTIVE_SESSION_STATES),
         fetch_links=True
     ).sort((
         TaskItemModel.created_at, SortDirection.ASCENDING
@@ -489,9 +496,30 @@ async def handle_payment_request(session_id: ObjId, user: User) -> Optional[Sess
     return await session.view
 
 
-async def handle_app_payment_request(session: Session, _user: User) -> Optional[SessionView]:
+async def handle_app_payment_request(session: Session, user: User) -> Optional[SessionView]:
     """Handles a payment request submitted by a user."""
-    # 1: Check if the session is in the correct state for an app payment.
+    # 1: Find the pending task
+    task: Task = Task(await TaskItemModel.find(
+        TaskItemModel.target == TaskTarget.USER,
+        TaskItemModel.task_type == TaskType.REPORT,
+        TaskItemModel.task_state == TaskState.PENDING,
+        TaskItemModel.assigned_session.id == session.doc.id,  # pylint: disable=no-member
+        In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
+           ACTIVE_SESSION_STATES),
+        # TaskItemModel.assigned_user.id == user.doc.id,  # pylint: disable=no-member
+        fetch_links=True
+    ).sort((
+        TaskItemModel.created_at, SortDirection.ASCENDING
+    )).first_or_none())
+    if not task.exists:
+        if not session.exists:
+            raise SessionNotFoundException(user_id=user.fief_id)
+        raise TaskNotFoundException(
+            task_type=TaskType.REPORT,
+            assigned_station=session.assigned_station.id,
+            raise_http=False)
+
+    # 2: Check if the session is in the correct state for an app payment.
     expected_states = [
         SessionState.ACTIVE,
         SessionState.HOLD
@@ -502,9 +530,26 @@ async def handle_app_payment_request(session: Session, _user: User) -> Optional[
             expected_states=expected_states,
             actual_state=session.doc.session_state)
 
+    # 3: Also end pending locker tasks
+    locker_tasks = await TaskItemModel.find(
+        TaskItemModel.target == TaskTarget.LOCKER,
+        TaskItemModel.task_type == TaskType.REPORT,
+        In(TaskItemModel.task_state, [TaskState.QUEUED, TaskState.PENDING]),
+        TaskItemModel.assigned_session.id == session.doc.id,  # pylint: disable=no-member
+        In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
+           ACTIVE_SESSION_STATES),
+    ).to_list()
+
+    for locker_task in locker_tasks:
+        await Task(locker_task).cancel()
+
     # 2: Move the session to the next state.
     session.set_state(SessionState.PAYMENT)
     await session.doc.save_changes()
+
+    #  3: Set the task to completed
+    task.doc.task_state = TaskState.COMPLETED
+    await task.doc.save_changes()
 
 
 async def handle_terminal_payment_request(session: Session, user: User) -> Optional[SessionView]:
@@ -531,6 +576,8 @@ async def handle_terminal_payment_request(session: Session, user: User) -> Optio
         TaskItemModel.task_type == TaskType.REPORT,
         TaskItemModel.task_state == TaskState.PENDING,
         TaskItemModel.assigned_session.id == session.doc.id,  # pylint: disable=no-member
+        In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
+           ACTIVE_SESSION_STATES),
         # TaskItemModel.assigned_user.id == user.doc.id,  # pylint: disable=no-member
         fetch_links=True
     ).sort((
@@ -555,9 +602,9 @@ async def handle_terminal_payment_request(session: Session, user: User) -> Optio
 
     #  3: Set the task to completed
     task.doc.task_state = TaskState.COMPLETED
+    await task.doc.save_changes()
 
     # 4: Create a payment object
-    await task.doc.save_changes()
     await Payment().create(session=session.doc)
 
     # 5: Await station to enable terminal
@@ -745,6 +792,8 @@ async def handle_cancel_request(session_id: ObjId, user: User
     # 3: Check if there are any queued or pending tasks assigned to the session
     tasks = await TaskItemModel.find(
         TaskItemModel.assigned_session.id == session_id,  # pylint: disable=no-member
+        In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
+           ACTIVE_SESSION_STATES),
         In(TaskItemModel.task_state, [TaskState.QUEUED, TaskState.PENDING]),
         fetch_links=True
     ).to_list()

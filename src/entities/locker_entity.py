@@ -70,14 +70,16 @@ class Locker(Entity):
             reservation.assigned_locker.id for reservation in pending_reservations]
 
         # 4: Find a locker that is still available
+        if not locker_type:  # TODO: Improve this.
+            return None
+
         available_locker = await LockerModel.find(
             LockerModel.station.id == station.doc.id,  # pylint: disable=no-member
-            LockerModel.locker_type.name == locker_type.name,  # pylint: disable=no-member
+            LockerModel.locker_type == locker_type.name,  # pylint: disable=no-member
             NotIn(LockerModel.id, reserved_locker_ids + occupied_locker_ids),
             fetch_links=True
         ).first_or_none()
         if available_locker:
-            # logger.debug(f"Found available locker '#{available_locker.id}'.")
             instance.doc = available_locker
             return instance
 

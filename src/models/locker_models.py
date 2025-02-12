@@ -15,12 +15,36 @@ from beanie import Document, Link
 from beanie import PydanticObjectId as ObjId
 from beanie import SaveChanges, View, after_event
 from pydantic import BaseModel, Field, PydanticUserError
-
 # Models
 from src.models.station_models import StationModel
 # Services
 # Logging
 from src.services.logging_services import logger_service as logger
+
+# TODO: Moved here because of circular import, should be moved to a separate file
+
+
+class PricingModel(BaseModel):
+    """Config representation of pricing models."""
+    name: str = Field(None, description="Name of the pricing model")
+    base_fee: int = Field(
+        description="Minimal charge when starting a session (cent).")
+    charge_fee: int = Field(
+        description="Additional fee for connecting a device to the outlet.")
+    base_duration: int = Field(
+        description="Minutes until the charge exceeds the base charge.")
+    rate_minute: float = Field(
+        description="Charge for every started minue (cent)")
+
+    @dataclass
+    class Config:
+        json_schema_extra = {
+            "name": "Standard",
+            "base_fee": 100,
+            "charge_fee": 50,
+            "base_duration": 60,
+            "rate_minute": 0.5
+        }
 
 
 class LockerState(str, Enum):
@@ -43,7 +67,8 @@ class LockerType(BaseModel):
     description: str = Field("Well... a description.")
     dimensions: List[int] = Field(
         description="Physical dimensions in cm (x,y,z).")
-    pricing_model: str = Field(description="Name of associated price model.")
+    pricing_model: PricingModel = Field(
+        description="Name of associated price model.")
     has_outlet: bool = Field(
         description="Whether the lockers come with outlets.")
     maintenance_interval: timedelta = Field(
@@ -62,7 +87,7 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
         None, description="Call sign of the locker in the format STATION_CALLSIGN#station_index.")
 
     #### Locker Properties ###
-    locker_type: LockerType = Field(None, description='Type of the locker.')
+    locker_type: str = Field(None, description='Type of the locker.')
     station_index: int = Field(
         ..., description='Index of the locker in the station (Also printed on the doors).')
 
@@ -81,18 +106,20 @@ class LockerModel(Document):  # pylint: disable=too-many-ancestors
     last_service_at: datetime = Field(...,
                                       description='Timestamp of the last service.')
 
-    @ after_event(SaveChanges)
+    @after_event(SaveChanges)
     def log_changes(self):
         """Log the Database operation for debugging purposes."""
-        logger.debug(f"Locker '#{self.callsign}' has been registered as {
-                     self.locker_state}.")
+        logger.debug((
+            f"Locker '#{self.callsign}' has been registered "
+            f" as {
+                     self.locker_state}."))
 
-    @ dataclass
+    @dataclass
     class Settings:
         name = "lockers"
         use_state_management = True
 
-    @ dataclass
+    @dataclass
     class Config:
         json_schema_extra = {
             "station": "60d5ec49f1d2b2a5d8f8b8b8",
@@ -130,7 +157,7 @@ class LockerView(View):
             "station_index": "$station_index"
         }
 
-    @ dataclass
+    @dataclass
     class Config:
         json_schema_extra = {
             "station": "CENTRAL",
@@ -150,11 +177,11 @@ class ReducedLockerView(View):  # Internal use only
         source = LockerModel
         projection = {
             "id": "$_id",
-            "locker_type": "$locker_type.name",
+            "locker_type": "$locker_type",
             "locker_state": {"$toString": "$locker_state"}
         }
 
-    @ dataclass
+    @dataclass
     class Config:
         json_schema_extra = {
             "id": "60d5ec49f1d2b2a5d8f8b8b8",
@@ -198,10 +225,11 @@ LOCKER_TYPE_NAMES = [locker.name for locker in LOCKER_TYPES]
 
 
 try:
-    models = [LockerModel,
-              LockerView,
-              ReducedLockerView,
-              LockerTypeAvailabilityView]
+    models = [
+        LockerModel,
+        LockerView,
+        ReducedLockerView,
+        LockerTypeAvailabilityView]
     for model in models:
         model.model_json_schema()
 except PydanticUserError as exc_info:

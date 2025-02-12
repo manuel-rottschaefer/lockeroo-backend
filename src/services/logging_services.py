@@ -33,6 +33,9 @@ class LoggingService:
             level="DEBUG"
         )
 
+    def trace(self, message: str):
+        self.logger.trace(message)
+
     def debug(self, message: str):
         self.logger.debug(message)
 

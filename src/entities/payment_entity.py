@@ -4,12 +4,12 @@ from datetime import datetime, timedelta
 from typing import Optional
 # Entities
 from src.entities.entity_utils import Entity
-from src.entities.locker_entity import Locker
+from src.entities.locker_entity import Locker, LockerType
 from src.entities.session_entity import Session
-from src.models.payment_models import PaymentModel, PaymentState, PricingModel
+from src.models.payment_models import PaymentModel, PaymentState
 from src.models.session_models import SessionModel
-# Services
-from src.services.payment_services import PRICING_MODELS
+# Models
+from src.models.locker_models import LOCKER_TYPES, PricingModel
 
 
 class Payment(Entity):
@@ -42,18 +42,19 @@ class Payment(Entity):
         # 2: Get the locker assigned to this session
         locker: Locker = Locker(session.assigned_locker)
 
-        pricing_model: PricingModel = PRICING_MODELS[
-            locker.locker_type.pricing_model]
+        # 3: Try to get the pricing model
+        locker_type: LockerType = LOCKER_TYPES[locker.locker_type]
+        pricing_model: PricingModel = locker_type.pricing_model
 
         # 4:Calculate the total cost
         active_duration: timedelta = await session.active_duration
         calculated_price: int = pricing_model.rate_minute * \
             (active_duration.total_seconds() / 60)
-        # 5: Assure that price is withing bounds
-        # calculated_price = min(
-        #    max(calculated_price,
-        #        pricing_model['base_fee']), pricing_model['max_price']
-        # )
+        # 5: Assure that price is withing boundss
+        calculated_price = min(
+            max(calculated_price,
+                pricing_model['base_fee']), pricing_model['max_price']
+        )
 
         return calculated_price
 

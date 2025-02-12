@@ -1,26 +1,27 @@
 """This module provides the Models for Session management."""
 # Basics
-from os import getenv
+from configparser import ConfigParser
 # Types
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from enum import Enum
 from typing import Dict, List, Optional, Union
+from enum import Enum
 from uuid import UUID
-
 # Beanie
 from beanie import Document, Insert, Link
 from beanie import PydanticObjectId as ObjId
 from beanie import View, after_event, before_event
 from pydantic import Field, PydanticUserError
-
-from src.models.locker_models import LockerModel
 # Models
 from src.models.station_models import StationModel
+from src.models.locker_models import LockerModel
 from src.models.user_models import UserModel
 # Services
 from src.services import websocket_services
 from src.services.logging_services import logger_service as logger
+
+base_config = ConfigParser()
+base_config.read('.env')
 
 
 class SessionTypes(str, Enum):
@@ -81,20 +82,34 @@ ACTIVE_SESSION_STATES: List[SessionState] = [
 ]
 
 SESSION_TIMEOUTS: Dict[SessionState, int] = {
-    SessionState.CREATED: float(getenv("CREATED", '0')),
-    SessionState.PAYMENT_SELECTED: float(getenv("PAYMENT_SELECTED", '0')),
-    SessionState.VERIFICATION: float(getenv("VERIFICATION", '0')),
-    SessionState.STASHING: float(getenv("STASHING", '0')),
-    SessionState.ACTIVE: float(getenv("ACTIVE", '0')),
-    SessionState.HOLD: float(getenv("HOLD", '0')),
-    SessionState.PAYMENT: float(getenv("PAYMENT", '0')),
-    SessionState.RETRIEVAL: float(getenv("RETRIEVAL", '0')),
-    SessionState.COMPLETED: float(getenv("COMPLETED", '0')),
-    SessionState.CANCELED: float(getenv("CANCELED", '0')),
-    SessionState.STALE: float(getenv("STALE", '0')),
-    SessionState.EXPIRED: float(getenv("EXPIRED", '0')),
-    SessionState.ABORTED: float(getenv("ABORTED", '0'))
+    SessionState.CREATED: float(
+        base_config.get("SESSION_EXPIRATIONS", 'CREATED', fallback='0')),
+    SessionState.PAYMENT_SELECTED: float(
+        base_config.get("SESSION_EXPIRATIONS", 'PAYMENT_SELECTED', fallback='0')),
+    SessionState.VERIFICATION: float(
+        base_config.get("SESSION_EXPIRATIONS", 'VERIFICATION', fallback='0')),
+    SessionState.STASHING: float(
+        base_config.get("SESSION_EXPIRATIONS", 'STASHING', fallback='0')),
+    SessionState.ACTIVE: float(
+        base_config.get("SESSION_EXPIRATIONS", 'ACTIVE', fallback='0')),
+    SessionState.HOLD: float(
+        base_config.get("SESSION_EXPIRATIONS", 'HOLD', fallback='0')),
+    SessionState.PAYMENT: float(
+        base_config.get("SESSION_EXPIRATIONS", 'PAYMENT', fallback='0')),
+    SessionState.RETRIEVAL: float(
+        base_config.get("SESSION_EXPIRATIONS", 'RETRIEVAL', fallback='0')),
+    SessionState.COMPLETED: float(
+        base_config.get("SESSION_EXPIRATIONS", 'COMPLETED', fallback='0')),
+    SessionState.CANCELED: float(
+        base_config.get("SESSION_EXPIRATIONS", 'CANCELED', fallback='0')),
+    SessionState.STALE: float(
+        base_config.get("SESSION_EXPIRATIONS", 'STALE', fallback='0')),
+    SessionState.EXPIRED: float(
+        base_config.get("SESSION_EXPIRATIONS", 'EXPIRED', fallback='0')),
+    SessionState.ABORTED: float(
+        base_config.get("SESSION_EXPIRATIONS", 'ABORTED', fallback='0')),
 }
+
 
 SESSION_STATE_FLOW: Dict[SessionState, Union[SessionState, None]] = {
     SessionState.CREATED: SessionState.PAYMENT_SELECTED,
@@ -167,19 +182,19 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     websocket_token: Optional[str] = Field(
         None, description="Token for websocket communication.")
 
-    @ before_event(Insert)
+    @before_event(Insert)
     async def set_creation_data(self):
         self.created_at = datetime.now()
         self.websocket_token = websocket_services.generate_token()
 
-    @ after_event(Insert)
+    @after_event(Insert)
     async def log_creation(self):
         await self.fetch_link(SessionModel.assigned_locker)
         logger.debug(
             (f"Created session '#{self.id}' at locker "  # pylint: disable=no-member
              f"'#{self.assigned_locker.id}'."))  # pylint: disable=no-member
 
-    @ dataclass
+    @dataclass
     class Settings:
         name = "sessions"
         use_state_management = True
@@ -187,7 +202,7 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
         use_revision = False
         use_cache = False
 
-    @ dataclass
+    @dataclass
     class Config:
         json_schema_extra = {
             "assigned_station": "60d5ec49f1d2b2a5d8f8b8b8",
@@ -212,7 +227,7 @@ class SessionView(View):
     service_type: SessionTypes
     session_state: SessionState
 
-    @ dataclass
+    @dataclass
     class Settings:
         source = SessionModel
         projection = {
@@ -221,10 +236,10 @@ class SessionView(View):
             "station": "$assigned_station.callsign",
             "locker_index": "$assigned_locker.station_index",
             "service_type": "$session_type",
-            "session_state": "$session_state"
+            "session_state": 1
         }
 
-    @ dataclass
+    @dataclass
     class Config:
         from_attributes = True
         json_schema_extra = {
@@ -243,7 +258,7 @@ class ReducedSessionView(View):
     session_state: SessionState
     assigned_locker: ObjId
 
-    @ dataclass
+    @dataclass
     class Settings:
         source = SessionModel
         projection = {
@@ -252,7 +267,7 @@ class ReducedSessionView(View):
             "assigned_locker": "$assigned_locker._id"
         }
 
-    @ dataclass
+    @dataclass
     class Config:
         from_attributes = True
         json_schema_extra = {
@@ -266,7 +281,7 @@ class CreatedSessionView(SessionView):
     id: ObjId = Field(alias=None)
     websocket_token: str
 
-    @ dataclass
+    @dataclass
     class Config:
         from_attributes = True
         json_schema_extra = {
@@ -278,7 +293,7 @@ class ActiveSessionView(SessionView):
     """Used for serving information about an active session"""
     queue_position: Optional[int]
 
-    @ dataclass
+    @dataclass
     class Config:
         from_attributes = True
         json_schema_extra = {
@@ -294,7 +309,7 @@ class WebsocketUpdate(View):
     timeout: Optional[datetime]
     queue_position: Optional[int]
 
-    @ dataclass
+    @dataclass
     class Settings:
         source = SessionModel
         projection = {
@@ -304,7 +319,7 @@ class WebsocketUpdate(View):
             "queue_position": "$queue_position"
         }
 
-    @ dataclass
+    @dataclass
     class Config:
         from_attributes = True
         json_schema_extra = {
@@ -328,7 +343,7 @@ class ConcludedSessionView(View):
     total_duration: float
     active_duration: float
 
-    @ dataclass
+    @dataclass
     class Settings:
         source = SessionModel
         projection = {
@@ -341,7 +356,7 @@ class ConcludedSessionView(View):
             "active_duration": {"$toDouble": "$active_duration"}
         }
 
-    @ dataclass
+    @dataclass
     class Config:
         from_attributes = True
         json_schema_extra = {

@@ -46,10 +46,10 @@ class StationType(BaseModel):
     """Config representation of station types."""
     name: str = Field(description="Name of the station type.")
     code: str = Field(description="Short identifier for the type.")
+    manufacturer: str = Field(description="Manufacturer of the station type.")
+    version: float = Field(description="Version of the station type.")
     description: str = Field(
         description="You would've guessed it- a description :)")
-    locker_amount: int = Field(
-        description="The amount of individual lockers.")
     render: str = Field(description="Path to a static render of the model.")
     has_gsm: bool = Field(
         description="Whether the station has a mobile antenna.")
@@ -59,6 +59,7 @@ class StationType(BaseModel):
         description="Whether the station can house a solar panel.")
     is_embedded: bool = Field(
         description="Whether the station is embedded into the ground (or has legs).")
+    locker_layout: Dict = Field(description="Layout of the station.")
 
 
 class StationModel(Document):  # pylint: disable=too-many-ancestors
@@ -76,9 +77,6 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     # Setup and Installation Data
     installed_at: datetime = Field(
         description="Date and time of installation.")
-
-    # Layout
-    locker_layout: LockerLayout = Field(description="Layout of the station.")
 
     # Operation state
     station_state: StationState = Field(
@@ -113,13 +111,13 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     nearby_public_transport: Optional[str] = Field(
         description="Name of nearby public transport.")
 
-    @ after_event(SaveChanges)
+    @after_event(SaveChanges)
     def notify_station_state(self):
         """Send an update message regarding the session state to the mqtt broker."""
         fast_mqtt.publish(
             f"stations/{self.callsign}/state", self.station_state)
 
-    @ dataclass
+    @dataclass
     class Settings:
         name = "stations"
         use_state_management = True
@@ -128,7 +126,7 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
         # cache_expiration_time = timedelta(seconds=10)
         # cache_capacity = 5
 
-    @ dataclass
+    @dataclass
     class Config:
         json_schema_extra = {
             "full_name": "Central Station",
@@ -172,7 +170,7 @@ class StationView(View):
     location: Dict
     nearby_public_transport: Optional[str]
 
-    @ dataclass
+    @dataclass
     class Settings:  # pylint: disable=too-few-public-methods
         source = StationModel
         projection = {
@@ -188,7 +186,7 @@ class StationView(View):
             "nearby_public_transport": 1
         }
 
-    @ dataclass
+    @dataclass
     class Config:
         json_schema_extra = {
             "full_name": "Central Station",

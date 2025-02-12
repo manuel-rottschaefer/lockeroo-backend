@@ -5,7 +5,7 @@ from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 # Beanie
-from beanie import Document, Link, Insert
+from beanie import Document, View, Link, Insert
 from beanie import PydanticObjectId as ObjId
 from beanie import SaveChanges, after_event, before_event
 from pydantic import Field, PydanticUserError
@@ -97,11 +97,11 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
     completed_at: Optional[datetime] = Field(
         None, description="The datetime when the task item was completed or expired.")
 
-    @ before_event(Insert)
+    @before_event(Insert)
     def handle_creation_event(self):
         self.created_at = datetime.now()
 
-    @ after_event(Insert)
+    @after_event(Insert)
     async def log_creation(self):
         await self.fetch_link(TaskItemModel.assigned_session)
         if self.assigned_session is not None:
@@ -109,19 +109,20 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
                 (f"Created task '#{self.id}' of {self.task_type} "
                  f"for session '#{self.assigned_session.id}'."))  # pylint: disable=no-member
 
-    @ after_event(SaveChanges)
+    @after_event(SaveChanges)
     async def log_state(self) -> None:
         """Log database operation."""
         if self.task_state != TaskState.QUEUED:
-            logger.debug((f"Task '#{self.id}' for {self.target} of "
-                          f"{self.task_type} set to {self.task_state}."))
+            logger.debug((
+                f"Task '#{self.id}' for {self.target} of "
+                f"{self.task_type} set to {self.task_state}."))
 
-    @ dataclass
+    @dataclass
     class Settings:
         name = "tasks"
         use_state_management = True
 
-    @ dataclass
+    @dataclass
     class Config:
         json_schema_extra = {
             "_id": "5f7f9f8b0b7c0e001f6b0d0c",
@@ -137,6 +138,28 @@ class TaskItemModel(Document):  # pylint: disable=too-many-ancestors
             "expires_at": "2020-10-08T15:00:00",
             "activated_at": "2020-10-08T15:00:00",
             "completed_at": "2020-10-08T15:00:00"
+        }
+
+
+class TaskPositionView(View):
+    """Task view for only the queue position."""
+    id: ObjId = Field(alias=None)
+    queue_positon: int
+
+    @dataclass
+    class Settings:
+        source = TaskItemModel
+        projection = {
+            "id": {"$toString": "$_id"},
+            "queue_position": 1
+        }
+
+    @dataclass
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "id": "60d5ec49f1d2b2a5d8f8b8b8",
+            "queue_position": 1,
         }
 
 

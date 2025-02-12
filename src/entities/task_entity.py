@@ -2,7 +2,7 @@
 # Basics
 from asyncio import Task as AsyncTask, create_task, sleep, Lock
 from datetime import datetime, timedelta
-from os import getenv
+from configparser import ConfigParser
 from typing import Optional
 # Beanie
 from beanie import Link, SortDirection
@@ -31,6 +31,9 @@ from src.services.logging_services import logger_service as logger
 # Exceptions
 from src.exceptions.locker_exceptions import InvalidLockerStateException
 
+base_config = ConfigParser()
+base_config.read('.env')
+
 
 class Task(Entity):
     """Add behaviour to a task Model."""
@@ -54,9 +57,11 @@ class Task(Entity):
 
         timeout_window: int = 0
         if self.doc.task_type == TaskType.CONFIRMATION:
-            timeout_window = int(getenv("STATION_EXPIRATION", '10'))
+            timeout_window = int(base_config.get(
+                'TARGET_EXPIRATIONS', 'STATION'))
         elif self.doc.task_type == TaskType.RESERVATION:
-            timeout_window = int(getenv("RESERVATION_EXPIRATION", '10'))
+            timeout_window = int(base_config.get(
+                'TARGET_EXPIRATIONS', 'RESERVATION'))
         else:
             timeout_window = SESSION_TIMEOUTS.get(
                 self.doc.assigned_session.session_state, 10)
@@ -126,6 +131,8 @@ class Task(Entity):
         await self.doc.fetch_link(TaskItemModel.assigned_station)
         tasks = await TaskItemModel.find(
             TaskItemModel.assigned_station.id == self.doc.assigned_station.id,  # pylint: disable=no-member
+            In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
+               ACTIVE_SESSION_STATES),
             TaskItemModel.target == TaskTarget.TERMINAL,
             In(TaskItemModel.task_state, [
                TaskState.QUEUED, TaskState.PENDING]),
@@ -157,13 +164,15 @@ class Task(Entity):
             logger.debug((
                 f"Not activating task '#{next_task.id} '"
                 "as session is not active."))
+
             return
 
         # Dont activate a terminal task if the terminal is not idle
         if (next_task.doc.target == TaskTarget.TERMINAL and
                 next_task.doc.assigned_station.terminal_state != TerminalState.IDLE):
-            logger.debug((f"Not activating task '#{next_task.id}' "
-                         "as terminal is not idle."))
+            logger.debug((
+                f"Not activating task '#{next_task.id}' "
+                "as terminal is not idle."))
             return
 
         # 4: Activate the next task
@@ -335,7 +344,7 @@ class Task(Entity):
 
     async def cancel(self) -> None:
         """Cancel a task item.
-        Checks if the task is still pending, then updates it to CANCELED.
+        Checks if the task is still queued or pending, then updates it to CANCELED.
         If the task is a terminal task, sends an instruction to the terminal to be idle.
         Finally, restarts the expiration manager.
 
@@ -350,7 +359,7 @@ class Task(Entity):
         """
         # 1: Sync the task and check if its still pending
         await self.doc.sync()
-        assert (self.doc.task_state == TaskState.PENDING
+        assert (self.doc.task_state in [TaskState.QUEUED, TaskState.PENDING]
                 ), f"Task '#{self.id}' is not pending."
         self.doc.task_state = TaskState.CANCELED
 
@@ -401,7 +410,6 @@ class Task(Entity):
             AssertionError: If the task is not pending or has no timeout states defined
         """
         # 1: Sync the task and check if its still pending
-        # logger.debug(f"Handling expiration of task '{self.id}'")
         await self.doc.sync()
         # 2: If task is still pending, set it to expired
         assert (self.doc.task_state == TaskState.PENDING

@@ -50,7 +50,7 @@ class LockerNotAvailableException(Exception):
 
     def __str__(self):
         return (
-            f"No Locker of type {self.locker_type.name} available "
+            f"No Locker of type '{self.locker_type}' available "
             f"at station '#{self.assigned_station}'.")
 
 
@@ -66,7 +66,7 @@ class InvalidLockerTypeException(Exception):
             raise HTTPException(status_code=400, detail=self.__str__())
 
     def __str__(self):
-        return f"Locker type '{self.locker_type.name}' is not found in the configuration."
+        return f"Locker type '{self.locker_type}' is not found in the configuration."
 
 
 class InvalidLockerStateException(Exception):
