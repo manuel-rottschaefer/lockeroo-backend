@@ -188,11 +188,13 @@ class MockingSession:
         """Terminate the current session and free up the user ID."""
         sleep(5)  # Wait five seconds before freeing up the user ID
 
-        if self.session.id is None:
-            self.session = {'id': 'Unknown'}
-        self.logger.debug((
-            f"Terminating session '#{self.session.id}' of "
-            f"user {self.user_id}"))
+        # if self.session is None:
+        #    self.logger.warning(
+        #        "Could not terminate session that was not created.")
+        if self.session is not None:
+            self.logger.debug((
+                f"Terminating session '#{self.session.id}' of "
+                f"user {self.user_id}"))
         user_pool.drop_user(self.user_id)
         self.task_set.interrupt()
 
@@ -202,7 +204,6 @@ class MockingSession:
 
     def choose_station(self, expected_code=200):
         """Request a list of stations from the backend and choose a random one."""
-        print(self.endpoint)
         self.res = self.client.get(
             f'{self.endpoint}/stations/', timeout=3
         )
@@ -216,7 +217,8 @@ class MockingSession:
         ]
         if len(avail_station_codes):
             self.station_callsign = choice(avail_station_codes)
-        # self.logger.debug(f"Selected {self.station_callsign} as station.")
+        else:
+            self.logger.warning("No stations available.")
 
     def find_available_locker(
             self, expected_code=200) -> Optional[str]:
@@ -224,6 +226,8 @@ class MockingSession:
         self.res = self.client.get(
             f'{self.endpoint}/stations/{self.station_callsign}/lockers', timeout=3)
         if self.res.status_code != expected_code:
+            self.logger.error(f"Invalid status code '{self.res.status_code}' "
+                              f" for locker find request.")
             self.terminate_session()
             raise InvalidResCodeException(
                 session_id=self.session.id,
@@ -235,6 +239,8 @@ class MockingSession:
             LockerTypeAvailabilityView(**i) for i in self.res.json() if i['is_available']]
         if not avail_locker_types:
             # Wait here so a locker can become available
+            self.logger.warning(
+                f"No locker available at station '{self.station_callsign}'.")
             self.terminate_session()
 
         if len(avail_locker_types):
@@ -251,6 +257,8 @@ class MockingSession:
             params={'locker_type': locker_type
                     }, headers=self.headers, timeout=3)
         if self.res.status_code != expected_code:
+            self.logger.error(f"Invalid status code '{self.res.status_code}' "
+                              f" for reservation request.")
             self.terminate_session()
             raise InvalidResCodeException(
                 session_id=self.session.id,

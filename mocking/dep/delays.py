@@ -20,7 +20,7 @@ def get_delay_range(key) -> List[float]:
     elif mode == "DEFAULT":
         lower = locust_config.get('MINIMUM_DELAYS', key).replace(' ', '')
         upper = backend_conf.get(
-            'SESSION_STATE_EXPIRATIONS', key).replace(' ', '')
+            'SESSION_EXPIRATIONS', key).replace(' ', '')
         return [float(lower), float((upper))]
     else:
         raise ValueError(f"Cannot find delay range for state '{key}'.")
