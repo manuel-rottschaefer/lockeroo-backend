@@ -1,10 +1,10 @@
 """
     This module contains the FastAPI router for handling reviews.
 """
-# Basics
+# Types
 from typing import Annotated
+from bson.objectid import ObjectId
 from uuid import uuid4
-# Database utils
 from beanie import PydanticObjectId as ObjId
 # FastAPI
 from fastapi import APIRouter, Depends, Header, Path, Query, status
@@ -20,15 +20,15 @@ from src.services.logging_services import logger_service as logger
 review_router = APIRouter()
 
 
-@ review_router.get(
+@review_router.get(
     '/{session_id}',
     response_model=ReviewView,
     status_code=status.HTTP_200_OK,
     description='Get the review of a session.')
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def get_review(
     session_id: Annotated[str, Path(
-        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
+        pattern='^[a-fA-F0-9]{24}$', example=str(ObjectId()),
         description='Unique identifier of the session.')],
     _user: Annotated[str, Header(
         alias="user", example=uuid4(),
@@ -42,15 +42,15 @@ async def get_review(
     )
 
 
-@ review_router.put(
+@review_router.put(
     '/{session_id}/submit',
     response_model=ReviewView,
     status_code=status.HTTP_201_CREATED,
     description='Submit a review for a completed session.')
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def submit_review(
     session_id: Annotated[str, Path(
-        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
+        pattern='^[a-fA-F0-9]{24}$', example=str(ObjectId()),
         description='Unique identifier of the session.')],
     experience_rating: Annotated[
         int, Query(ge=1, le=5, escription="Star rating of the experience")],

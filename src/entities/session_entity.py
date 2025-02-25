@@ -5,24 +5,28 @@ from datetime import datetime, timedelta
 from typing import List
 # Entities
 from src.entities.entity_utils import Entity
+from src.entities.locker_entity import Locker
+from src.entities.station_entity import Station
+# Models
 from src.models.action_models import ActionModel
-from src.models.locker_models import LockerModel
+from src.models.locker_models import LockerModel, LockerState
+from src.models.task_models import (
+    TaskItemModel,
+    TaskTarget,
+    TaskType)
 from src.models.session_models import (
     SESSION_STATE_FLOW,
     SessionModel,
     SessionState,
-    SessionView,
-    CreatedSessionView,
     WebsocketUpdate)
-# Models
 from src.models.station_models import StationModel
 from src.models.user_models import UserModel
-from src.models.task_models import TaskItemModel
 # Services
 from src.services import websocket_services
 from src.services.logging_services import logger_service as logger
 # Exceptions
 from src.exceptions.session_exceptions import SessionNotFoundException
+from src.exceptions.locker_exceptions import InvalidLockerStateException
 
 
 class Session(Entity):
@@ -37,51 +41,25 @@ class Session(Entity):
         super().__init__(document)
 
     @property
-    async def view(self) -> SessionView:
-        # await self.doc.fetch_all_links()
-        # TODO: Improve this
-        return SessionView(
-            id=self.doc.id,
-            station=str(self.doc.assigned_station.id),
-            assigned_user=self.doc.assigned_user.fief_id,
-            locker_index=self.doc.assigned_locker.station_index if self.assigned_locker else None,
-            service_type=self.doc.session_type,
-            session_state=self.doc.session_state,
-            websocket_token=self.doc.websocket_token,
-        )
-
-    @property
-    def created_view(self) -> CreatedSessionView:
-        """Return a view of the session that is suitable for creation."""
-        return CreatedSessionView(
-            id=self.doc.id,
-            assigned_user=self.doc.assigned_user.fief_id,
-            station=str(self.doc.assigned_station.id),
-            locker_index=self.doc.assigned_locker.station_index,
-            service_type=self.doc.session_type,
-            session_state=self.doc.session_state,
-            websocket_token=self.doc.websocket_token,
-        )
-
-    ### Calculated Properties ###
-
-    @ property
     def exists(self) -> bool:
         """Check whether this object exists."""
         return self.doc is not None
 
-    @ property
-    async def total_duration(self) -> timedelta:
+    @property
+    async def calc_total_duration(self) -> timedelta:
         """Returns the amount of seconds between session creation and completion or now."""
         # Return the seconds since the session was created if it is still running
         if self.doc.session_state != SessionState.COMPLETED:
             return datetime.now() - self.doc.created_at
 
         # Otherwise, return the seconds between creation and completion
-        return self.doc.completed_at - self.doc.created_at
+        if not self.doc.completed_at:
+            self.doc.completed_at = datetime.now()
+        self.doc.total_duration = self.doc.completed_at - self.doc.created_at
+        return self.doc.total_duration
 
-    @ property
-    async def active_duration(self) -> timedelta:
+    @property
+    async def calc_active_duration(self) -> timedelta:
         """Returns the amount of seconds the session has been active until now,
         i.e time that the user gets charged for."""
 
@@ -91,8 +69,7 @@ class Session(Entity):
 
         hold_states: List[SessionState] = [
             SessionState.HOLD,
-            SessionState.PAYMENT,
-        ]
+            SessionState.PAYMENT]
 
         # Sum up time between all locked cycles
         async for action in ActionModel.find(
@@ -102,9 +79,10 @@ class Session(Entity):
                 cycle_start = action.timestamp
             elif action.action_type in hold_states:
                 active_duration += action.timestamp - cycle_start
-        return active_duration
+        self.doc.active_duration = active_duration
+        return self.doc.active_duration
 
-    @ property
+    @property
     def next_state(self) -> SessionState:
         """Return the next logical state of the session."""
 
@@ -127,11 +105,66 @@ class Session(Entity):
         logger.info(
             f"Session '#{self.doc.id}' set to {self.doc.session_state}.")
 
+    async def activate(self, task: TaskItemModel) -> None:
+        """Activate the session."""
+        if (task.task_type == TaskType.REPORT
+            and self.doc.session_state != SessionState.CANCELED
+                and task.queued_state is not None):
+            # Move session to next state
+            self.set_state(task.queued_state)
+            await self.doc.save_changes()
+            await ActionModel(
+                assigned_session=self.doc,
+                action_type=task.queued_state
+            ).insert()
+            await self.broadcast_update(task)
+
+        elif (task.task_type == TaskType.CONFIRMATION
+              and task.target == TaskTarget.TERMINAL):
+            if task.queued_state:
+                self.set_state(task.queued_state)
+                await self.doc.save_changes()
+                await self.broadcast_update(task)
+            if not task.is_expiration_retry:
+                station: Station = Station(self.doc.assigned_station)
+                await station.instruct_next_terminal_state(self.next_state)
+
+        elif (task.task_type == TaskType.CONFIRMATION
+              and task.target == TaskTarget.LOCKER):
+            await task.fetch_link(TaskItemModel.assigned_locker)
+            # Check if the locker still has a stale session
+            # If that is the case, complete the session,
+            # else send an unlock command to the locker
+            locker: Locker = Locker(self.doc.assigned_locker)
+
+            stale_session: SessionModel = await SessionModel.find(
+                SessionModel.assigned_locker.id == locker.doc.id,  # pylint: disable=no-member
+                SessionModel.session_state == SessionState.STALE,
+            ).first_or_none()
+
+            if stale_session:
+                stale_session = Session(stale_session)
+                stale_session.set_state(SessionState.COMPLETED)
+                await stale_session.doc.save_changes()
+                await stale_session.handle_conclude()
+            elif (locker.doc.locker_state != LockerState.LOCKED):
+                raise InvalidLockerStateException(
+                    locker_id=locker.doc.id,
+                    actual_state=locker.doc.locker_state,
+                    expected_state=LockerState.LOCKED,
+                    raise_http=False)
+            else:
+                # Send UNLOCK command to the locker
+                await locker.instruct_state(LockerState.UNLOCKED)
+
     async def handle_conclude(self) -> None:
         """Calculate and store statistical data when session completes/expires/aborts."""
-        self.doc.total_duration = await self.total_duration
+        self.doc.completed_at = datetime.now()
+        await self.calc_total_duration
+        await self.calc_active_duration
+        await self.doc.save_changes()
+
         await self.doc.fetch_all_links()
-        # TODO: List these categories only for completed sessions?
         # Update station statistics
         await self.assigned_station.inc(
             {StationModel.total_session_count: 1,
@@ -144,5 +177,3 @@ class Session(Entity):
         await self.doc.assigned_user.inc({
             UserModel.total_session_count: 1,
             UserModel.total_session_duration: self.doc.total_duration})
-
-        await self.doc.save_changes()

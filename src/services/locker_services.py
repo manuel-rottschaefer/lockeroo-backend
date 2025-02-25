@@ -14,7 +14,9 @@ from src.exceptions.locker_exceptions import (
 # Models
 from src.models.action_models import ActionModel
 from src.models.session_models import (
-    SessionModel, SessionState, ACTIVE_SESSION_STATES, PaymentMethod)
+    SessionState,
+    ACTIVE_SESSION_STATES,
+    PaymentMethod)
 from src.models.task_models import (
     TaskItemModel,
     TaskState,
@@ -24,7 +26,6 @@ from src.models.task_models import (
 from src.services.logging_services import logger_service as logger
 # Exceptions
 from src.exceptions.task_exceptions import TaskNotFoundException
-from src.exceptions.session_exceptions import InvalidSessionStateException
 
 
 async def handle_unlock_confirmation(
@@ -132,26 +133,7 @@ async def handle_lock_report(
         TaskItemModel.created_at, SortDirection.ASCENDING
     )).first_or_none())
     if not task.exists:
-        # Try to find a session that matches the locker
-        # and is in a non-complete and non-active state
-        expected_states = [
-            SessionState.CANCELED,
-            SessionState.ABANDONED,
-            SessionState.STALE,
-            SessionState.EXPIRED]
-        session: Session = Session(await SessionModel.find(
-            SessionModel.assigned_locker.station.callsign == callsign,  # pylint: disable=no-member
-            SessionModel.assigned_locker.station_index == station_index,  # pylint: disable=no-member
-            In(SessionModel.session_state, expected_states),
-            fetch_links=True
-        ).first_or_none())
-        if session.exists:
-            raise InvalidSessionStateException(
-                session_id=session.id,
-                actual_state=session.doc.session_state,
-                expected_states=[expected_states]
-            )
-
+        # TODO: Improve error handling here
         raise TaskNotFoundException(
             task_type=TaskType.REPORT,
             assigned_station=callsign,
@@ -195,10 +177,22 @@ async def handle_lock_report(
     await locker.register_state(LockerState.LOCKED)
     await task.complete()
 
+    # 7: If the session is on hold, find the user task and complete it
+    if session.doc.session_state == SessionState.HOLD:
+        user_task: Task = Task(await TaskItemModel.find(
+            TaskItemModel.target == TaskTarget.USER,
+            TaskItemModel.task_type == TaskType.REPORT,
+            TaskItemModel.task_state == TaskState.PENDING,
+            TaskItemModel.assigned_session.id == session.doc.id,  # pylint: disable=no-member
+            fetch_links=True
+        ).first_or_none())
+        if user_task.exists:
+            logger.debug(f"Also completing user report task '{user_task.id}'.")
+            await user_task.complete()
+
     # 7: Catch completed sessions
     if session.next_state == SessionState.COMPLETED:
         session.set_state(SessionState.COMPLETED)
-        session.doc.completed_at = datetime.now()
         # TODO: Should be redundant with handle_conclude, but is not
         await session.doc.save_changes()
         await session.broadcast_update()

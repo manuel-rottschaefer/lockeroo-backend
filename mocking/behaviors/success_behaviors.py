@@ -12,7 +12,7 @@ class RegularSession(MockingSession):
     4. Delay or wait for timeout
     """
 
-    def run(self):  # pylint: disable=missing-function-docstring
+    def run(self, terminate: bool = True):  # pylint: disable=missing-function-docstring
         self.user_request_reservation()
         self.delay_action(SessionState.CREATED)
 
@@ -42,13 +42,13 @@ class RegularSession(MockingSession):
 
         self.station_report_locker_close()
         self.await_state(SessionState.COMPLETED)
-        self.verify_state(SessionState.COMPLETED, final=True)
+        self.verify_state(SessionState.COMPLETED, final=terminate)
 
 
 class Abandon1stVerifyThenNormal(MockingSession):
     """Miss the first verification window, but then continue as normal."""
 
-    def run(self):  # pylint: disable=missing-function-docstring
+    def run(self, terminate: bool = True):  # pylint: disable=missing-function-docstring
         self.user_request_session()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
@@ -80,13 +80,13 @@ class Abandon1stVerifyThenNormal(MockingSession):
 
         self.station_report_locker_close()
         self.await_state(SessionState.COMPLETED)
-        self.verify_state(SessionState.COMPLETED, final=True)
+        self.verify_state(SessionState.COMPLETED, terminate)
 
 
 class Abandon1stPaymentThenNormal(MockingSession):
     """Miss the first payment window, but then continue as normal."""
 
-    def run(self):  # pylint: disable=missing-function-docstring
+    def run(self, terminate: bool = True):  # pylint: disable=missing-function-docstring
         self.user_request_session()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
@@ -118,13 +118,13 @@ class Abandon1stPaymentThenNormal(MockingSession):
 
         self.station_report_locker_close()
         self.await_state(SessionState.COMPLETED)
-        self.verify_state(SessionState.COMPLETED, final=True)
+        self.verify_state(SessionState.COMPLETED, terminate)
 
 
 class HoldThenPayment(MockingSession):
     """Hold a session, then continue to payment."""
 
-    def run(self):  # pylint: disable=missing-function-docstring
+    def run(self, terminate: bool = True):  # pylint: disable=missing-function-docstring
         self.set_payment_method(PaymentMethod.APP)
         self.user_request_session()
         self.verify_state(SessionState.PAYMENT_SELECTED)
@@ -156,13 +156,13 @@ class HoldThenPayment(MockingSession):
 
         self.station_report_locker_close()
         self.await_state(SessionState.COMPLETED)
-        self.verify_state(SessionState.COMPLETED, final=True)
+        self.verify_state(SessionState.COMPLETED, terminate)
 
 
 class HoldThenNormal(MockingSession):
     """Hold a session, then resume to active and complete it."""
 
-    def run(self):  # pylint: disable=missing-function-docstring
+    def run(self, terminate: bool = True):  # pylint: disable=missing-function-docstring
         self.set_payment_method(PaymentMethod.APP)
         self.user_request_session()
         self.verify_state(SessionState.PAYMENT_SELECTED)
@@ -198,4 +198,4 @@ class HoldThenNormal(MockingSession):
 
         self.station_report_locker_close()
         self.await_state(SessionState.COMPLETED)
-        self.verify_state(SessionState.COMPLETED, final=True)
+        self.verify_state(SessionState.COMPLETED, terminate)

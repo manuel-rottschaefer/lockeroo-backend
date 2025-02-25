@@ -30,8 +30,13 @@ class LoggingService:
             rotation="1 day",
             format="{time:YYYY-MM-DD HH:mm:ss} - {level} - {message}",
             encoding="utf-8",
-            level="DEBUG"
-        )
+            level="DEBUG")
+
+    def should_log(self, record):
+        """Filter function to exclude HTTPException."""
+        if record["exception"] and isinstance(record["exception"].exception, HTTPException):
+            return False  # Exclude HTTPException
+        return True  # Include other logs
 
     def trace(self, message: str):
         self.logger.trace(message)

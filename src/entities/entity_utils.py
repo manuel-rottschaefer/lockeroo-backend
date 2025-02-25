@@ -29,3 +29,8 @@ class Entity():
         else:
             # Delegate setting other attributes to the document
             setattr(self.doc, name, value)
+
+    @property
+    def exists(self) -> bool:
+        """Check if the task exists."""
+        return self.doc is not None

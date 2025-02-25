@@ -35,19 +35,8 @@ class Locker(Entity):
     async def find_available(cls, station: Station, locker_type: LockerType):
         """Find an available locker at this station."""
         instance = cls()
-        # 1: Try to find a stale session whose assigned locker can be used
-        stale_session = await SessionModel.find(
-            SessionModel.assigned_station.callsign == station.doc.callsign,  # pylint: disable=no-member
-            SessionModel.session_state == SessionState.STALE,
-            fetch_links=True
-        ).first_or_none()
-        if stale_session:
-            logger.debug(
-                f"Found stale locker '#{stale_session.assigned_locker}'.")
-            instance.doc = stale_session.assigned_locker
-            return instance
 
-        # 2: Get all active session at this station
+        # 1: Get all active session at this station
         active_sessions = await SessionModel.find(
             SessionModel.assigned_station.callsign == station.doc.callsign,  # pylint: disable=no-member
             Or(In(SessionModel.session_state, ACTIVE_SESSION_STATES),
@@ -58,7 +47,7 @@ class Locker(Entity):
         occupied_locker_ids = [
             session.assigned_locker for session in active_sessions]
 
-        # 3: Get all pending reservations for this station
+        # 2: Get all pending reservations for this station
         pending_reservations = await TaskItemModel.find(
             TaskItemModel.assigned_station.callsign == station.doc.callsign,  # pylint: disable=no-member
             TaskItemModel.target == TaskTarget.USER,
@@ -69,10 +58,20 @@ class Locker(Entity):
         reserved_locker_ids = [
             reservation.assigned_locker.id for reservation in pending_reservations]
 
-        # 4: Find a locker that is still available
-        if not locker_type:  # TODO: Improve this.
-            return None
+        # 3: Try to find a stale session whose assigned locker can be used
+        stale_session = await SessionModel.find(
+            SessionModel.assigned_station.callsign == station.doc.callsign,  # pylint: disable=no-member
+            SessionModel.session_state == SessionState.STALE,
+            fetch_links=True
+        ).first_or_none()
+        if stale_session:
+            logger.debug(
+                f"Found stale locker '#{stale_session.assigned_locker.id}'.")
+            if stale_session.assigned_locker.id not in reserved_locker_ids + occupied_locker_ids:
+                instance.doc = stale_session.assigned_locker
+                return instance
 
+        # 4: Find a locker that is still available
         available_locker = await LockerModel.find(
             LockerModel.station.id == station.doc.id,  # pylint: disable=no-member
             LockerModel.locker_type == locker_type.name,  # pylint: disable=no-member

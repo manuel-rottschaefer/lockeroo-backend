@@ -6,7 +6,7 @@ from typing import Annotated, Any, List, Optional
 from uuid import uuid4
 # FastAPI & Beanie
 from beanie import PydanticObjectId as ObjId
-from fastapi import APIRouter, Path, Header, Depends, Query, status
+from fastapi import APIRouter, Path, Header, Depends, Query, status, HTTPException
 # Exceptions
 from src.exceptions.locker_exceptions import InvalidLockerReportException
 from src.models.locker_models import (
@@ -20,11 +20,13 @@ from src.models.station_models import StationState, StationView, TerminalState
 from src.models.session_models import SessionState
 from src.models.locker_models import LOCKER_TYPE_NAMES
 # Services
-from src.services import station_services, locker_services
-from src.services.exception_services import handle_exceptions
 from src.services.logging_services import logger_service as logger
+from src.services.exception_services import handle_exceptions
+from src.services import station_services, locker_services
 from src.services.mqtt_services import fast_mqtt, validate_mqtt_topic
 from src.services.auth_services import require_auth
+# Exceptions
+from src.exceptions.locker_exceptions import LockerNotAvailableException
 
 # Create the router
 station_router = APIRouter()
@@ -35,7 +37,7 @@ station_router = APIRouter()
     response_model=List[StationView],
     status_code=status.HTTP_200_OK,
     description="Return a list of all installed stations.")
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def get_all_stations():
     """Return a list of all installed stations."""
     return await station_services.get_all_stations()
@@ -46,7 +48,7 @@ async def get_all_stations():
     response_model=List[StationView],
     status_code=status.HTTP_200_OK,
     description="Get a list of all stations within a range of a given location.")
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def get_nearby_stations(
         lat: Annotated[float, Query(
             ge=0, le=180, example=49.0,
@@ -71,7 +73,7 @@ async def get_nearby_stations(
     status_code=status.HTTP_200_OK,
     description='Get detailed information about a station.'
 )
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def get_station_details(
         callsign: Annotated[str, Path(
             pattern='^[A-Z]{6}$', example="MUCODE",
@@ -88,7 +90,7 @@ async def get_station_details(
     status_code=status.HTTP_200_OK,
     description='Get the amount of currently active sessions at this station.'
 )
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def get_active_session_count(
         callsign: Annotated[str, Path(
             pattern='^[A-Z]{6}$', example="MUCODE",
@@ -103,7 +105,7 @@ async def get_active_session_count(
     '/{callsign}/lockers',
     response_model=List[LockerTypeAvailabilityView],
     status_code=status.HTTP_200_OK,)
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def get_locker_overview(
         callsign: Annotated[str, Path(
             pattern='^[A-Z]{6}$', example="MUCODE",
@@ -119,7 +121,7 @@ async def get_locker_overview(
     response_model=LockerView,
     status_code=status.HTTP_200_OK,
 )
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def get_locker_by_index(
         callsign: Annotated[str, Path(
             pattern='^[A-Z]{6}$', example="MUCODE",
@@ -141,7 +143,7 @@ async def get_locker_by_index(
     response_model=None,
     status_code=status.HTTP_202_ACCEPTED,
 )
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def reserve_locker_at_station(
     callsign: str,
     # callsign: Annotated[str, Path(
@@ -154,10 +156,14 @@ async def reserve_locker_at_station(
     access_info: User = Depends(require_auth),
 ) -> StationView:
     """Reserve a station for a user"""
-    await station_services.handle_reservation_request(
-        callsign=callsign,
-        locker_type=locker_type,
-        user=access_info)
+    try:  # TODO: Improve this
+        await station_services.handle_reservation_request(
+            callsign=callsign,
+            locker_type=locker_type,
+            user=access_info)
+    except LockerNotAvailableException as e:
+        logger.warning(e)
+        raise HTTPException(status_code=404, detail=e) from e
 
 
 @station_router.delete(
@@ -166,7 +172,7 @@ async def reserve_locker_at_station(
     status_code=status.HTTP_202_ACCEPTED,
 
 )
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def request_reservation_cancelation(
     callsign: Annotated[str, Path(
         pattern='^[A-Z]{6}$', example="MUCODE",
@@ -187,7 +193,7 @@ async def request_reservation_cancelation(
     '/{callsign}/reset_queue',
     response_model=StationView,
     status_code=status.HTTP_202_ACCEPTED)
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def reset_station_queue(
         callsign: Annotated[str, Path(
             pattern='^[A-Z]{6}$', example="MUCODE",
@@ -197,11 +203,11 @@ async def reset_station_queue(
     return await station_services.reset_queue(callsign=callsign)
 
 
-@ station_router.get(
+@station_router.get(
     '/{callsign}/state',
     response_model=StationView,
     status_code=status.HTTP_200_OK)
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def get_station_state(
         callsign: Annotated[str, Path(
             pattern='^[A-Z]{6}$', example="MUCODE",
@@ -216,7 +222,7 @@ async def get_station_state(
     '/{callsign}/state',
     response_model=StationView,
     status_code=status.HTTP_202_ACCEPTED,)
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def set_station_state(
         callsign: Annotated[str, Path(
             pattern='^[A-Z]{6}$', example="MUCODE",
@@ -230,6 +236,7 @@ async def set_station_state(
 
 @validate_mqtt_topic('stations/+/terminal/confirm', [ObjId])
 @fast_mqtt.subscribe('stations/+/terminal/confirm')
+@handle_exceptions(logger)
 async def handle_terminal_confirmation(
         _client, topic, payload, _qos, _properties) -> None:
     """Handle a confirmation from a station that it entered a mode at its terminal"""
@@ -254,7 +261,7 @@ async def handle_terminal_confirmation(
 
 @validate_mqtt_topic('stations/+/verification/report', [ObjId])
 @fast_mqtt.subscribe('stations/+/verification/report')
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def handle_verification_report(
         _client, topic, payload, _qos, _properties) -> None:
     """Handle a payment verification report from a station"""
@@ -273,7 +280,7 @@ async def handle_verification_report(
 
 @validate_mqtt_topic('stations/+/payment/report', [ObjId])
 @fast_mqtt.subscribe('stations/+/payment/report')
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def handle_station_payment_report(
         _client, topic, _payload, _qos, _properties) -> None:
     """Handle a payment report from a station"""
@@ -292,7 +299,7 @@ async def handle_station_payment_report(
 
 @validate_mqtt_topic('stations/+/locker/+/confirm', [ObjId, int])
 @fast_mqtt.subscribe('stations/+/locker/+/confirm')
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def handle_locker_confirmation(
         _client: Any, topic: str, payload: bytes, _qos: int, _properties: Any) -> None:
     """Handle a locker confirmation from a station"""
@@ -312,7 +319,7 @@ async def handle_locker_confirmation(
 
 @validate_mqtt_topic('stations/+/locker/+/report', [ObjId, int])
 @fast_mqtt.subscribe('stations/+/locker/+/report')
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def handle_locker_report(
         _client: Any, topic: str, payload: bytes, _qos: int, _properties: Any) -> None:
     """Handle a locker report from a station"""

@@ -172,7 +172,7 @@ async def set_station_state(callsign: str, station_state: StationState) -> Stati
         callsign=callsign
     )
     await station.register_station_state(station_state)
-    return await station.view
+    return StationView.from_document(station.doc)
 
 
 async def reset_queue(callsign: str) -> StationView:
@@ -242,7 +242,6 @@ async def handle_reservation_request(
         assigned_station=station.doc,
         assigned_locker=available_locker.doc,
         timeout_states=[SessionState.EXPIRED],
-
     ).insert()).activate()
 
 
@@ -358,16 +357,12 @@ async def handle_terminal_state_confirmation(
     station: Station = Station(await StationModel.find(
         StationModel.callsign == callsign).first_or_none(),
         callsign=callsign)
-    # await station.doc.sync()
     if station.terminal_state == confirmed_state:
         raise InvalidTerminalStateException(
             station_callsign=callsign,
             expected_states=[
                 state for state in TerminalState if state != confirmed_state],
             actual_state=confirmed_state)
-
-    # Register the new state
-    await station.register_terminal_state(confirmed_state)
 
     # 2: Find the pending task for this station
     pending_task: Task = Task(await TaskItemModel.find(
@@ -386,6 +381,9 @@ async def handle_terminal_state_confirmation(
             assigned_station=callsign,
             task_type=TaskType.CONFIRMATION,
             raise_http=False)
+
+    # 3: Register the new state
+    await station.register_terminal_state(confirmed_state)
 
     # 5: Get the assigned session
     await pending_task.doc.fetch_link(TaskItemModel.assigned_session)
@@ -412,7 +410,7 @@ async def handle_terminal_state_confirmation(
             assigned_user=session.assigned_user,
             assigned_station=station.doc,
             assigned_session=session.doc,
-            timeout_states=([SessionState.EXPIRED] if session.timeout_count >= 1
+            timeout_states=([SessionState.EXPIRED] if session.doc.timeout_count >= 1
                             else [SessionState.PAYMENT_SELECTED, SessionState.EXPIRED]),
         ).insert()).activate()
 

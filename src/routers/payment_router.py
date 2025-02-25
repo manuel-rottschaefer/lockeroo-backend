@@ -1,5 +1,6 @@
 # Basics
 from typing import Annotated, Optional
+from bson.objectid import ObjectId
 from uuid import uuid4
 # Database utils
 from beanie import PydanticObjectId as ObjId
@@ -21,15 +22,15 @@ payment_router = APIRouter()
 ### REST ENDPOINTS ###
 
 
-@ payment_router.put(
+@payment_router.put(
     '/{session_id}/method/select',
     response_model=Optional[ActiveSessionView],
     status_code=status.HTTP_202_ACCEPTED,
     description="Select a payment method for a session")
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def choose_session_payment_method(
     session_id: Annotated[str, Path(
-        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
+        pattern='^[a-fA-F0-9]{24}$', example=str(ObjectId()),
         description='Unique identifier of the session.')],
     payment_method: Annotated[PaymentMethod, Query(
         description='Payment method to be used.')],
@@ -48,15 +49,15 @@ async def choose_session_payment_method(
     )
 
 
-@ payment_router.patch(
+@payment_router.patch(
     '/{session_id}/verification/initiate',
     response_model=Optional[SessionView],
     status_code=status.HTTP_202_ACCEPTED,
     description='Request to enter the verification queue of a session')
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def request_session_verification(
     session_id: Annotated[str, Path(
-        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
+        pattern='^[a-fA-F0-9]{24}$', example=str(ObjectId()),
         description='Unique identifier of the session.')],
     _user: Annotated[str, Header(
         alias="user", example=uuid4(),
@@ -72,15 +73,15 @@ async def request_session_verification(
         user=access_info)
 
 
-@ payment_router.put(
+@payment_router.put(
     '/{session_id}/verification/complete',
     response_model=Optional[SessionView],
     status_code=status.HTTP_202_ACCEPTED,
     description='Report a successful verification for a payment')
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def report_session_verification(
     session_id: Annotated[str, Path(
-        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
+        pattern='^[a-fA-F0-9]{24}$', example=str(ObjectId()),
         description='Unique identifier of the session.')],
     _user: Annotated[str, Header(
         alias="user", example=uuid4(),
@@ -97,15 +98,15 @@ async def report_session_verification(
     )
 
 
-@ payment_router.patch(
+@payment_router.patch(
     '/{session_id}/initiate',
     response_model=Optional[SessionView],
     status_code=status.HTTP_202_ACCEPTED,
     description='Request to enter the payment phase of a session')
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def request_session_payment(
     session_id: Annotated[str, Path(
-        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
+        pattern='^[a-fA-F0-9]{24}$', example=str(ObjectId()),
         description='Unique identifier of the session.')],
     _user: Annotated[str, Header(
         alias="user", example=uuid4(),
@@ -122,15 +123,15 @@ async def request_session_payment(
     )
 
 
-@ payment_router.patch(
+@payment_router.patch(
     '/{session_id}/complete',
     response_model=Optional[SessionView],
     status_code=status.HTTP_202_ACCEPTED,
     description='Report a successful payment for a session')
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def report_session_payment(
     session_id: Annotated[str, Path(
-        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
+        pattern='^[a-fA-F0-9]{24}$', example=str(ObjectId()),
         description='Unique identifier of the session.')],
     _user: Annotated[str, Header(
         alias="user", example=uuid4(),

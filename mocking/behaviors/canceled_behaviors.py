@@ -6,19 +6,19 @@ from src.models.session_models import SessionState
 class CancelAfterCreate(MockingSession):
     """Cancel session after creation."""
 
-    def run(self):  # pylint: disable=missing-function-docstring
+    def run(self, terminate: bool = True):  # pylint: disable=missing-function-docstring
         self.user_request_session()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
 
         self.user_request_cancel_session()
-        self.verify_state(SessionState.CANCELED, final=True)
+        self.verify_state(SessionState.CANCELED, terminate)
 
 
 class CancelAfterPaymentSelection(MockingSession):
     """Cancel session after payment selection."""
 
-    def run(self):  # pylint: disable=missing-function-docstring
+    def run(self, terminate: bool = True):  # pylint: disable=missing-function-docstring
         self.user_request_session(select_payment=False)
         self.verify_state(SessionState.CREATED)
         self.delay_action(SessionState.CREATED)
@@ -28,13 +28,13 @@ class CancelAfterPaymentSelection(MockingSession):
         self.delay_action(SessionState.PAYMENT_SELECTED)
 
         self.user_request_cancel_session()
-        self.verify_state(SessionState.CANCELED, final=True)
+        self.verify_state(SessionState.CANCELED, terminate)
 
 
 class CancelDuringVerification(MockingSession):
     """Cancel session during verification."""
 
-    def run(self):  # pylint: disable=missing-function-docstring
+    def run(self, terminate: bool = True):  # pylint: disable=missing-function-docstring
         self.user_request_session()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
@@ -44,13 +44,13 @@ class CancelDuringVerification(MockingSession):
         self.delay_action(SessionState.VERIFICATION)
 
         self.user_request_cancel_session()
-        self.verify_state(SessionState.CANCELED, final=True)
+        self.verify_state(SessionState.CANCELED, terminate)
 
 
 class CancelDuringStashing(MockingSession):
     """Cancel session during stashing."""
 
-    def run(self):  # pylint: disable=missing-function-docstring
+    def run(self, terminate: bool = True):  # pylint: disable=missing-function-docstring
         self.user_request_session()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
@@ -68,4 +68,4 @@ class CancelDuringStashing(MockingSession):
         self.delay_action(SessionState.CANCELED)
 
         self.station_report_locker_close()
-        self.verify_state(SessionState.CANCELED, final=True)
+        self.verify_state(SessionState.CANCELED, terminate)

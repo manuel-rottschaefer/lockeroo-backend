@@ -100,26 +100,48 @@ class UnitTestBehaviors(SequentialTaskSet):
     def test_all_session_behaviors(self):
         """Test all session behaviors"""
         ### Success Behaviors ###
-        success_behaviors.RegularSession(self, self.user).run()
-        success_behaviors.Abandon1stVerifyThenNormal(self, self.user).run()
-        success_behaviors.Abandon1stPaymentThenNormal(self, self.user).run()
+        success_behaviors.RegularSession(
+            self, self.user).run(terminate=False)
+        success_behaviors.Abandon1stVerifyThenNormal(
+            self, self.user).run(terminate=False)
+        success_behaviors.Abandon1stPaymentThenNormal(
+            self, self.user).run(terminate=False)
+        success_behaviors.HoldThenNormal(
+            self, self.user).run(terminate=False)
+        success_behaviors.HoldThenPayment(
+            self, self.user).run(terminate=False)
 
         ### Expired Behaviors ###
-        expired_behaviors.AbandonAfterCreate(self, self.user).run()
-        expired_behaviors.AbandonAfterPaymentSelection(self, self.user).run()
-        expired_behaviors.AbandonBothVerifications(self, self.user).run()
-        expired_behaviors.AbandonActive(self, self.user).run()
-        expired_behaviors.AbandonBothPayments(self, self.user).run()
+        expired_behaviors.AbandonReservation(
+            self, self.user).run(_terminate=False)
+        expired_behaviors.AbandonAfterCreate(
+            self, self.user).run(terminate=False)
+        expired_behaviors.AbandonAfterPaymentSelection(
+            self, self.user).run(terminate=False)
+        expired_behaviors.AbandonBothVerifications(
+            self, self.user).run(terminate=False)
+        expired_behaviors.AbandonActive(
+            self, self.user).run(terminate=False)
+        expired_behaviors.AbandonBothPayments(
+            self, self.user).run(terminate=False)
 
         ### Canceled Behaviors ###
-        canceled_behaviors.CancelAfterCreate(self, self.user).run()
-        canceled_behaviors.CancelAfterPaymentSelection(self, self.user).run()
-        canceled_behaviors.CancelDuringVerification(self, self.user).run()
-        canceled_behaviors.CancelDuringStashing(self, self.user).run()
+        canceled_behaviors.CancelAfterCreate(
+            self, self.user).run(terminate=False)
+        canceled_behaviors.CancelAfterPaymentSelection(
+            self, self.user).run(terminate=False)
+        canceled_behaviors.CancelDuringVerification(
+            self, self.user).run(terminate=False)
+        canceled_behaviors.CancelDuringStashing(
+            self, self.user).run(terminate=False)
 
         ### Stalled Behaviors ###
-        stalled_behaviors.AbandonStashing(self, self.user).run()
-        stalled_behaviors.AbandonRetrieval(self, self.user).run()
+        stalled_behaviors.AbandonStashing(
+            self, self.user).run(terminate=False)
+        stalled_behaviors.AbandonRetrieval(
+            self, self.user).run(terminate=False)
+        stalled_behaviors.AbandonHold(
+            self, self.user).run(terminate=False)
 
 
 class LockerStationUser(HttpUser):

@@ -78,24 +78,11 @@ async def get_details(session_id: ObjId, user: User) -> Optional[SessionView]:
             TaskItemModel.expires_at > datetime.now()
         ).project(TaskPositionView).first_or_none()
 
-        return ActiveSessionView(
-            id=str(session.doc.id),
-            assigned_user=session.doc.assigned_user.fief_id,
-            station=session.doc.assigned_station.callsign,
-            locker_index=session.doc.assigned_locker.station_index,
-            service_type=session.doc.session_type,
-            session_state=session.doc.session_state,
-            queue_position=task.queue_position if task else 0
-        )
+        return ActiveSessionView.from_position(
+            session=session.doc,
+            position=task.queue_position if task else 0)
 
-    return ConcludedSessionView(
-        id=str(session.doc.id),
-        station=session.doc.assigned_station.callsign,
-        locker_index=session.doc.assigned_locker.station_index,
-        service_type=session.doc.session_type,
-        session_state=session.doc.session_state,
-        total_duration=session.doc.total_duration.total_seconds()
-    )
+    return ConcludedSessionView.from_document(session.doc)
 
 
 async def get_session_history(session_id: ObjId, user: User) -> Optional[List[ActionModel]]:
@@ -106,9 +93,27 @@ async def get_session_history(session_id: ObjId, user: User) -> Optional[List[Ac
     if session.doc.assigned_user.id != user.id:
         raise UserNotAuthorizedException(user_id=user.fief_id)
 
+    accepted_states: List[SessionState] = [
+        SessionState.VERIFICATION,
+        SessionState.PAYMENT,
+        SessionState.STASHING,
+        SessionState.RETRIEVAL,
+        SessionState.ACTIVE,
+        SessionState.HOLD,
+        SessionState.COMPLETED,
+        SessionState.CANCELED,
+        SessionState.ABORTED,
+        SessionState.EXPIRED,
+        SessionState.STALE,
+        SessionState.ABANDONED,
+        SessionState.TERMINATED
+    ]
+
     return await ActionModel.find(
-        ActionModel.assigned_session.id == session.doc.id  # pylint: disable=no-member
-    )
+        ActionModel.assigned_session.id == session.doc.id,  # pylint: disable=no-member
+        In(ActionModel.assigned_session.session_state,  # pylint: disable=no-member
+           accepted_states)
+    ).sort(ActionModel.timestamp, SortDirection.ASCENDING).project(ActionModel).to_list()
 
 
 async def handle_creation_request(
@@ -209,7 +214,7 @@ async def handle_creation_request(
         action_type=SessionState.CREATED
     ).insert()
 
-    return session.created_view
+    return CreatedSessionView.from_document(session.doc)
 
 
 async def handle_payment_selection(
@@ -307,15 +312,9 @@ async def handle_payment_selection(
         timeout_states=[SessionState.EXPIRED],
     ).insert()).activate()
 
-    return ActiveSessionView(
-        id=str(session.doc.id),
-        assigned_user=session.doc.assigned_user.fief_id,
-        station=session.doc.assigned_station.callsign,
-        locker_index=session.doc.assigned_locker.station_index,
-        service_type=session.doc.session_type,
-        session_state=session.doc.session_state,
-        queue_position=0
-    )
+    return ActiveSessionView.from_position(
+        session=session.doc,
+        position=0)
 
 
 async def handle_verification_request(
@@ -362,7 +361,6 @@ async def handle_verification_request(
     # 2: Get the assigned session and verify its state
     await task.doc.fetch_all_links()
     session: Session = Session(task.assigned_session)
-    # await session.doc.sync()
 
     if session.doc.assigned_user.id != user.id:
         raise UserNotAuthorizedException(user_id=user.id)
@@ -379,7 +377,7 @@ async def handle_verification_request(
     # 4: Launch a verification process at the station or via the app
     await task.complete()
     if session.payment_method == PaymentMethod.TERMINAL:
-        await Task(await TaskItemModel(
+        queue_pos = await Task(await TaskItemModel(
             target=TaskTarget.TERMINAL,
             task_type=TaskType.CONFIRMATION,
             assigned_user=session.doc.assigned_user,
@@ -390,8 +388,11 @@ async def handle_verification_request(
     else:
         session.set_state(session.next_state)
         await session.doc.save_changes()
+        queue_pos = 0
 
-    return await session.view
+    return ActiveSessionView.from_position(
+        session=session.doc,
+        position=queue_pos)
 
 
 async def handle_hold_request(
@@ -475,7 +476,7 @@ async def handle_hold_request(
                         SessionState.ABORTED],
     ).insert()).activate()
 
-    return await session.view
+    return SessionView.from_document(session.doc)
 
 
 async def handle_payment_request(session_id: ObjId, user: User) -> Optional[SessionView]:
@@ -493,7 +494,7 @@ async def handle_payment_request(session_id: ObjId, user: User) -> Optional[Sess
     elif session.doc.payment_method == PaymentMethod.APP:
         await handle_app_payment_request(session, user)
 
-    return await session.view
+    return SessionView.from_document(session.doc)
 
 
 async def handle_app_payment_request(session: Session, user: User) -> Optional[SessionView]:
@@ -534,10 +535,9 @@ async def handle_app_payment_request(session: Session, user: User) -> Optional[S
     locker_tasks = await TaskItemModel.find(
         TaskItemModel.target == TaskTarget.LOCKER,
         TaskItemModel.task_type == TaskType.REPORT,
-        In(TaskItemModel.task_state, [TaskState.QUEUED, TaskState.PENDING]),
+        TaskItemModel.task_state == TaskState.PENDING,
+        # In(TaskItemModel.task_state, [TaskState.QUEUED, TaskState.PENDING]),
         TaskItemModel.assigned_session.id == session.doc.id,  # pylint: disable=no-member
-        In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
-           ACTIVE_SESSION_STATES),
     ).to_list()
 
     for locker_task in locker_tasks:
@@ -669,7 +669,7 @@ async def handle_verification_completion(
         timeout_states=[SessionState.ABORTED],
     ).insert()).activate()
 
-    return await session.view
+    return SessionView.from_document(session.doc)
 
 
 async def handle_payment_completion(
@@ -717,8 +717,15 @@ async def handle_payment_completion(
     if not locker.exists:
         raise LockerNotFoundException(locker_id=session.assigned_locker)
 
-    # 5: If the locker is not yet open (from holding), open it.
-    # else, directly await locker closing from retrieval.
+    # 5. Find the alternative locker close task and complete it
+    close_task: Task = Task(await TaskItemModel.find(
+        TaskItemModel.target == TaskTarget.LOCKER,
+        TaskItemModel.task_type == TaskType.REPORT,
+        TaskItemModel.task_state == TaskState.PENDING,
+        TaskItemModel.assigned_session.id == session_id,  # pylint: disable=no-member
+    ).first_or_none())
+    if close_task.exists:
+        await close_task.complete()
 
     # Wait for locker to open
     if locker.doc.locker_state == LockerState.LOCKED:
@@ -747,7 +754,7 @@ async def handle_payment_completion(
             timeout_states=[SessionState.STALE],
         ).insert()).activate()
 
-    return await session.view
+    return SessionView.from_document(session.doc)
 
 
 async def handle_cancel_request(session_id: ObjId, user: User
@@ -801,27 +808,15 @@ async def handle_cancel_request(session_id: ObjId, user: User
     for task in tasks:
         await Task(task).cancel()
 
-    # 4: Update session state and log the action
-    session.set_state(SessionState.CANCELED)
-    session.doc.total_duration = await session.total_duration
-    session.doc.active_duration = await session.active_duration
-    await session.doc.save_changes()
-    await session.broadcast_update()
+    # 4: Conclude session, create action and broadcast update
     await session.handle_conclude()
     await ActionModel(
         assigned_session=session.doc,
         action_type=SessionState.CANCELED
     ).insert()
+    await session.broadcast_update()
 
-    return ConcludedSessionView(
-        id=str(session.id),
-        station=session.assigned_station.callsign,
-        locker_index=session.assigned_locker.station_index,
-        service_type=session.session_type,
-        session_state=session.session_state,
-        total_duration=session.doc.total_duration.total_seconds(),
-        active_duration=session.doc.active_duration.total_seconds()
-    )
+    return ConcludedSessionView.from_document(session.doc)
 
 
 async def handle_update_subscription_request(

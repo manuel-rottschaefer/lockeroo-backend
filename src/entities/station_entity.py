@@ -23,7 +23,16 @@ from src.services.logging_services import logger_service as logger
 # Exceptions
 from src.exceptions.station_exceptions import StationNotFoundException
 # Services
-# from src.services.maintenance_services import has_scheduled
+from src.services.mqtt_services import fast_mqtt
+
+TERMINAL_FLOW = {  # pylint: disable=invalid-name
+    SessionState.PAYMENT_SELECTED: TerminalState.IDLE,
+    SessionState.VERIFICATION: TerminalState.VERIFICATION,
+    SessionState.STASHING: TerminalState.IDLE,
+    SessionState.PAYMENT: TerminalState.PAYMENT,
+    SessionState.RETRIEVAL: TerminalState.IDLE,
+    SessionState.EXPIRED: TerminalState.IDLE,
+}
 
 
 class Station(Entity):
@@ -119,6 +128,28 @@ class Station(Entity):
         return available_lockers
 
     ### Terminal setters ###
+
+    async def instruct_next_terminal_state(self, session_state: SessionState) -> None:
+        """Apply a session state to the terminal.
+        Check if the assigned session is a link, then fetch it.
+        If the session state is in the state map, send the state instruction to the terminal."""
+        # TODO: Move this to another entity in the future
+        # Check if assigned station is not a link anymore
+        if session_state in TERMINAL_FLOW:
+            logger.debug(
+                (f"Sending {TERMINAL_FLOW[session_state]} instruction to "
+                 f"terminal at station '#{self.doc.callsign}'."))
+            fast_mqtt.publish(
+                message_or_topic=(
+                    f"stations/{self.doc.callsign}"
+                    "/terminal/instruct"),
+                payload=TERMINAL_FLOW[session_state].upper(),
+                qos=2)
+        else:
+            logger.debug((
+                f"No state instruction for session state "
+                f"'{session_state}' of task '#{self.doc.id}'.")
+            )
 
     async def register_station_state(
         self: StationModel, new_station_state: StationState

@@ -44,13 +44,14 @@ class LockerNotAvailableException(Exception):
                  raise_http: bool = True):
         self.assigned_station = station_callsign
         self.locker_type = locker_type
+        self.log_level = logger.warning
 
         if raise_http:
-            raise HTTPException(status_code=200, detail=self.__str__())
+            raise HTTPException(status_code=404, detail=self.__str__())
 
     def __str__(self):
         return (
-            f"No Locker of type '{self.locker_type}' available "
+            f"No Locker of type '{self.locker_type.name}' available "
             f"at station '#{self.assigned_station}'.")
 
 

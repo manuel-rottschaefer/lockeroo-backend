@@ -18,13 +18,11 @@ from pydantic import BaseModel, Field, PydanticUserError
 # Models
 from src.models.station_models import StationModel
 # Services
-# Logging
 from src.services.logging_services import logger_service as logger
-
-# TODO: Moved here because of circular import, should be moved to a separate file
 
 
 class PricingModel(BaseModel):
+    # TODO: Moved here because of circular import, should be moved to a separate file
     """Config representation of pricing models."""
     name: str = Field(None, description="Name of the pricing model")
     base_fee: int = Field(

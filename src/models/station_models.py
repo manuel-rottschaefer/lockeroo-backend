@@ -170,6 +170,22 @@ class StationView(View):
     location: Dict
     nearby_public_transport: Optional[str]
 
+    @classmethod
+    def from_document(cls, document: StationModel):
+        """Create a view from a document."""
+        return cls(
+            full_name=document.full_name,
+            callsign=document.callsign,
+            station_type=document.station_type,
+            is_storage_available=document.is_storage_available,
+            is_charging_available=document.is_charging_available,
+            station_state=document.station_state,
+            city_name=document.city_name,
+            address=document.address,
+            location=document.location,
+            nearby_public_transport=document.nearby_public_transport
+        )
+
     @dataclass
     class Settings:  # pylint: disable=too-few-public-methods
         source = StationModel

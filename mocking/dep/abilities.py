@@ -32,6 +32,9 @@ from src.exceptions.session_exceptions import InvalidSessionStateException
 base_config = configparser.ConfigParser()
 base_config.read('.env')
 
+locust_config = configparser.ConfigParser()
+locust_config.read('mocking/.env')
+
 # Initialize the user pool
 user_pool = UserPool()
 
@@ -163,10 +166,17 @@ class MockingSession:
     def wait_for_timeout(self, session_state: SessionState):
         """Let the user wait for the session timeout to expire.
         One second is added to the timeout to ensure the session actually expires."""
-        sleep(SESSION_TIMEOUTS[session_state] + 1)
+        if locust_config.get("TESTING_MODE", "MODE") == "NORMAL":
+            sleep(SESSION_TIMEOUTS[session_state] + 1)
+        else:
+            sleep(6)
 
     def verify_state(self, expected_state, final=False):
         """Verify the current session state."""
+        if self.session is None:
+            self.logger.warning(
+                "Could not verify state for session that was not created.")
+            return
         if self.session.session_state == expected_state:
             self.logger.debug(
                 f"Session '#{self.session.id}' is in expected state '{expected_state}'.")
@@ -208,7 +218,7 @@ class MockingSession:
             f'{self.endpoint}/stations/', timeout=3
         )
         if self.res.status_code != expected_code:
-            self.logger.error(f"Invalid status code '{self.res.status_code}' "
+            self.logger.error(f"Invalid status code '{self.res.status_code}'"
                               f" for station info request.")
             self.terminate_session()
 
@@ -257,8 +267,9 @@ class MockingSession:
             params={'locker_type': locker_type
                     }, headers=self.headers, timeout=3)
         if self.res.status_code != expected_code:
-            self.logger.error(f"Invalid status code '{self.res.status_code}' "
-                              f" for reservation request.")
+            if self.res.status_code != 404:
+                self.logger.error(f"Invalid status code '{self.res.status_code}' "
+                                  f" for reservation request.")
             self.terminate_session()
             raise InvalidResCodeException(
                 session_id=self.session.id,

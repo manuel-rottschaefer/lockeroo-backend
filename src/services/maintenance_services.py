@@ -59,25 +59,25 @@ async def complete(
         maint_id: ObjId) -> Optional[MaintenanceModel]:
     """Cancel a maintenance event if it exists"""
     # 1: Try to find the maintenace event by its ID
-    maint_inst: Optional[MaintenanceModel] = await MaintenanceModel.find(
+    maint_evnt: Optional[MaintenanceModel] = await MaintenanceModel.find(
         id=maint_id,
         callsign=callsign
     )
-    if maint_inst is None:
+    if maint_evnt is None:
         return None
 
     # 2: Check whether the maintenance event is active
-    if maint_inst.state != MaintenanceState.ACTIVE:
+    if maint_evnt.state != MaintenanceState.ACTIVE:
         raise InvalidMaintenanceStateException(
             maintenance_id=maint_id,
             expected_state=MaintenanceState.ACTIVE,
-            actual_state=maint_inst.state
+            actual_state=maint_evnt.state
         )
 
     # 3: Complete the maintenance event
-    maint_inst.state = MaintenanceState.COMPLETED
-    await maint_inst.save_changes()
-    return maint_inst
+    maint_evnt.state = MaintenanceState.COMPLETED
+    await maint_evnt.save_changes()
+    return maint_evnt
 
 
 async def get_next(

@@ -6,7 +6,7 @@ from src.models.session_models import SessionState, PaymentMethod
 class AbandonStashing(MockingSession):
     """Abandon session after stashing."""
 
-    def run(self):  # pylint: disable=missing-function-docstring
+    def run(self, terminate: bool = True):  # pylint: disable=missing-function-docstring
         self.user_request_session()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
@@ -19,13 +19,13 @@ class AbandonStashing(MockingSession):
         self.await_state(SessionState.STASHING)
         self.wait_for_timeout(SessionState.STASHING)
 
-        self.verify_state(SessionState.STALE, final=True)
+        self.verify_state(SessionState.STALE, terminate)
 
 
 class AbandonHold(MockingSession):
     """Abandon session after holding."""
 
-    def run(self):  # pylint: disable=missing-function-docstring
+    def run(self, terminate: bool = True):  # pylint: disable=missing-function-docstring
         self.set_payment_method(PaymentMethod.APP)
         self.user_request_session()
         self.verify_state(SessionState.PAYMENT_SELECTED)
@@ -47,13 +47,13 @@ class AbandonHold(MockingSession):
         self.await_state(SessionState.HOLD)
         self.wait_for_timeout(SessionState.HOLD)
 
-        self.verify_state(SessionState.STALE, final=True)
+        self.verify_state(SessionState.STALE, terminate)
 
 
 class AbandonRetrieval(MockingSession):
     """Abandon session after retrieval."""
 
-    def run(self):  # pylint: disable=missing-function-docstring
+    def run(self, terminate: bool = True):  # pylint: disable=missing-function-docstring
         self.user_request_session()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
@@ -78,13 +78,13 @@ class AbandonRetrieval(MockingSession):
         self.await_state(SessionState.RETRIEVAL)
         self.wait_for_timeout(SessionState.RETRIEVAL)
 
-        self.verify_state(SessionState.STALE, final=True)
+        self.verify_state(SessionState.STALE, terminate)
 
 
 class AbandonAfterStashingCancel(MockingSession):
     """Abandon session after stashing and then cancel."""
 
-    def run(self):  # pylint: disable=missing-function-docstring
+    def run(self, terminate_on_complete: bool = True):  # pylint: disable=missing-function-docstring
         self.user_request_session()
         self.verify_state(SessionState.PAYMENT_SELECTED)
         self.delay_action(SessionState.PAYMENT_SELECTED)
@@ -101,4 +101,4 @@ class AbandonAfterStashingCancel(MockingSession):
         self.await_state(SessionState.CANCELED)
         self.delay_action(SessionState.STASHING)
 
-        self.verify_state(SessionState.STALE, final=True)
+        self.verify_state(SessionState.STALE, terminate_on_complete)

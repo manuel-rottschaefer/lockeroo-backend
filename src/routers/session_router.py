@@ -3,6 +3,7 @@
 """
 # Basics
 from typing import Annotated, List, Optional
+from bson.objectid import ObjectId
 from asyncio import Lock
 from uuid import uuid4
 # Database utils
@@ -39,10 +40,10 @@ session_router = APIRouter()
     description=('Get the details of a session including (active) time,'
                  'current price and locker state.')
 )
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def get_session_details(
     session_id: Annotated[str, Path(
-        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
+        pattern='^[a-fA-F0-9]{24}$', example=str(ObjectId()),
         description='Unique identifier of the session.')],
     _user: Annotated[str, Header(
         alias="user", example=uuid4(),
@@ -60,15 +61,15 @@ async def get_session_details(
     )
 
 
-@ session_router.get(
+@session_router.get(
     '/{session_id}/history',
     response_model=Optional[List[ActionView]],
     status_code=status.HTTP_200_OK,
     description="Get a list of all actions of a session.")
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def get_session_history(
     session_id: Annotated[str, Path(
-        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
+        pattern='^[a-fA-F0-9]{24}$', example=str(ObjectId()),
         description='Unique identifier of the session.')],
     _user: Annotated[str, Header(
         alias="user", example=uuid4(),
@@ -117,14 +118,14 @@ async def request_new_session(
         )
 
 
-@ session_router.patch(
+@session_router.patch(
     '/{session_id}/cancel',
     response_model=Optional[ConcludedSessionView],
     status_code=status.HTTP_202_ACCEPTED,
     description='Request to cancel a locker session before it has been started')
 async def request_session_cancel(
     session_id: Annotated[str, Path(
-        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
+        pattern='^[a-fA-F0-9]{24}$', example=str(ObjectId()),
         description='Unique identifier of the session.')],
     _user: Annotated[str, Header(
         alias="user", example=uuid4(),
@@ -140,15 +141,15 @@ async def request_session_cancel(
     )
 
 
-@ session_router.patch(
+@session_router.patch(
     '/{session_id}/hold',
     response_model=Optional[SessionView],
     status_code=status.HTTP_202_ACCEPTED,
     description='Request to hold (pause) a locker session')
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def request_session_hold(
     session_id: Annotated[str, Path(
-        pattern='^[a-fA-F0-9]{24}$', example="1234567890abcdef",
+        pattern='^[a-fA-F0-9]{24}$', example=str(ObjectId()),
         description='Unique identifier of the session.')],
     _user: Annotated[str, Header(
         alias="user", example=uuid4(),

@@ -1,17 +1,21 @@
 """This module provides the Models for Session management."""
 # Basics
 from configparser import ConfigParser
+from secrets import token_urlsafe
+from random import choice, randint
 # Types
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Union
+from bson.objectid import ObjectId
 from enum import Enum
-from uuid import UUID
+from uuid import UUID, uuid4
+from typing_extensions import Annotated
 # Beanie
 from beanie import Document, Insert, Link
 from beanie import PydanticObjectId as ObjId
 from beanie import View, after_event, before_event
-from pydantic import Field, PydanticUserError
+from pydantic import Field, PydanticUserError, StringConstraints
 # Models
 from src.models.station_models import StationModel
 from src.models.locker_models import LockerModel
@@ -24,7 +28,7 @@ base_config = ConfigParser()
 base_config.read('.env')
 
 
-class SessionTypes(str, Enum):
+class SessionType(str, Enum):
     """All possible types of session (services)"""
     PERSONAL = "personal"
     DROPOFF = "dropOff"
@@ -83,31 +87,31 @@ ACTIVE_SESSION_STATES: List[SessionState] = [
 
 SESSION_TIMEOUTS: Dict[SessionState, int] = {
     SessionState.CREATED: float(
-        base_config.get("SESSION_EXPIRATIONS", 'CREATED', fallback='0')),
+        base_config.get("SESSION_EXPIRATIONS", 'CREATED', fallback='5')),
     SessionState.PAYMENT_SELECTED: float(
-        base_config.get("SESSION_EXPIRATIONS", 'PAYMENT_SELECTED', fallback='0')),
+        base_config.get("SESSION_EXPIRATIONS", 'PAYMENT_SELECTED', fallback='5')),
     SessionState.VERIFICATION: float(
-        base_config.get("SESSION_EXPIRATIONS", 'VERIFICATION', fallback='0')),
+        base_config.get("SESSION_EXPIRATIONS", 'VERIFICATION', fallback='5')),
     SessionState.STASHING: float(
-        base_config.get("SESSION_EXPIRATIONS", 'STASHING', fallback='0')),
+        base_config.get("SESSION_EXPIRATIONS", 'STASHING', fallback='5')),
     SessionState.ACTIVE: float(
-        base_config.get("SESSION_EXPIRATIONS", 'ACTIVE', fallback='0')),
+        base_config.get("SESSION_EXPIRATIONS", 'ACTIVE', fallback='5')),
     SessionState.HOLD: float(
-        base_config.get("SESSION_EXPIRATIONS", 'HOLD', fallback='0')),
+        base_config.get("SESSION_EXPIRATIONS", 'HOLD', fallback='5')),
     SessionState.PAYMENT: float(
-        base_config.get("SESSION_EXPIRATIONS", 'PAYMENT', fallback='0')),
+        base_config.get("SESSION_EXPIRATIONS", 'PAYMENT', fallback='5')),
     SessionState.RETRIEVAL: float(
-        base_config.get("SESSION_EXPIRATIONS", 'RETRIEVAL', fallback='0')),
+        base_config.get("SESSION_EXPIRATIONS", 'RETRIEVAL', fallback='5')),
     SessionState.COMPLETED: float(
-        base_config.get("SESSION_EXPIRATIONS", 'COMPLETED', fallback='0')),
+        base_config.get("SESSION_EXPIRATIONS", 'COMPLETED', fallback='5')),
     SessionState.CANCELED: float(
-        base_config.get("SESSION_EXPIRATIONS", 'CANCELED', fallback='0')),
+        base_config.get("SESSION_EXPIRATIONS", 'CANCELED', fallback='5')),
     SessionState.STALE: float(
-        base_config.get("SESSION_EXPIRATIONS", 'STALE', fallback='0')),
+        base_config.get("SESSION_EXPIRATIONS", 'STALE', fallback='5')),
     SessionState.EXPIRED: float(
-        base_config.get("SESSION_EXPIRATIONS", 'EXPIRED', fallback='0')),
+        base_config.get("SESSION_EXPIRATIONS", 'EXPIRED', fallback='5')),
     SessionState.ABORTED: float(
-        base_config.get("SESSION_EXPIRATIONS", 'ABORTED', fallback='0')),
+        base_config.get("SESSION_EXPIRATIONS", 'ABORTED', fallback='5')),
 }
 
 
@@ -149,8 +153,8 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
         None, description="The assigned user to this session.")
 
     ### Session Properties ###
-    session_type: SessionTypes = Field(
-        default=SessionTypes.PERSONAL, description="The type of session service.\
+    service_type: SessionType = Field(
+        default=SessionType.PERSONAL, description="The type of session service.\
             Affects price and session flow.")
     payment_method: Optional[PaymentMethod] = Field(
         default=None, description="The type of payment method.\
@@ -205,58 +209,66 @@ class SessionModel(Document):  # pylint: disable=too-many-ancestors
     @dataclass
     class Config:
         json_schema_extra = {
-            "assigned_station": "60d5ec49f1d2b2a5d8f8b8b8",
-            "assigned_locker": "60d5ec49f1d2b2a5d8f8b8b8",
-            "user": "60d5ec49f1d2b2a5d8f8b8b8",
-            "session_type": "personal",
-            "payment_method": "terminal",
-            "session_state": "created",
-            "created_at": "2023-10-10T10:00:00"
+            "assigned_station": str(ObjectId()),
+            "assigned_locker": str(ObjectId()),
+            "user": str(ObjectId()),
+            "service_type": choice(list(SessionType)),
+            "payment_method": choice(list(PaymentMethod)),
+            "session_state": choice(list(SessionState)),
+            "created_at": datetime.fromtimestamp(0, tz=timezone.utc),
         }
 
 
 class SessionView(View):
     """Used for serving information about an active session"""
-    # Identification
     id: ObjId = Field(alias=None)
-    assigned_user: UUID
-
-    station: str
+    user: UUID
+    station: Annotated[str, StringConstraints(
+        min_length=6, max_length=6, pattern=r"^[A-Z]{6}$")]
+    service_type: SessionType
+    session_state: SessionState
     locker_index: int
 
-    service_type: SessionTypes
-    session_state: SessionState
+    @classmethod
+    def from_document(cls, session: SessionModel) -> "SessionView":
+        return cls(
+            id=str(session.id),
+            user=session.assigned_user.fief_id,
+            station=session.assigned_station.callsign,
+            service_type=session.service_type,
+            session_state=session.session_state,
+            locker_index=session.assigned_locker.station_index)
 
     @dataclass
     class Settings:
         source = SessionModel
         projection = {
             "id": {"$toString": "$_id"},
-            "assigned_user": "$assigned_user.fief_id",
+            "user": "$assigned_user.fief_id",
             "station": "$assigned_station.callsign",
+            "service_type": 1,
+            "session_state": "$session_state",
             "locker_index": "$assigned_locker.station_index",
-            "service_type": "$session_type",
-            "session_state": 1
         }
 
     @dataclass
     class Config:
         from_attributes = True
         json_schema_extra = {
-            "id": "60d5ec49f1d2b2a5d8f8b8b8",
-            "assigned_station": "CENTRAL",
-            "user": "12345678-1234-5678-1234-567812345678",
-            "station_index": 1,
-            "session_type": "personal",
-            "session_state": "created"
+            "id": str(ObjectId()),
+            "user": uuid4(),
+            "station": "MUCODE",
+            "service_type": choice(list(SessionType)),
+            "session_state": choice(list(SessionState)),
+            "locker_index": randint(1, 10)
         }
 
 
 class ReducedSessionView(View):
     """Used for serving information about an active session"""
     id: ObjId = Field(alias=None)
-    session_state: SessionState
     assigned_locker: ObjId
+    session_state: SessionState
 
     @dataclass
     class Settings:
@@ -271,33 +283,93 @@ class ReducedSessionView(View):
     class Config:
         from_attributes = True
         json_schema_extra = {
-            "id": "60d5ec49f1d2b2a5d8f8b8b8",
-            "session_state": "created",
-            "assigned_locker": "60d5ec49f1d2b2a5d8f8b8b8"
+            "id": str(ObjectId()),
+            "assigned_locker": str(ObjectId()),
+            "session_state": choice(list(SessionState)),
         }
 
 
 class CreatedSessionView(SessionView):
-    id: ObjId = Field(alias=None)
+    """Used for serving information about an active session"""
     websocket_token: str
+
+    @classmethod
+    def from_document(cls, session: SessionModel) -> "CreatedSessionView":
+        return cls(
+            id=session.id,
+            user=session.assigned_user.fief_id,
+            station=session.assigned_station.callsign,
+            locker_index=session.assigned_locker.station_index,
+            service_type=session.service_type,
+            session_state=session.session_state,
+            websocket_token=session.websocket_token)
 
     @dataclass
     class Config:
         from_attributes = True
         json_schema_extra = {
-            "websocket_token": "60d5ec49f1d2b2a5d8f8b8b8"
+            "websocket_token": token_urlsafe()
         }
 
 
 class ActiveSessionView(SessionView):
     """Used for serving information about an active session"""
-    queue_position: Optional[int]
+    queue_position: int
+
+    @classmethod
+    def from_position(
+            cls, session: SessionModel, position: int) -> "ActiveSessionView":
+        return cls(
+            id=session.id,
+            user=session.assigned_user.fief_id,
+            station=session.assigned_station.callsign,
+            locker_index=session.assigned_locker.station_index,
+            service_type=session.service_type,
+            session_state=session.session_state,
+            queue_position=position)
 
     @dataclass
     class Config:
         from_attributes = True
         json_schema_extra = {
-            "queue_position": 1
+            "id": str(ObjectId()),
+            "user": uuid4(),
+            "station": "MUCODE",
+            "service_type": choice(list(SessionType)),
+            "session_state": str(SessionState.ACTIVE),
+            "queue_position": randint(1, 10)
+        }
+
+
+class ConcludedSessionView(SessionView):
+    """Used for serving information about a completed session"""
+    total_duration: float
+    active_duration: float
+
+    @classmethod
+    def from_document(cls, session: SessionModel) -> "ConcludedSessionView":
+        return cls(
+            id=session.id,
+            user=session.assigned_user.fief_id,
+            station=session.assigned_station.callsign,
+            locker_index=session.assigned_locker.station_index,
+            service_type=session.service_type,
+            session_state=session.session_state,
+            total_duration=session.total_duration.total_seconds(),
+            active_duration=session.active_duration.total_seconds()
+        )
+
+    @dataclass
+    class Config:
+        from_attributes = True
+        json_schema_extra = {
+            "id": str(ObjectId()),
+            "station": "MUCODE",
+            "locker_index": randint(1, 10),
+            "service_type": choice(list(SessionType)),
+            "session_state": str(SessionState.COMPLETED),
+            "total_duration": randint(300, 3000),
+            "activeDuration": randint(300, 3000)
         }
 
 
@@ -323,50 +395,10 @@ class WebsocketUpdate(View):
     class Config:
         from_attributes = True
         json_schema_extra = {
-            "id": "60d5ec49f1d2b2a5d8f8b8b8",
-            "session_state": "created",
-            "timeout": "2023-10-10T10:00:00",
-            "queue_position": 1
-        }
-
-
-class ConcludedSessionView(View):
-    """Used for serving information about a completed session"""
-    id: ObjId = Field(alias=None)
-    station: str
-    locker_index: int
-    service_type: SessionTypes
-    session_state: SessionState
-
-    # These values can be calculated with the createSummary method
-    # finalPrice: Optional[float] = None
-    total_duration: float
-    active_duration: float
-
-    @dataclass
-    class Settings:
-        source = SessionModel
-        projection = {
-            "id": {"$toString": "$_id"},
-            "station": "$assigned_station.callsign",
-            "locker_index": "$assigned_locker.station_index",
-            "service_type": "$session_type",
-            "session_state": "$session_state",
-            "total_duration": {"$toDouble": "$total_duration"},
-            "active_duration": {"$toDouble": "$active_duration"}
-        }
-
-    @dataclass
-    class Config:
-        from_attributes = True
-        json_schema_extra = {
-            "id": "60d5ec49f1d2b2a5d8f8b8b8",
-            "station": "MUCODE",
-            "locker_index": 1,
-            "service_type": "personal",
-            "session_state": "completed",
-            "total_duration": 100,
-            "activeDuration": 50
+            "id": str(ObjectId()),
+            "session_state": choice(list(SessionState)),
+            "timeout": datetime.fromtimestamp(0, tz=timezone.utc),
+            "queue_position": randint(1, 10)
         }
 
 
