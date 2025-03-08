@@ -9,7 +9,7 @@ from typing import List, Optional, Union
 
 import paho.mqtt.client as mqttc
 import websockets.sync.client as sync_websockets
-from websockets.exceptions import ConnectionClosedError
+from websockets.exceptions import ConnectionClosedError, ConnectionClosedOK
 from locust import HttpUser, TaskSet
 
 from mocking.dep.mocking_logger import LocustLogger
@@ -109,7 +109,10 @@ class MockingSession:
         self.user_id = user_pool.pick_user()
         if self.user_id is None:
             self.terminate_session()
-        self.headers: dict = {"user": self.user_id}
+        self.headers: dict = {
+            "X-Locust": base_config.read("LOCUST", "LOAD_KEY"),
+            "X-Locust-ID": self.user_id
+        }
 
     def subscribe_to_updates(self):
         """Subscribe to a session update stream and handle awaited states."""
@@ -124,6 +127,10 @@ class MockingSession:
                         update: WebsocketUpdate = WebsocketUpdate(
                             **json.loads(msg))
                         self.session.session_state = update.session_state
+
+                    except ConnectionClosedOK:
+                        break
+
                     except ConnectionClosedError:
                         break
 
@@ -167,7 +174,7 @@ class MockingSession:
         """Let the user wait for the session timeout to expire.
         One second is added to the timeout to ensure the session actually expires."""
         if locust_config.get("TESTING_MODE", "MODE") == "NORMAL":
-            sleep(SESSION_TIMEOUTS[session_state] + 1)
+            sleep(SESSION_TIMEOUTS[session_state] + 2)
         else:
             sleep(6)
 

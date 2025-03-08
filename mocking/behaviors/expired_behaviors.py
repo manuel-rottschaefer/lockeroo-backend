@@ -6,11 +6,10 @@ from src.models.session_models import SessionState
 class AbandonReservation(MockingSession):
     """Request a session verification, then abandon the session."""
 
-    def run(self, _terminate: bool = True):  # pylint: disable=missing-function-docstring
+    def run(self):  # pylint: disable=missing-function-docstring
         self.user_request_reservation()
         self.wait_for_timeout(SessionState.CREATED)
-
-        # self.verify_state(SessionState.EXPIRED, terminate)
+        self.terminate_session()
 
 
 class AbandonAfterCreate(MockingSession):

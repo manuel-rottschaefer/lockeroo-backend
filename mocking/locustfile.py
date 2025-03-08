@@ -8,14 +8,15 @@ from mocking.behaviors import (
     success_behaviors,
     expired_behaviors,
     canceled_behaviors,
-    stalled_behaviors)
+    stalled_behaviors,
+    wrong_behaviors)
 
 
 class RandomizedBehaviors(TaskSet):
     """TaskSet for regular session behavior"""
 
     ### Success Behaviors ###
-    @task(70)
+    @task(60)
     def regular_session(self):
         success_behaviors.RegularSession(self, self.user).run()
 
@@ -63,19 +64,19 @@ class RandomizedBehaviors(TaskSet):
         expired_behaviors.AbandonBothPayments(self, self.user).run()
 
     ### Canceled Behaviors ###
-    @task(1)
+    @task(2)
     def cancel_after_create(self):
         canceled_behaviors.CancelAfterCreate(self, self.user).run()
 
-    @task(1)
+    @task(2)
     def cancel_after_payment_selection(self):
         canceled_behaviors.CancelAfterPaymentSelection(self, self.user).run()
 
-    @task(1)
+    @task(2)
     def cancel_during_verification(self):
         canceled_behaviors.CancelDuringVerification(self, self.user).run()
 
-    @task(1)
+    @task(2)
     def cancel_during_stashing(self):
         canceled_behaviors.CancelDuringStashing(self, self.user).run()
 
@@ -91,6 +92,19 @@ class RandomizedBehaviors(TaskSet):
     @task(2)
     def abandon_retrieval(self):
         stalled_behaviors.AbandonRetrieval(self, self.user).run()
+
+    ### Wrong Behaviors ###
+    @task(0)
+    def early_verification_report(self):
+        wrong_behaviors.EarlyVerificationReport(self, self.user).run()
+
+    @task(0)
+    def early_payment_report(self):
+        wrong_behaviors.EarlyPaymentReport(self, self.user).run()
+
+    @task(0)
+    def hold_terminal_session(self):
+        wrong_behaviors.HoldTerminalSession(self, self.user).run()
 
 
 class UnitTestBehaviors(SequentialTaskSet):
@@ -112,8 +126,8 @@ class UnitTestBehaviors(SequentialTaskSet):
             self, self.user).run(terminate=False)
 
         ### Expired Behaviors ###
-        expired_behaviors.AbandonReservation(
-            self, self.user).run(_terminate=False)
+        # expired_behaviors.AbandonReservation(
+        #    self, self.user).run()
         expired_behaviors.AbandonAfterCreate(
             self, self.user).run(terminate=False)
         expired_behaviors.AbandonAfterPaymentSelection(
@@ -142,6 +156,14 @@ class UnitTestBehaviors(SequentialTaskSet):
             self, self.user).run(terminate=False)
         stalled_behaviors.AbandonHold(
             self, self.user).run(terminate=False)
+
+        ### Wrong Behaviors ###
+        # wrong_behaviors.EarlyVerificationReport(
+        #    self, self.user).run(terminate=False)
+        # wrong_behaviors.EarlyPaymentReport(
+        #    self, self.user).run(terminate=False)
+        # wrong_behaviors.HoldTerminalSession(
+        #    self, self.user).run(terminate=False)
 
 
 class LockerStationUser(HttpUser):
