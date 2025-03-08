@@ -16,6 +16,7 @@ from src.models.task_models import (
     TaskType)
 from src.models.session_models import (
     SESSION_STATE_FLOW,
+    ACTIVE_SESSION_STATES,
     SessionModel,
     SessionState,
     WebsocketUpdate)
@@ -50,11 +51,12 @@ class Session(Entity):
         """Returns the amount of seconds between session creation and completion or now."""
         # Return the seconds since the session was created if it is still running
         if self.doc.session_state != SessionState.COMPLETED:
-            return datetime.now() - self.doc.created_at
+            self.doc.total_duration = datetime.now() - self.doc.created_at
 
         # Otherwise, return the seconds between creation and completion
-        if not self.doc.completed_at:
+        elif not self.doc.completed_at:
             self.doc.completed_at = datetime.now()
+
         self.doc.total_duration = self.doc.completed_at - self.doc.created_at
         return self.doc.total_duration
 
@@ -75,7 +77,7 @@ class Session(Entity):
         async for action in ActionModel.find(
             ActionModel.assigned_session == self.id
         ).sort(ActionModel.timestamp):
-            if action.action_type in SessionState.ACTIVE:
+            if action.action_type in ACTIVE_SESSION_STATES:
                 cycle_start = action.timestamp
             elif action.action_type in hold_states:
                 active_duration += action.timestamp - cycle_start
@@ -94,8 +96,7 @@ class Session(Entity):
             "id": str(self.doc.id),
             "session_state": self.doc.session_state.value,
             "timeout": task.expires_at if task else None,
-            "queue_position": task.queue_position if task else 0,
-        }
+            "queue_position": task.queue_position if task else 0}
         await websocket_services.send_dict(
             self.doc.id, WebsocketUpdate(**update_view).model_dump())
 
@@ -144,9 +145,7 @@ class Session(Entity):
 
             if stale_session:
                 stale_session = Session(stale_session)
-                stale_session.set_state(SessionState.COMPLETED)
-                await stale_session.doc.save_changes()
-                await stale_session.handle_conclude()
+                await stale_session.handle_conclude(SessionState.COMPLETED)
             elif (locker.doc.locker_state != LockerState.LOCKED):
                 raise InvalidLockerStateException(
                     locker_id=locker.doc.id,
@@ -157,12 +156,16 @@ class Session(Entity):
                 # Send UNLOCK command to the locker
                 await locker.instruct_state(LockerState.UNLOCKED)
 
-    async def handle_conclude(self) -> None:
+    async def handle_conclude(self, final_state: SessionState) -> None:
         """Calculate and store statistical data when session completes/expires/aborts."""
+        self.set_state(final_state)
         self.doc.completed_at = datetime.now()
         await self.calc_total_duration
         await self.calc_active_duration
         await self.doc.save_changes()
+
+        # Unsubscribe the websocket client
+        websocket_services.unregister_connection(self.doc.id)
 
         await self.doc.fetch_all_links()
         # Update station statistics
@@ -177,3 +180,5 @@ class Session(Entity):
         await self.doc.assigned_user.inc({
             UserModel.total_session_count: 1,
             UserModel.total_session_duration: self.doc.total_duration})
+
+        await self.broadcast_update()

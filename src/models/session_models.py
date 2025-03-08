@@ -6,10 +6,10 @@ from random import choice, randint
 # Types
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Union
-from bson.objectid import ObjectId
+from typing import Dict, List, Optional
 from enum import Enum
 from uuid import UUID, uuid4
+from bson.objectid import ObjectId
 from typing_extensions import Annotated
 # Beanie
 from beanie import Document, Insert, Link
@@ -115,7 +115,7 @@ SESSION_TIMEOUTS: Dict[SessionState, int] = {
 }
 
 
-SESSION_STATE_FLOW: Dict[SessionState, Union[SessionState, None]] = {
+SESSION_STATE_FLOW: Dict[SessionState, SessionState] = {
     SessionState.CREATED: SessionState.PAYMENT_SELECTED,
     SessionState.PAYMENT_SELECTED: SessionState.VERIFICATION,
     SessionState.VERIFICATION: SessionState.STASHING,
@@ -124,11 +124,11 @@ SESSION_STATE_FLOW: Dict[SessionState, Union[SessionState, None]] = {
     SessionState.HOLD: SessionState.ACTIVE,
     SessionState.PAYMENT: SessionState.RETRIEVAL,
     SessionState.RETRIEVAL: SessionState.COMPLETED,
-    SessionState.COMPLETED: None,
-    SessionState.CANCELED: None,
-    SessionState.STALE: None,
-    SessionState.EXPIRED: None,
-    SessionState.ABORTED: None
+    SessionState.COMPLETED: SessionState.COMPLETED,
+    SessionState.CANCELED: SessionState.CANCELED,
+    SessionState.STALE: SessionState.STALE,
+    SessionState.EXPIRED: SessionState.EXPIRED,
+    SessionState.ABORTED: SessionState.ABORTED
 }
 
 

@@ -3,10 +3,12 @@ This module contains the station router which handles all station related reques
 """
 # Basics
 from typing import Annotated, Any, List, Optional
-from uuid import uuid4
 # FastAPI & Beanie
 from beanie import PydanticObjectId as ObjId
-from fastapi import APIRouter, Path, Header, Depends, Query, status, HTTPException
+from fastapi import (
+    APIRouter, Path,
+    Depends, Query,
+    status, HTTPException)
 # Exceptions
 from src.exceptions.locker_exceptions import InvalidLockerReportException
 from src.models.locker_models import (
@@ -24,7 +26,7 @@ from src.services.logging_services import logger_service as logger
 from src.services.exception_services import handle_exceptions
 from src.services import station_services, locker_services
 from src.services.mqtt_services import fast_mqtt, validate_mqtt_topic
-from src.services.auth_services import require_auth
+from src.services.auth_services import auth_check
 # Exceptions
 from src.exceptions.locker_exceptions import LockerNotAvailableException
 
@@ -38,9 +40,11 @@ station_router = APIRouter()
     status_code=status.HTTP_200_OK,
     description="Return a list of all installed stations.")
 @handle_exceptions(logger)
-async def get_all_stations():
+async def get_all_stations(
+    user: User = Depends(auth_check)
+):
     """Return a list of all installed stations."""
-    return await station_services.get_all_stations()
+    return await station_services.get_all_stations(user)
 
 
 @station_router.get(
@@ -50,21 +54,23 @@ async def get_all_stations():
     description="Get a list of all stations within a range of a given location.")
 @handle_exceptions(logger)
 async def get_nearby_stations(
-        lat: Annotated[float, Query(
-            ge=0, le=180, example=49.0,
-            description="Latitude in degrees."
-        )],
-        lon: Annotated[float, Query(
-            ge=-180, le=180, example=49.0,
-            description="Longitude in degrees."
-        )],
-        radius: Annotated[float, Query(
-            ge=1, le=10000, example=1000,
-            description="Radius in meters."
-        )],
-        amount: int = 100) -> List[StationView]:
+    lat: Annotated[float, Query(
+        ge=0, le=180, example=49.0,
+        description="Latitude in degrees."
+    )],
+    lon: Annotated[float, Query(
+        ge=-180, le=180, example=49.0,
+        description="Longitude in degrees."
+    )],
+    radius: Annotated[float, Query(
+        ge=1, le=10000, example=1000,
+        description="Radius in meters."
+    )],
+    amount: int = 100,
+    user: User = Depends(auth_check)
+) -> List[StationView]:
     """Return a list of station withing a given range of a location."""
-    return await station_services.discover(lat, lon, radius, amount)
+    return await station_services.discover(user, lat, lon, radius, amount)
 
 
 @station_router.get(
@@ -75,12 +81,14 @@ async def get_nearby_stations(
 )
 @handle_exceptions(logger)
 async def get_station_details(
-        callsign: Annotated[str, Path(
-            pattern='^[A-Z]{6}$', example="MUCODE",
-            description="Unique identifier of the station.")],
+    callsign: Annotated[str, Path(
+        pattern='^[A-Z]{6}$', example="MUCODE",
+        description="Unique identifier of the station.")],
+    user: User = Depends(auth_check)
 ) -> StationView:
     """Get detailed information about a station"""
     return await station_services.get_details(
+        user=user,
         callsign=callsign)
 
 
@@ -92,27 +100,33 @@ async def get_station_details(
 )
 @handle_exceptions(logger)
 async def get_active_session_count(
-        callsign: Annotated[str, Path(
-            pattern='^[A-Z]{6}$', example="MUCODE",
-            description="Unique identifier of the station.")],
+    callsign: Annotated[str, Path(
+        pattern='^[A-Z]{6}$', example="MUCODE",
+        description="Unique identifier of the station.")],
+    user: User = Depends(auth_check)
 ) -> int:
     """Get the amount of currently active sessions at this station."""
     return await station_services.get_active_session_count(
+        user=user,
         callsign=callsign)
 
 
 @station_router.get(
     '/{callsign}/lockers',
     response_model=List[LockerTypeAvailabilityView],
-    status_code=status.HTTP_200_OK,)
+    status_code=status.HTTP_200_OK,
+    description='Get the availability of lockers at the station.'
+)
 @handle_exceptions(logger)
 async def get_locker_overview(
-        callsign: Annotated[str, Path(
-            pattern='^[A-Z]{6}$', example="MUCODE",
-            description="Unique identifier of the station.")],
+    callsign: Annotated[str, Path(
+        pattern='^[A-Z]{6}$', example="MUCODE",
+        description="Unique identifier of the station.")],
+    user: User = Depends(auth_check)
 ) -> List[LockerTypeAvailabilityView]:
     """Get the availability of lockers at the station"""
     return await station_services.get_locker_overview(
+        user=user,
         callsign=callsign)
 
 
@@ -120,29 +134,31 @@ async def get_locker_overview(
     '/{callsign}/lockers/{station_index}',
     response_model=LockerView,
     status_code=status.HTTP_200_OK,
+    description='Get information about a locker at the station'
 )
 @handle_exceptions(logger)
 async def get_locker_by_index(
-        callsign: Annotated[str, Path(
-            pattern='^[A-Z]{6}$', example="MUCODE",
-            description="Unique identifier of the station.")],
-        station_index: Annotated[int, Path(
-            gt=0, lt=100, example=8,
-            description="Index of the locker in the station."
-        )],
+    callsign: Annotated[str, Path(
+        pattern='^[A-Z]{6}$', example="MUCODE",
+        description="Unique identifier of the station.")],
+    station_index: Annotated[int, Path(
+        gt=0, lt=100, example=8,
+        description="Index of the locker in the station."
+    )],
+    user: User = Depends(auth_check)
 ) -> Optional[LockerView]:
-    """Get the availability of lockers at the station"""
+    """Get information about a locker at the station"""
     return await station_services.get_locker_by_index(
+        user=user,
         callsign=callsign,
-        station_index=station_index,
-    )
+        station_index=station_index)
 
 
 @station_router.post(
     '/{callsign}/reservation',
     response_model=None,
     status_code=status.HTTP_202_ACCEPTED,
-)
+    description='Reserve a locker at the station.')
 @handle_exceptions(logger)
 async def reserve_locker_at_station(
     callsign: str,
@@ -150,17 +166,14 @@ async def reserve_locker_at_station(
     #    pattern='^[A-Z]{6}$', example="MUCODE",
     #    description="Unique identifier of the station.")],
     locker_type: Annotated[str, Query(enum=LOCKER_TYPE_NAMES)],
-    _user: Annotated[str, Header(
-        alias="user", example=uuid4(),
-        description="User UUID (only for debug)")],
-    access_info: User = Depends(require_auth),
+    user: User = Depends(auth_check)
 ) -> StationView:
     """Reserve a station for a user"""
-    try:  # TODO: Improve this
+    try:  # TODO: Improve error handling here
         await station_services.handle_reservation_request(
             callsign=callsign,
             locker_type=locker_type,
-            user=access_info)
+            user=user)
     except LockerNotAvailableException as e:
         logger.warning(e)
         raise HTTPException(status_code=404, detail=e) from e
@@ -169,67 +182,71 @@ async def reserve_locker_at_station(
 @station_router.delete(
     '/{callsign}/reserve_cancel',
     response_model=None,
-    status_code=status.HTTP_202_ACCEPTED,
-
-)
+    description='Cancel a station reservation.',
+    status_code=status.HTTP_202_ACCEPTED)
 @handle_exceptions(logger)
 async def request_reservation_cancelation(
     callsign: Annotated[str, Path(
         pattern='^[A-Z]{6}$', example="MUCODE",
         description="Unique identifier of the station.")],
-    _user: Annotated[str, Header(
-        alias="user", example=uuid4(),
-        description="User UUID (only for debug)")],
-        access_info: User = Depends(require_auth),
+    user: User = Depends(auth_check)
 ):
     """Cancel a station reservation"""
     await station_services.handle_reservation_cancel_request(
-        callsign=callsign,
-        user=access_info
-    )
+        user=user,
+        callsign=callsign,)
 
 
 @station_router.put(
     '/{callsign}/reset_queue',
     response_model=StationView,
+    description='Reset the queue at the station.',
     status_code=status.HTTP_202_ACCEPTED)
 @handle_exceptions(logger)
 async def reset_station_queue(
-        callsign: Annotated[str, Path(
-            pattern='^[A-Z]{6}$', example="MUCODE",
-            description="Unique identifier of the station.")],
+    callsign: Annotated[str, Path(
+        pattern='^[A-Z]{6}$', example="MUCODE",
+        description="Unique identifier of the station.")],
+    user: User = Depends(auth_check)
 ) -> StationView:
     """Reset the queue at the station. This is helpful if the queue is stale."""
-    return await station_services.reset_queue(callsign=callsign)
+    return await station_services.reset_queue(user=user, callsign=callsign)
 
 
 @station_router.get(
     '/{callsign}/state',
     response_model=StationView,
+    description='Get the high-level station state which indicates general availability.',
     status_code=status.HTTP_200_OK)
 @handle_exceptions(logger)
 async def get_station_state(
-        callsign: Annotated[str, Path(
-            pattern='^[A-Z]{6}$', example="MUCODE",
-            description="Unique identifier of the station.")],
+    callsign: Annotated[str, Path(
+        pattern='^[A-Z]{6}$', example="MUCODE",
+        description="Unique identifier of the station.")],
+    user: User = Depends(auth_check)
 ) -> StationView:
     """Get the high-level station state which indicates general availability."""
     return await station_services.get_station_state(
+        user=user,
         callsign=callsign)
 
 
 @station_router.patch(
     '/{callsign}/state',
     response_model=StationView,
-    status_code=status.HTTP_202_ACCEPTED,)
+    description='Set the high-level station state which indicates general availability',
+    status_code=status.HTTP_202_ACCEPTED)
 @handle_exceptions(logger)
 async def set_station_state(
         callsign: Annotated[str, Path(
             pattern='^[A-Z]{6}$', example="MUCODE",
             description="Unique identifier of the station.")],
-        state: StationState) -> StationView:
+    state: StationState,
+    user: User = Depends(auth_check)
+):
     """Set the high-level station state which indicates general availability."""
     return await station_services.set_station_state(
+        user=user,
         callsign=callsign,
         station_state=state)
 

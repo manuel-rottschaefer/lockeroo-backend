@@ -30,8 +30,10 @@ TERMINAL_FLOW = {  # pylint: disable=invalid-name
     SessionState.VERIFICATION: TerminalState.VERIFICATION,
     SessionState.STASHING: TerminalState.IDLE,
     SessionState.PAYMENT: TerminalState.PAYMENT,
+    SessionState.COMPLETED: TerminalState.IDLE,
     SessionState.RETRIEVAL: TerminalState.IDLE,
     SessionState.EXPIRED: TerminalState.IDLE,
+    SessionState.CANCELED: TerminalState.IDLE
 }
 
 
@@ -142,14 +144,12 @@ class Station(Entity):
             fast_mqtt.publish(
                 message_or_topic=(
                     f"stations/{self.doc.callsign}"
-                    "/terminal/instruct"),
-                payload=TERMINAL_FLOW[session_state].upper(),
-                qos=2)
+                    "/terminal/instruct"), qos=2,
+                payload=TERMINAL_FLOW[session_state].upper())
         else:
             logger.debug((
                 f"No state instruction for session state "
-                f"'{session_state}' of task '#{self.doc.id}'.")
-            )
+                f"'{session_state}' of task '#{self.doc.id}'."))
 
     async def register_station_state(
         self: StationModel, new_station_state: StationState

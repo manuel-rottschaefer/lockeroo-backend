@@ -4,15 +4,15 @@
 # Types
 from typing import Annotated
 from bson.objectid import ObjectId
-from uuid import uuid4
 from beanie import PydanticObjectId as ObjId
 # FastAPI
-from fastapi import APIRouter, Depends, Header, Path, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 # Models
 from src.models.review_models import ReviewView
-from src.models.user_models import UserModel
 from src.services import review_services
-from src.services.auth_services import require_auth
+from src.services.auth_services import auth_check
+# Entities
+from src.entities.user_entity import User
 # Services
 from src.services.exception_services import handle_exceptions
 from src.services.logging_services import logger_service as logger
@@ -22,6 +22,7 @@ review_router = APIRouter()
 
 @review_router.get(
     '/{session_id}',
+    tags=['review'],
     response_model=ReviewView,
     status_code=status.HTTP_200_OK,
     description='Get the review of a session.')
@@ -30,20 +31,18 @@ async def get_review(
     session_id: Annotated[str, Path(
         pattern='^[a-fA-F0-9]{24}$', example=str(ObjectId()),
         description='Unique identifier of the session.')],
-    _user: Annotated[str, Header(
-        alias="user", example=uuid4(),
-        description="The user who is requesting details about the review.")],
-    access_info: UserModel = Depends(require_auth),
+    user: User = Depends(auth_check)
 ):
     """Handle request to get a review for a session"""
     return await review_services.get_session_review(
+        user=user,
         session_id=ObjId(session_id),
-        user=access_info
     )
 
 
 @review_router.put(
     '/{session_id}/submit',
+    tags=['review'],
     response_model=ReviewView,
     status_code=status.HTTP_201_CREATED,
     description='Submit a review for a completed session.')
@@ -58,15 +57,12 @@ async def submit_review(
         int, Query(ge=1, le=5, description="Star rating of the hygiene.")],
     details: Annotated[str, Query(
         max_length=500, description="Comment by the user.")],
-    _user: Annotated[str, Header(
-        alias="user", example=uuid4(),
-        description="User UUID (only for debug)")],
-    access_info: UserModel = Depends(require_auth),
+    user: User = Depends(auth_check)
 ):
     """Handle request to submit a review for a completed session"""
     return await review_services.handle_review_submission(
+        user=user,
         session_id=session_id,
-        user=access_info,
         experience_rating=experience_rating,
         cleanliness_rating=cleanliness_rating,
         details=details

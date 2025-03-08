@@ -5,15 +5,13 @@
 from typing import Annotated, List, Optional
 from bson.objectid import ObjectId
 from asyncio import Lock
-from uuid import uuid4
 # Database utils
 from beanie import PydanticObjectId as ObjId
 # FastAPI
-from fastapi import APIRouter, Depends, Header, Path, Query, WebSocket, status
+from fastapi import APIRouter, Depends, Path, Query, WebSocket, status
 # Entities
 from src.entities.user_entity import User
 from src.models.action_models import ActionView
-# from fief_client import FiefAccessTokenInfo
 # Models
 from src.models.session_models import (
     SessionView,
@@ -23,7 +21,7 @@ from src.models.session_models import (
 from src.models.locker_models import LOCKER_TYPE_NAMES
 # Services
 from src.services import session_services
-from src.services.auth_services import require_auth
+from src.services.auth_services import auth_check
 from src.services.exception_services import handle_exceptions
 from src.services.logging_services import logger_service as logger
 
@@ -45,20 +43,16 @@ async def get_session_details(
     session_id: Annotated[str, Path(
         pattern='^[a-fA-F0-9]{24}$', example=str(ObjectId()),
         description='Unique identifier of the session.')],
-    _user: Annotated[str, Header(
-        alias="user", example=uuid4(),
-        description="The user who is requesting details about the session.")],
-    access_info: User = Depends(require_auth),
+    user: User = Depends(auth_check)
 ):
     """Return the details of a session. This is supposed to be used
     for refreshingthe app-state in case of disconnect or re-open."""
     logger.info(
-        (f"User '#{access_info.fief_id}' is requesting "
+        (f"User '#{user.doc.fief_id}' is requesting "
          f"details for session '#{session_id}'."))
     return await session_services.get_details(
-        session_id=ObjId(session_id),
-        user=access_info
-    )
+        user=user,
+        session_id=ObjId(session_id))
 
 
 @session_router.get(
@@ -71,16 +65,12 @@ async def get_session_history(
     session_id: Annotated[str, Path(
         pattern='^[a-fA-F0-9]{24}$', example=str(ObjectId()),
         description='Unique identifier of the session.')],
-    _user: Annotated[str, Header(
-        alias="user", example=uuid4(),
-        description="User UUID (only for debug)")],
-    access_info: User = Depends(require_auth),
+    user: User = Depends(auth_check)
 ):
     """Handle request to obtain a list of all actions from a session."""
     return await session_services.get_session_history(
-        session_id=session_id,
-        user=access_info
-    )
+        user=user,
+        session_id=session_id)
 
 
 @session_router.post(
@@ -97,25 +87,20 @@ async def request_new_session(
     locker_type: Annotated[str, Query(
         enum=LOCKER_TYPE_NAMES,
         description='Type of locker to be used.')],
-    _user: Annotated[str, Header(
-        alias="user", example=str(uuid4()),
-        # pattern='^[a-fA-F0-9]{24}$',
-        description="The user who is requesting a new session.")],
     payment_method: Annotated[PaymentMethod, Query(
         example=PaymentMethod.TERMINAL,
         description='Payment method to be used.')] = None,
-    access_info: User = Depends(require_auth),
+    user: User = Depends(auth_check)
 ) -> Optional[CreatedSessionView]:
     """Handle request to create a new session"""
-    logger.info((f"User '#{access_info.fief_id}' is requesting a "
+    logger.info((f"User '#{user.fief_id}' is requesting a "
                 f"new session at station '{station_callsign}'."))
     async with Lock():  # TODO: Check if lock solves the problem adequately
         return await session_services.handle_creation_request(
-            user=access_info,
+            user=user,
             callsign=station_callsign,
             locker_type=locker_type,
-            payment_method=payment_method
-        )
+            payment_method=payment_method)
 
 
 @session_router.patch(
@@ -127,18 +112,14 @@ async def request_session_cancel(
     session_id: Annotated[str, Path(
         pattern='^[a-fA-F0-9]{24}$', example=str(ObjectId()),
         description='Unique identifier of the session.')],
-    _user: Annotated[str, Header(
-        alias="user", example=uuid4(),
-        description="User UUID (only for debug)")],
-    access_info: User = Depends(require_auth)
+    user: User = Depends(auth_check)
 ) -> Optional[ConcludedSessionView]:
     """Handle request to cancel a locker session"""
-    logger.info((f"User '#{access_info.id}' is trying to "
+    logger.info((f"User '#{user.fief_id}' is trying to "
                 f"cancel session '#{session_id}'."))
     return await session_services.handle_cancel_request(
-        session_id=ObjId(session_id),
-        user=access_info
-    )
+        user=user,
+        session_id=ObjId(session_id))
 
 
 @session_router.patch(
@@ -151,19 +132,15 @@ async def request_session_hold(
     session_id: Annotated[str, Path(
         pattern='^[a-fA-F0-9]{24}$', example=str(ObjectId()),
         description='Unique identifier of the session.')],
-    _user: Annotated[str, Header(
-        alias="user", example=uuid4(),
-        description="User UUID (only for debug)")],
-    access_info: User = Depends(require_auth)
+    user: User = Depends(auth_check)
 ):
     """Handle request to pause a locker session"""
     logger.info(
-        (f"User '#{access_info.id}' is trying to "
+        (f"User '#{user.fief_id}' is trying to "
          f"hold session '#{session_id}'."))
     return await session_services.handle_hold_request(
-        session_id=ObjId(session_id),
-        user=access_info
-    )
+        user=user,
+        session_id=ObjId(session_id))
 
 
 @session_router.websocket('/{session_id}/subscribe')

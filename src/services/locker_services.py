@@ -40,8 +40,8 @@ async def handle_unlock_confirmation(
         TaskItemModel.target == TaskTarget.LOCKER,
         TaskItemModel.task_type == TaskType.CONFIRMATION,
         TaskItemModel.task_state == TaskState.PENDING,
-        In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
-           ACTIVE_SESSION_STATES),
+        # In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
+        #   ACTIVE_SESSION_STATES), ToDo: Do we need this?
         TaskItemModel.assigned_station.callsign == callsign,  # pylint: disable=no-member
         TaskItemModel.assigned_locker.station_index == station_index,  # pylint: disable=no-member
         fetch_links=True
@@ -125,7 +125,7 @@ async def handle_lock_report(
         TaskItemModel.task_type == TaskType.REPORT,
         TaskItemModel.task_state == TaskState.PENDING,
         In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
-           ACTIVE_SESSION_STATES),
+           ACTIVE_SESSION_STATES + [SessionState.CANCELED]),
         TaskItemModel.assigned_station.callsign == callsign,  # pylint: disable=no-member
         TaskItemModel.assigned_locker.station_index == station_index,  # pylint: disable=no-member
         fetch_links=True
@@ -192,14 +192,10 @@ async def handle_lock_report(
 
     # 7: Catch completed sessions
     if session.next_state == SessionState.COMPLETED:
-        session.set_state(SessionState.COMPLETED)
-        # TODO: Should be redundant with handle_conclude, but is not
-        await session.doc.save_changes()
-        await session.broadcast_update()
         await ActionModel(
             assigned_session=session.doc,
             action_type=SessionState.COMPLETED).insert()
-        return await session.handle_conclude()
+        return await session.handle_conclude(SessionState.COMPLETED)
 
     # 8: Catch canceled sessions
     if session.doc.session_state == SessionState.CANCELED:

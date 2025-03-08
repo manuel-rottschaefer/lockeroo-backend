@@ -1,0 +1,27 @@
+"""This module provides exception classes for permission management."""
+# Types
+from typing import List
+# Beanie
+from beanie import PydanticObjectId as ObjId
+# Exceptions
+from fastapi import HTTPException
+# Models
+from src.models.permission_models import PERMISSION
+
+
+class InvalidPermissionException(Exception):
+    """Exception raised when a user does not have proper
+    permissions to access an endpointa requested endpoint """
+
+    def __init__(
+        self, user_id: ObjId,
+            missing_permissions: List[PERMISSION],
+            raise_http: bool = True):
+        self.user_id = user_id
+        self.missing_permissions = missing_permissions
+
+        if raise_http:
+            raise HTTPException(status_code=401, detail=self.__str__())
+
+    def __str__(self):
+        return f"Missing permissions: {[i for i in self.missing_permissions]}"

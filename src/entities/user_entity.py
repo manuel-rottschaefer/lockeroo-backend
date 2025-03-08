@@ -1,5 +1,6 @@
 """This module provides utilities for user management."""
 # Basics
+from typing import Union
 from datetime import datetime, timedelta
 # Beanie
 from beanie.operators import In, NotIn
@@ -10,12 +11,12 @@ from src.models.session_models import (
     SessionModel,
     SessionState)
 # Models
-from src.models.user_models import UserModel
+from src.models.user_models import UserModel, AuthenticatedUserModel
 
 
 class User(Entity):
     """Adds behaviour for a station instance."""
-    doc: UserModel
+    doc: Union[UserModel, AuthenticatedUserModel]
 
     ### Attributes ###
     @property

@@ -176,6 +176,7 @@ class Task(Entity):
             logger.debug((
                 f"No task found to activate at station '"
                 f"{self.doc.assigned_station.callsign}'."))
+            task_expiration_manager.restart()
             return -1
 
         # 4: Activate the next task
@@ -186,9 +187,6 @@ class Task(Entity):
         assert front_task.doc.task_state == TaskState.QUEUED, (
             f"Task '#{front_task.doc.id}' is in '{front_task.doc.task_state}'.")
         await front_task.activate()
-
-        # TODO: Check if required
-        task_expiration_manager.restart()
 
         # Return queue position of current task
         return self.doc.queue_position
@@ -275,14 +273,13 @@ class Task(Entity):
         # 4: If the stations terminal is not idle, end here
         await self.doc.fetch_link(TaskItemModel.assigned_station)
         # await self.doc.assigned_station.sync()
-        if self.doc.assigned_station.terminal_state != TerminalState.IDLE:
-            return
-
-        # 5: Else, start the next task
-        # This is to avoid redundant task activations due to concurrency
-        # TODO: Find a better solution for concurrency problems
-        if self.doc.target == TaskTarget.TERMINAL:
-            return self.evaluate_next()
+        if (self.doc.assigned_station.terminal_state == TerminalState.IDLE
+                and self.doc.target == TaskTarget.TERMINAL):
+            # 5: Else, start the next task
+            # This is to avoid redundant task activations due to concurrency
+            # TODO: Find a better solution for concurrency problems
+            if self.doc.target == TaskTarget.TERMINAL:
+                return await self.evaluate_next()
 
         # 6: Save session state and restart the expiration manager
         task_expiration_manager.restart()
@@ -389,8 +386,9 @@ class Task(Entity):
         # TODO: Rework this logic
         task_activated: bool = False
         if (self.doc.target == TaskTarget.TERMINAL and
-            self.doc.task_type == TaskType.REPORT and
-                self.doc.timeout_states[0] != SessionState.EXPIRED):
+                self.doc.task_type == TaskType.REPORT):
+            # TODO: Check this
+            # self.doc.timeout_states[0] != SessionState.EXPIRED):
             await Task(await TaskItemModel(
                 target=TaskTarget.TERMINAL,
                 task_type=TaskType.CONFIRMATION,

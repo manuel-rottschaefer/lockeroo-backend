@@ -22,13 +22,14 @@ from src.services.logging_services import logger_service as logger
 user_router = APIRouter()
 
 
-@ user_router.get(
+@user_router.get(
     '/{user_id}/',
+    tags=['user'],
     response_model=Optional[UserSummary],
     status_code=status.HTTP_200_OK,
     description='Get the details of a user.'
 )
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def get_user_details(
     user_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
 ) -> UserSummary:
@@ -38,12 +39,13 @@ async def get_user_details(
     )
 
 
-@ user_router.get(
+@user_router.get(
     '/{user_id}/quick_stats',
+    tags=['user'],
     response_model=UserQuickStats,
     status_code=status.HTTP_200_OK,
     description='Get the quick stats of a user.')
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def get_user_quick_stats(
     user_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
 ) -> UserQuickStats:
@@ -53,13 +55,14 @@ async def get_user_quick_stats(
     )
 
 
-@ user_router.get(
+@user_router.get(
     '/{user_id}/active_session',
+    tags=['user'],
     response_model=Optional[SessionView],
     status_code=status.HTTP_200_OK,
     description='Get the active session of a user, if any.'
 )
-@ handle_exceptions(logger)
+@handle_exceptions(logger)
 async def get_active_session(
     user_id: Annotated[str, Path(pattern='^[a-fA-F0-9]{24}$')],
 ) -> SessionView:

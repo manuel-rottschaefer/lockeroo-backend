@@ -11,7 +11,8 @@ from fastapi import APIRouter, Request
 auth_router = APIRouter()
 
 
-@auth_router.get("/callback")
+@auth_router.get(
+    "/callback", description="Handle the OAuth2 callback",)
 async def auth_callback(code: str, request: Request):
     """Handle the OAuth2 callback"""
     token = await request.app.state.fief.auth_callback(

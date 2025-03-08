@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 # API services
 import uvicorn
 from fastapi import FastAPI
-# from src.services.auth_services import init_fief
+from src.services.auth_services import init_fief
 from fastapi.middleware.cors import CORSMiddleware
 # Environments
 from dotenv import load_dotenv

@@ -14,6 +14,8 @@ from src.entities.locker_entity import Locker
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
 from src.entities.task_entity import Task
+# Services
+from src.services.auth_services import permission_check
 # Models
 from src.models.locker_models import (
     LockerModel,
@@ -35,6 +37,7 @@ from src.models.task_models import (
     TaskState,
     TaskTarget,
     TaskType)
+from src.models.permission_models import PERMISSION
 # Exceptions
 from src.exceptions.locker_exceptions import LockerNotFoundException
 from src.exceptions.session_exceptions import InvalidSessionStateException
@@ -67,34 +70,49 @@ if STATION_TYPES is None:
         STATION_TYPES = {}
 
 
-async def get_all_stations() -> List[StationView]:
+async def get_all_stations(user: User) -> List[StationView]:
     """Returns a list of all installed stations."""
-    return await StationModel.find(
+    # 1: Verify permissions
+    permission_check([PERMISSION.STATION_VIEW_BASIC], user.doc.permissions)
+
+    # 2: Return stations
+    stations: List[StationView] = await StationModel.find_all(
         # StationModel.installed_at < datetime.now()
     ).limit(100).project(StationView).to_list()
+    return stations
 
 
-async def discover(lat: float, lon: float, radius: int,
+async def discover(user: User, lat: float, lon: float, radius: int,
                    amount: int) -> List[StationView]:
     """Return a list of stations within a given range around a location"""
+    # 1: Verify permissions
+    permission_check([PERMISSION.STATION_VIEW_BASIC], user.doc.permissions)
 
+    # 2: Return stations
     stations: List[StationView] = await StationModel.find(
         Near(StationModel.location, lat, lon, max_distance=radius)
     ).limit(amount).project(StationView).to_list()
     return stations
 
 
-async def get_details(callsign: str) -> Optional[StationView]:
+async def get_details(user: User, callsign: str) -> Optional[StationView]:
     """Get detailed information about a station."""
-    # Get station data from the database
+    # 1: Verify permissions
+    permission_check([PERMISSION.STATION_VIEW_ADVANCED], user.doc.permissions)
+
+    # 2: station data from the database
     station: StationView = await StationModel.find(
         StationModel.callsign == callsign
     ).project(StationView).first_or_none()
     return station
 
 
-async def get_station_state(callsign: str) -> Optional[StationState]:
+async def get_station_state(user: User, callsign: str) -> Optional[StationState]:
     """Get the state of a station."""
+    # 1: Verify permissions
+    permission_check([PERMISSION.STATION_VIEW_ADVANCED], user.doc.permissions)
+
+    # 2: Return station state
     station: Station = Station(await StationModel.find(
         StationModel.callsign == callsign
     ).first_or_none(),
@@ -103,13 +121,17 @@ async def get_station_state(callsign: str) -> Optional[StationState]:
     return station.station_state
 
 
-async def get_active_session_count(callsign: str) -> Optional[int]:
+async def get_active_session_count(user: User, callsign: str) -> Optional[int]:
     """Get the amount of currently active sessions at this station."""
+    # 1: Verify permissions
+    permission_check([PERMISSION.STATION_VIEW_ADVANCED], user.doc.permissions)
+
+    # 2: Find station
     station: Station = Station(await StationModel.find(
         StationModel.callsign == callsign).first_or_none(),
-        callsign=callsign
-    )
+        callsign=callsign)
 
+    # 3: Return Sessions
     return await SessionModel.find(
         SessionModel.assigned_station == station.id,
         In(SessionModel.session_state,
@@ -119,15 +141,17 @@ async def get_active_session_count(callsign: str) -> Optional[int]:
 
 
 async def get_locker_by_index(
-        callsign: str, station_index: int) -> Optional[LockerModel]:
+        user: User, callsign: str, station_index: int) -> Optional[LockerModel]:
     """Get the locker at a station by its index."""
-    # 1: Get the station
+    # 1: Verify permissions
+    permission_check([PERMISSION.STATION_VIEW_BASIC], user.doc.permissions)
+
+    # 2: Get the station
     station: Station = Station(await StationModel.find(
         StationModel.callsign == callsign).first_or_none(),
-        callsign=callsign
-    )
+        callsign=callsign)
 
-    # 2: Get the assigned locker
+    # 3: Get the assigned locker
     locker: Locker = Locker(await LockerModel.find(
         LockerModel.station == station.doc.id,
         LockerModel.station_index == station_index
@@ -140,20 +164,22 @@ async def get_locker_by_index(
 
 
 async def get_locker_overview(
-        callsign: str) -> List[LockerTypeAvailabilityView]:
+        user: User, callsign: str) -> List[LockerTypeAvailabilityView]:
     """Determine for each locker type if it is available at the given station."""
-    # 1: Check whether the station exists
+    # 1: Verify permissions
+    permission_check([PERMISSION.STATION_VIEW_BASIC], user.doc.permissions)
+
+    # 2: Check whether the station exists
     station: Station = Station(await StationModel.find(
         StationModel.callsign == callsign).first_or_none(),
-        callsign=callsign
-    )
+        callsign=callsign)
 
-    # 2: Find all active sessions at this station
+    # 3: Find all active sessions at this station
     available_lockers: List[ReducedLockerView] = await station.get_available_lockers()
     locker_type_counts = Counter(
         locker.locker_type for locker in available_lockers)
 
-    # 3: Create a list of locker availabilities
+    # 4: Create a list of locker availabilities
     locker_availabilities: List[LockerTypeAvailabilityView] = [
         LockerTypeAvailabilityView(
             issued_at=datetime.now(),
@@ -165,24 +191,28 @@ async def get_locker_overview(
     return locker_availabilities
 
 
-async def set_station_state(callsign: str, station_state: StationState) -> StationView:
+async def set_station_state(user: User, callsign: str, station_state: StationState) -> StationView:
     """Set the state of a station."""
+    # 1: Verify permissions
+    permission_check([PERMISSION.STATION_OPERATE], user.doc.permissions)
+
+    # 2: Get station
     station: Station = Station(await StationModel.find(
         StationModel.callsign == callsign).first_or_none(),
-        callsign=callsign
-    )
+        callsign=callsign)
+
+    # 3: Modify station state
     await station.register_station_state(station_state)
     return StationView.from_document(station.doc)
 
 
-async def reset_queue(callsign: str) -> StationView:
+async def reset_queue(user: User, callsign: str) -> StationView:
     """Reset the queue of the station by putting all queue
     items in state QUEUED and re-evaluating the queue."""
     # 1: Find the assigned station
     station: Station = Station(await StationModel.find(
         StationModel.callsign == callsign).first_or_none(),
-        callsign=callsign
-    )
+        callsign=callsign)
 
     # 2: Get all stale queue items at the station
     tasks: List[TaskItemModel] = await TaskItemModel.find(
@@ -207,13 +237,15 @@ async def handle_reservation_request(
     First checks if the station is available and whether
     a locker of the requested type is available. If so,
     create a reservation task at the station and activate it."""
-    # 1: Find the assigned station
+    # 1: Verify permissions
+    permission_check([PERMISSION.SESSION_ACTIONS], user.doc.permissions)
+
+    # 2: Find the assigned station
     station: Station = Station(await StationModel.find(
         StationModel.callsign == callsign).first_or_none(),
-        callsign=callsign
-    )
+        callsign=callsign)
 
-    # 2: Check if the station is currently available
+    # 3: Check if the station is currently available
     if station.station_state != StationState.AVAILABLE:
         raise InvalidTerminalStateException(
             station_callsign=callsign,
@@ -221,7 +253,7 @@ async def handle_reservation_request(
             actual_state=station.station_state,
             raise_http=True)
 
-    # 3: Check if a locker of the requested type is available
+    # 4: Check if a locker of the requested type is available
     locker_type_map = {locker.name.lower(): locker for locker in LOCKER_TYPES}
     locker_type: LockerType = locker_type_map.get(locker_type.lower(), None)
     available_locker = await Locker.find_available(station, locker_type)
@@ -231,7 +263,7 @@ async def handle_reservation_request(
             locker_type=locker_type,
             raise_http=True)
 
-    # 4: Create a reservation task, to be completed by a session creation
+    # 5: Create a reservation task, to be completed by a session creation
     logger.info((
         f"Created reservation for user '{user.doc.fief_id}' "
         f"at locker '#{available_locker.id}'."))
@@ -251,13 +283,15 @@ async def handle_reservation_cancel_request(
     """Evaluates a reservation cancel request at a station.
     First checks if a reservation is currently pending for the user,
     and if so, cancels it."""
-    # 1: Find the assigned station
+    # 1: Verify permissions
+    permission_check([PERMISSION.SESSION_ACTIONS], user.doc.permissions)
+
+    # 2: Find the assigned station
     station: Station = Station(await StationModel.find(
         StationModel.callsign == callsign).first_or_none(),
-        callsign=callsign
-    )
+        callsign=callsign)
 
-    # 2: Find the pending reservation task for this user
+    # 3: Find the pending reservation task for this user
     task: Task = Task(await TaskItemModel.find(
         TaskItemModel.target == TaskTarget.USER,
         TaskItemModel.task_type == TaskType.RESERVATION,
@@ -276,7 +310,7 @@ async def handle_reservation_cancel_request(
             task_type=TaskType.RESERVATION,
             raise_http=False)
 
-    # 3: Cancel the reservation task
+    # 4: Cancel the reservation task
     await task.cancel()
 
 
@@ -370,8 +404,9 @@ async def handle_terminal_state_confirmation(
         TaskItemModel.target == TaskTarget.TERMINAL,
         TaskItemModel.task_type == TaskType.CONFIRMATION,
         TaskItemModel.task_state == TaskState.PENDING,
-        In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
-           ACTIVE_SESSION_STATES),
+        # TODO: Check if required.
+        # In(TaskItemModel.assigned_session.session_state,  # pylint: disable=no-member
+        #   ACTIVE_SESSION_STATES),
         fetch_links=True
     ).sort((
         TaskItemModel.created_at, SortDirection.DESCENDING

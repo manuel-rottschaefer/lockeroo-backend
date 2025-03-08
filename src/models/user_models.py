@@ -1,17 +1,15 @@
 """User Models."""
 # Types
+from typing import List
 from dataclasses import dataclass
 # Basics
 from datetime import datetime
 from enum import Enum
 from typing import Optional
 from uuid import UUID, uuid4
-
 # Beanie
-from beanie import Document
-from beanie import PydanticObjectId as ObjId
-from beanie import View
-from pydantic import Field, PydanticUserError
+from beanie import Document, View, PydanticObjectId as ObjId
+from pydantic import BaseModel, Field, PydanticUserError
 
 # from fastapi_users_db_beanie import BeanieBaseUser
 
@@ -25,8 +23,6 @@ class AuthMethod(str, Enum):
 
 class UserModel(Document):  # pylint: disable=too-many-ancestors
     """Representation of a user in the database"""
-
-    # Identification
     id: ObjId = Field(None, alias="_id")
     fief_id: UUID = Field(
         default_factory=uuid4,
@@ -44,8 +40,7 @@ class UserModel(Document):  # pylint: disable=too-many-ancestors
     active_auth_method: AuthMethod = Field(
         AuthMethod.EMAIL, description="Active authentication method.")
     has_active_session: bool = Field(
-        False, description="Whether the user has an active session."
-    )
+        False, description="Whether the user has an active session.")
 
     # User statistics
     signup_at: datetime = Field(
@@ -57,11 +52,11 @@ class UserModel(Document):  # pylint: disable=too-many-ancestors
     total_session_duration: float = Field(
         0, description="Total amount of all sessions in seconds.")
 
-    @ dataclass
+    @dataclass
     class Settings:
         name = "users"
 
-    @ dataclass
+    @dataclass
     class Config:
         json_schema_extra = {
             "fief_id": "12345678-1234-5678-1234-567812345678",
@@ -71,7 +66,42 @@ class UserModel(Document):  # pylint: disable=too-many-ancestors
             "hashed_password": "hashed_password",
             "active_auth_method": "email",
             "has_active_session": False,
-            "signup_at": "2023-10-10T10:00:00"
+            "signup_at": "2023-10-10T10:00:00",
+            "last_login_at": "ADAPT HERE"}
+
+
+class AuthenticatedUserModel(BaseModel):
+    """Authenticated user"""
+    id: ObjId = Field(None, alias="_id")
+    fief_id: UUID = Field(
+        default_factory=uuid4,
+        description="Unique identifier of user.")
+    first_name: Optional[str] = Field(None, description="First name of user.")
+    last_name: Optional[str] = Field(None, description="Last name of user.")
+    email: Optional[str] = Field(
+        None, description="Assigned email address of usr")
+
+    # User Properties
+    active_auth_method: AuthMethod = Field(
+        AuthMethod.EMAIL, description="Active authentication method.")
+    has_active_session: bool = Field(
+        False, description="Whether the user has an active session.")
+
+    permissions: List = Field([], description="List of user permissions.")
+
+    @dataclass
+    class Settings:
+        name = "users"
+
+    @dataclass
+    class Config:
+        json_schema_extra = {
+            "fief_id": "12345678-1234-5678-1234-567812345678",
+            "first_name": "John",
+            "last_name": "Doe",
+            "email": "john.doe@example.com",
+            "active_auth_method": "email",
+            "has_active_session": False,
         }
 
 
@@ -83,7 +113,7 @@ class UserSummary(View):
     last_name: str
     email: Optional[str]
 
-    @ dataclass
+    @dataclass
     class Settings:
         source = UserModel
         is_root = False
@@ -94,7 +124,7 @@ class UserSummary(View):
             "email": '$email'
         }
 
-    @ dataclass
+    @dataclass
     class Config:
         json_schema_extra = {
             "id": "60d5ec49f1d2b2a5d8f8b8b8",
@@ -111,7 +141,7 @@ class UserQuickStats(View):
     total_sessions: int = 0
     total_session_duration: int = 0
 
-    @ dataclass
+    @dataclass
     class Settings:
         source = UserModel
         is_root = False
@@ -121,7 +151,7 @@ class UserQuickStats(View):
             "total_session_duration": '$total_session_duration'
         }
 
-    @ dataclass
+    @dataclass
     class Config:
         json_schema_extra = {
             "id": "60d5ec49f1d2b2a5d8f8b8b8",

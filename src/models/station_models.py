@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
+from bson.objectid import ObjectId
 from typing import Annotated, Dict, List, Optional
 # Beanie
 from beanie import Document, Indexed
@@ -129,6 +130,7 @@ class StationModel(Document):  # pylint: disable=too-many-ancestors
     @dataclass
     class Config:
         json_schema_extra = {
+            "id":  str(ObjectId()),
             "full_name": "Central Station",
             "callsign": "CENTRAL",
             "station_type": "Type A",
