@@ -2,13 +2,13 @@
 # Types
 from typing import Union
 
-# Beanie
+# beanie
 from beanie import PydanticObjectId as ObjId
 # Exceptions
 from fastapi import HTTPException
 
 # Models
-from src.models.task_models import TaskType
+from lockeroo_models.task_models import TaskType
 
 
 class TaskNotFoundException(Exception):

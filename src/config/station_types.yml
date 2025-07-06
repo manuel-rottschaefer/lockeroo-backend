@@ -8,18 +8,20 @@ ML-Base-Wide:
   has_wifi: False
   has_solar: False
   is_embedded: False
-  locker_layout: {
+  locker_layout:
+    {
       locker_count: 22,
       col_count: 6,
       row_count: 6,
-      layout: [
-        ["medium", "medium", "small", "small", "large", "large"],
-        ["small", "small"],
-        ["medium", "medium", "small", "small"],
-        ["small", "small", "large", "large"],
-        ["medium", "medium", "small", "small"],
-        ["small", "small"]
-      ]
+      layout:
+        [
+          ["medium", "medium", "small", "small", "large", "large"],
+          [null, null, "small", "small", null, null],
+          ["medium", "medium", "small", "small", null, null],
+          [null, null, "small", "small", "large", "large"],
+          ["medium", "medium", "small", "small", null, null],
+          [null, null, "small", "small", null, null],
+        ],
     }
 
 ML-City-Wide:
@@ -32,16 +34,18 @@ ML-City-Wide:
   has_wifi: False
   has_solar: False
   is_embedded: False
-  locker_layout: {
+  locker_layout:
+    {
       locker_count: 22,
       col_count: 6,
       row_count: 4,
-      layout: [
-        ["mini", "mini", "mini", "mini", "mini", "mini"],
-        ["mini", "mini", "mini", "mini", "mini", "mini"],
-        ["small", "small", "small", "small", "small", "small"],
-        ["medium", "medium", "medium", "medium"],
-      ]
+      layout:
+        [
+          ["mini", "mini", "mini", "mini", "mini", "mini"],
+          ["mini", "mini", "mini", "mini", "mini", "mini"],
+          ["small", "small", "small", "small", "small", "small"],
+          ["medium", "medium", "medium", "medium"],
+        ],
     }
 
 Ziegler-City-Compact:
@@ -54,15 +58,17 @@ Ziegler-City-Compact:
   has_wifi: False
   has_solar: False
   is_embedded: False
-  locker_layout: {
+  locker_layout:
+    {
       locker_count: 10,
       col_count: 4,
       row_count: 3,
-      layout: [
-        ["mini", "mini", "mini", "medium"],
-        ["mini", "mini", "mini"],
-        ["medium", "medium", "medium"],
-      ]
+      layout:
+        [
+          ["mini", "mini", "mini", "medium"],
+          ["mini", "mini", "mini", null],
+          ["medium", "medium", "medium"],
+        ],
     }
 
 Ziegler_Outdoor_Flat:
@@ -75,14 +81,16 @@ Ziegler_Outdoor_Flat:
   has_wifi: False
   has_solar: True
   is_embedded: False
-  locker_layout: {
+  locker_layout:
+    {
       locker_count: 9,
       col_count: 6,
       row_count: 2,
-      layout: [
-        ["medium", "medium", "medium", "mini", "mini", "mini"],
-        ["mini", "mini", "mini"],
-      ]
+      layout:
+        [
+          ["medium", "medium", "medium", "mini", "mini", "mini"],
+          [null, null, "mini", "mini", "mini"],
+        ],
     }
 
 ML-Hub-Small:
@@ -95,12 +103,14 @@ ML-Hub-Small:
   has_wifi: False
   has_solar: False
   is_embedded: False
-  locker_layout: {
+  locker_layout:
+    {
       locker_count: 8,
       col_count: 4,
       row_count: 2,
-      layout: [
-        ["medium", "medium", "medium", "medium"],
-        ["large", "large", "large", "large"],
-      ]
+      layout:
+        [
+          ["medium", "medium", "medium", "medium"],
+          ["large", "large", "large", "large"],
+        ],
     }

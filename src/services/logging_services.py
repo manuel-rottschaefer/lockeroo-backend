@@ -1,6 +1,21 @@
-"""Provides utility functions for the logging manager."""
+"""
+Lockeroo.logging_services
+-------------------------
+This module provides a unified, custom logging service
+
+Key Features:
+    - Initiates a logging session under a wrapper class
+    - Provides automated logging setup
+
+Dependencies:
+    - fastapi
+"""
+# Basics
 from datetime import datetime
 from pathlib import Path
+# FastAPI
+from fastapi import HTTPException
+# Logging
 from loguru import logger
 
 
@@ -21,7 +36,7 @@ class LoggingService:
             self._configure_logger()
 
     def _configure_logger(self):
-        log_dir = Path("src/logs/")
+        log_dir = Path(__file__).resolve().parent.parent.parent / "logs"
         log_dir.mkdir(exist_ok=True)
 
         self.logger.remove()  # Remove default handler
@@ -41,11 +56,17 @@ class LoggingService:
     def trace(self, message: str):
         self.logger.trace(message)
 
-    def debug(self, message: str):
-        self.logger.debug(message)
+    def debug(self, message: str, session_id: str = None):
+        if session_id:
+            self.logger.debug(f"'S{session_id}' - {message}")
+        else:
+            self.logger.debug(message)
 
-    def info(self, message: str):
-        self.logger.info(message)
+    def info(self, message: str, session_id: str = None):
+        if session_id:
+            self.logger.info(f"'S{session_id}' - {message}")
+        else:
+            self.logger.info(message)
 
     def warning(self, message: str):
         self.logger.warning(message)

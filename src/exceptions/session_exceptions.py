@@ -3,12 +3,12 @@
 from logging import INFO, WARNING
 from typing import List
 from uuid import UUID
-# Beanie
+# beanie
 from beanie import PydanticObjectId as ObjId
 # Exceptions
 from fastapi import HTTPException
 # Models
-from src.models.session_models import SessionState
+from lockeroo_models.session_models import SessionState
 
 
 class SessionNotFoundException(Exception):
@@ -38,7 +38,6 @@ class InvalidSessionStateException(Exception):
         self.log_level = WARNING
 
         if raise_http:
-            print(self.__str__())
             raise HTTPException(status_code=400, detail=self.__str__())
 
     def __str__(self):

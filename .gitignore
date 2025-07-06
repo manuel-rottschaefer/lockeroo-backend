@@ -36,3 +36,6 @@ snapshots/*
 kanpilot.toml
 docs/*
 launch/*
+
+# Ignore models in mocking
+mocking/models/*

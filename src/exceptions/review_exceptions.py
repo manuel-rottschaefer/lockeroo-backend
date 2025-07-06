@@ -1,5 +1,5 @@
 """This module provides exception classes for station management."""
-# Beanie
+# beanie
 # Log level
 from logging import INFO
 

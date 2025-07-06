@@ -1,63 +1,91 @@
-"""This module provides utilities for  database for stations."""
+"""
+Lockeroo.station_entity
+-------------------------
+This module provides the Station Entity class
+
+Key Features:
+    - Provides a functionality wrapper for Beanie Documents
+
+Dependencies:
+    - beanie
+"""
 # Beanie
 from beanie import SortDirection
 from beanie.operators import In, Or
 # Entities
-from src.entities.entity_utils import Entity
-from src.models.locker_models import (
+from src.entities.entity import Entity
+# Models
+from lockeroo_models.locker_models import (
     LockerModel,
     LockerAvailability,
-    ReducedLockerView)
-# Models
-from src.models.session_models import (
+    ReducedLockerAvailabilityView)
+from lockeroo_models.session_models import (
     SessionModel,
     SessionState,
-    ReducedSessionView,
     ACTIVE_SESSION_STATES)
-from src.models.station_models import (
+from lockeroo_models.station_models import (
     StationModel,
     StationState,
     TerminalState)
-# Logging
+# Services
+from src.services.mqtt_services import fast_mqtt
 from src.services.logging_services import logger_service as logger
 # Exceptions
 from src.exceptions.station_exceptions import StationNotFoundException
-# Services
-from src.services.mqtt_services import fast_mqtt
-
-TERMINAL_FLOW = {  # pylint: disable=invalid-name
-    SessionState.PAYMENT_SELECTED: TerminalState.IDLE,
-    SessionState.VERIFICATION: TerminalState.VERIFICATION,
-    SessionState.STASHING: TerminalState.IDLE,
-    SessionState.PAYMENT: TerminalState.PAYMENT,
-    SessionState.COMPLETED: TerminalState.IDLE,
-    SessionState.RETRIEVAL: TerminalState.IDLE,
-    SessionState.EXPIRED: TerminalState.IDLE,
-    SessionState.CANCELED: TerminalState.IDLE
-}
 
 
 class Station(Entity):
-    """Adds behaviour for a station instance."""
+    """
+    Lockeroo.Station
+    -------
+    A class representing a Station. A Station is a physical device containing lockers.
+    Besides users, they are the main communication partner with the backend.
+
+    Key Features:
+    - `__init__`: Initializes a payment object and adds event logic to it
+    - 'is_available': Returns whether a the station is generally available for new sessions
+    - 'active_session_count': Returns the amount of active sessions
+    - 'total_completed_session_count': Returns the amount of completed sessions
+    - 'get_available_lockers': Returns a list of available lockers
+    - 'instruct_terminal_state': Sends an instruction for a terminal state to the station
+    - 'register_station_state': Stores a reported station state
+    - 'register_terminal_state': Stores a reported terminal state
+    """
     doc: StationModel
 
     def __init__(self, document=None, callsign=None):
         if document is None:
             raise StationNotFoundException(
-                callsign=callsign,
-            )
+                callsign=callsign,)
         super().__init__(document)
+        self._add_handlers()
 
-    ### Attributes ###
-    @property
-    def exists(self) -> bool:
-        """Check whether the station entity has a document."""
-        return self.doc is not None
+    def _add_handlers(self):
+        def notify_station_state_logic(station: StationModel):
+            """Send an update message regarding the session state to the mqtt broker."""
+            fast_mqtt.publish(
+                f"stations/{station.callsign}/state", station.station_state)
+
+        StationModel.notify_station_state = notify_station_state_logic
 
     @property
     async def is_available(self) -> bool:
-        """Check whether the station is available for new sessions at the moment.
-        This method shall not check locker availability."""
+        """ Checks whether the station is available for new sessions.
+        This is being determined based on the StationState of the Station
+
+        Args:
+            - self [Station]: The Station Entity
+
+        Returns:
+            - bool: Whether the station is available for sessions
+
+        Raises:
+            -
+
+        Example:
+            >>> station.is_available()
+            True
+        """
         # 1: Check whether the station is marked as unavailable
         if not self.station_state == StationState.AVAILABLE:
             return False
@@ -70,29 +98,67 @@ class Station(Entity):
         return True
 
     @property
-    async def total_completed_session_count(self) -> int:
-        """Get the total amount of sessions conducted at this station, without active ones."""
-        session_count: int = await SessionModel.find(
-            SessionModel.assigned_station == self.doc.id,
-            SessionModel.session_state == SessionState.COMPLETED
-        ).count()
-        return session_count
-
-    @property
     async def active_session_count(self) -> int:
-        """Get the total amount of currently active stations at this station."""
+        """ Returns the amount of active sessions at the station
+
+        Args:
+            - self [Station]: The Station Entity
+
+        Returns:
+            - int: The amount of active sessions at the station
+
+        Raises:
+            -
+
+        Example:
+            >>> station.active_session_count()
+            8
+        """
         session_count: int = await SessionModel.find(
-            SessionModel.assigned_station == self.doc.id,
+            SessionModel.assigned_station.id == self.doc.id,
             SessionModel.session_state != SessionState.COMPLETED
         ).count()
         return session_count
 
-    ### Locker management ###
+    @property
+    async def completed_session_count(self) -> int:
+        """ Returns the amount of completed sessions at the station
 
-    async def get_available_lockers(self) -> list[ReducedLockerView]:
-        """Find all available lockers at a station.
-        Look for active sessions at the station, then filter out the lockers that are in use.
-        Return the available lockers sorted by total session count."""
+        Args:
+            - self [Station]: The Station Entity
+
+        Returns:
+            -
+
+        Raises:
+            -
+
+        Example:
+            >>> station.completed_session_count()
+            240
+        """
+        session_count: int = await SessionModel.find(
+            SessionModel.assigned_station.id == self.doc.id,
+            SessionModel.session_state == SessionState.COMPLETED
+        ).count()
+        return session_count
+
+    async def get_available_lockers(self) -> list[ReducedLockerAvailabilityView]:
+        """ Returns the amount of available lockers at the station
+
+        Args:
+            - self [Station]: The Station Entity
+
+        Returns:
+            - list[ReducedLockerAvailabilityView]: A list of available lockers, if any
+
+        Raises:
+            -
+
+        Example:
+            >>> station.get_available_lockers()
+            list[ReducedLockerAvailabilityView]
+        """
 
         # Get all lockers at this station
         all_station_lockers = await LockerModel.find(
@@ -101,20 +167,19 @@ class Station(Entity):
             fetch_links=True
         ).sort(
             (LockerModel.total_session_count, SortDirection.ASCENDING)
-        ).project(ReducedLockerView).to_list()  # pylint: disable=no-member
+        ).project(ReducedLockerAvailabilityView).to_list()  # pylint: disable=no-member
 
         # Get active sessions for this station
+        # TODO: Project here for better performance
         active_sessions = await SessionModel.find(
             SessionModel.assigned_station.id == self.doc.id,  # pylint: disable=no-member
             Or(In(SessionModel.session_state, ACTIVE_SESSION_STATES),
                 SessionModel.session_state == SessionState.STALE),
             fetch_links=True
-        ).project(ReducedSessionView).sort(
-            (SessionModel.created_at, SortDirection.ASCENDING)).to_list()
+        ).to_list()
 
         # Get IDs of lockers that are currently in use
-        active_lockers = {
-            session.assigned_locker for session in active_sessions}
+        active_lockers = [s.assigned_locker.id for s in active_sessions]
 
         # Verify we don't have more active lockers than exist
         assert (len(all_station_lockers) >= len(active_lockers)
@@ -131,57 +196,82 @@ class Station(Entity):
 
     ### Terminal setters ###
 
-    async def instruct_next_terminal_state(self, session_state: SessionState) -> None:
-        """Apply a session state to the terminal.
-        Check if the assigned session is a link, then fetch it.
-        If the session state is in the state map, send the state instruction to the terminal."""
-        # TODO: Move this to another entity in the future
-        # Check if assigned station is not a link anymore
-        if session_state in TERMINAL_FLOW:
-            logger.debug(
-                (f"Sending {TERMINAL_FLOW[session_state]} instruction to "
-                 f"terminal at station '#{self.doc.callsign}'."))
-            fast_mqtt.publish(
-                message_or_topic=(
-                    f"stations/{self.doc.callsign}"
-                    "/terminal/instruct"), qos=2,
-                payload=TERMINAL_FLOW[session_state].upper())
-        else:
-            logger.debug((
-                f"No state instruction for session state "
-                f"'{session_state}' of task '#{self.doc.id}'."))
+    async def instruct_terminal_state(self, terminal_state: TerminalState):
+        """ Sends an instruction to a station regarding the terminal state
+
+        Args:
+            - self [Station]: The Station Entity
+            - session_state [sessionState]: Contains the information for the locker state
+
+        Returns:
+            -
+
+        Raises:
+            -
+
+        Example:
+            >>> station.instruct_terminal_state(TerminalState.Verification)
+            None
+        """
+
+        if terminal_state == self.doc.terminal_state:
+            # TODO: Add handler here
+            return
+
+        logger.debug((
+            f"Sending instruction '{terminal_state}' "
+            f"to terminal at station '#{self.doc.callsign}'"))
+        fast_mqtt.publish(
+            message_or_topic=(
+                f"stations/{self.doc.callsign}/instruct"), qos=2,
+            payload=terminal_state.upper())
 
     async def register_station_state(
         self: StationModel, new_station_state: StationState
-    ) -> StationState:
-        """Update the state of a station.
-        No checks are performed here, as the request is assumed to be valid."""
+    ):
+        """ Saves a reported station state for a station
+
+        Args:
+            - self [Station]: The Station Entity
+            - new_station_state: The reported station state
+
+        Returns:
+            -
+
+        Raises:
+            -
+
+        Example:
+            >>> station.register_station_state(StationState.AVAILABLE)
+            None
+        """
         self.doc.station_state = new_station_state
         await self.doc.save_changes(
             skip_actions=['notify_station_state', 'instruct_terminal_state'])
-        return new_station_state
 
     async def register_terminal_state(
-        self: StationModel, new_terminal_state: TerminalState = None
-    ) -> None:
-        """Update the terminal state of a station."""
+        self: StationModel, new_terminal_state: TerminalState
+    ):
+        """ Saves a reported terminal state for a station
+
+        Args:
+            - self [Station]: The Station Entity
+            - new_terminal_state [TerminalState]: The reported terminal state
+
+        Returns:
+            -
+
+        Raises:
+            -
+
+        Example:
+            >>> station.register_terminal_state(TerminalState.VERIFICATION)
+            None
+        """
         self.doc.terminal_state = new_terminal_state
         await self.doc.save_changes(
             skip_actions=['notify_station_state', 'instruct_terminal_state'])
-        logger.debug(
-            f"Terminal at station '#{self.callsign}' set to {
-                self.terminal_state}."
-        )
-
-    async def activate_payment(self):
-        """Activate a payment process at the station."""
-        self.doc.terminal_state = TerminalState.PAYMENT
-        await self.doc.save_changes(
-            skip_actions=['notify_station_state', 'instruct_terminal_state'])
-
-    async def increase_completed_sessions_count(self: StationModel):
-        """Increase the count of completed sessions at the station.
-        No checks are performed here, as the request is assumed to be valid."""
-        self.doc.total_sessions += 1
-        await self.doc.save_changes(
-            skip_actions=['notify_station_state', 'instruct_terminal_state'])
+        logger.debug((
+            f"Terminal at station '#{self.callsign}' "
+            f"set to {self.terminal_state}."
+        ))

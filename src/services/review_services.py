@@ -1,28 +1,38 @@
-"""Provides utility functions for the review management backend."""
+"""
+Lockeroo.review_services
+-------------------------
+This module provides handlers for review endpoints
+
+Key Features:
+    - Handle session submission and retrieval
+    
+Dependencies:
+    - beanie
+"""
 
 # Basics
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
-
 # Beanie
 from beanie import PydanticObjectId as ObjId
-
-from src.exceptions.review_exceptions import ReviewNotFoundException
+# Models
+from lockeroo_models.review_models import ReviewModel
+from lockeroo_models.session_models import SessionModel, SessionState
+from lockeroo_models.user_models import UserModel
 # Exceptions
-from src.exceptions.session_exceptions import (InvalidSessionStateException,
-                                               SessionNotFoundException)
+from src.exceptions.review_exceptions import ReviewNotFoundException
 from src.exceptions.user_exceptions import UserNotAuthorizedException
-# Nodels
-from src.models.review_models import ReviewModel
-from src.models.session_models import SessionModel, SessionState
-from src.models.user_models import UserModel
+from src.exceptions.session_exceptions import (
+    InvalidSessionStateException,
+    SessionNotFoundException)
 
 
-async def handle_review_submission(session_id: ObjId,
-                                   user: UserModel,
-                                   experience_rating: int,
-                                   cleanliness_rating: int,
-                                   details: str):
+async def handle_review_submission(
+        session_id: ObjId,
+        user: UserModel,
+        experience_rating: int,
+        cleanliness_rating: int,
+        details: str):
     """Submit a review for a session."""
     # 1: Get session
     session: SessionModel = await SessionModel.find_one(
@@ -42,7 +52,7 @@ async def handle_review_submission(session_id: ObjId,
     # 3: Then insert the review into the database
     return await ReviewModel(
         assigned_session=session.id,
-        submitted_at=datetime.now(),
+        submitted_at=datetime.now(timezone.utc),
         experience_rating=experience_rating,
         cleanliness_rating=cleanliness_rating,
         details=details
@@ -64,6 +74,6 @@ async def get_session_review(
     # 2: Check if the user is authorized to view the review
     await review.doc.fetch_link(ReviewModel.assigned_session)
     if review.assigned_session.doc.assigned_user != user:
-        raise UserNotAuthorizedException(user_id=user.id)
+        raise UserNotAuthorizedException(user_id=user.doc.fief_id)
 
     return review

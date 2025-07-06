@@ -1,31 +1,57 @@
-"""Provides utility functions for the database."""
+"""
+Lockeroo.database_services
+-------------------------
+This module provides database interfaces and custom DB utilities
+
+Key Features:
+    - Initializes the database connection
+    - Links the database to the internal Beanie Documents
+    - Handles restore functionality required for docker builds
+
+Dependencies:
+    - motor
+    - beanie
+"""
 # Basics
+from pathlib import Path
 from uuid import UUID
 from bson import Binary
+import asyncio
 import json
 import os
 # Database utilities
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import PydanticObjectId as ObjId, init_beanie
 # Models
-from src.models.action_models import ActionModel
-from src.models.billing_models import BillModel
-from src.models.locker_models import LockerModel
-from src.models.maintenance_models import MaintenanceModel
-from src.models.payment_models import PaymentModel
-from src.models.review_models import ReviewModel
-from src.models.session_models import SessionModel
-from src.models.station_models import StationModel
-from src.models.task_models import TaskItemModel
-from src.models.user_models import UserModel
+from lockeroo_models.snapshot_models import SnapshotModel
+from lockeroo_models.locker_models import LockerModel
+from lockeroo_models.maintenance_models import MaintenanceSessionModel
+from lockeroo_models.payment_models import PaymentModel
+from lockeroo_models.review_models import ReviewModel
+from lockeroo_models.session_models import SessionModel
+from lockeroo_models.station_models import StationModel
+from lockeroo_models.task_models import TaskItemModel
+from lockeroo_models.user_models import UserModel
 # Services
+from src.services.config_services import cfg
 from src.services.logging_services import logger_service as logger
+
+# TODO: Convert all of this into a class
+
+# Establish a mongodb connection dict with the values collected in the whole script below
+mongo_conn = {
+    "host": os.getenv("DOCKER_DB_HOST", cfg.get('MONGODB', 'DB_HOST')),
+    "port": cfg.get('MONGODB', 'PORT', fallback='27017'),
+    "user": cfg.get('MONGODB', 'DB_USER'),
+    "password": cfg.get('MONGODB', 'DB_PASS'),
+    "auth_db": cfg.get('MONGODB', 'AUTH_DB', fallback='admin')
+}
 
 
 async def setup():
     """Initialize the database"""
-    if os.getenv('STARTUP_RESET') == 'True':
-        await restore_mongodb_data(os.getenv('MONGO_DUMP'))
+    if cfg.get("BACKEND", "STARTUP_RESET") == 'true':
+        await restore_mongodb_data(cfg.get('MONGODB', 'MONGO_DUMP'))
         logger.new_section()
 
     await init_beanie(
@@ -33,13 +59,12 @@ async def setup():
         document_models=[
             StationModel,
             SessionModel,
-            ActionModel,
+            SnapshotModel,
             LockerModel,
             PaymentModel,
             TaskItemModel,
-            MaintenanceModel,
+            MaintenanceSessionModel,
             UserModel,
-            BillModel,
             PaymentModel,
             ReviewModel
         ]
@@ -69,7 +94,6 @@ async def resolve_station_reference(station_ref):
 
 async def restore_json_mock_data(directory):
     """Load JSON files into the database"""
-    logger.info("Restoring mock data")
 
     for filename in sorted(os.listdir(directory), reverse=True):
         if not filename.endswith(".json"):
@@ -95,7 +119,6 @@ async def restore_json_mock_data(directory):
                 # Create UUIDs for users
                 if filename == 'users.json':
                     for user in data:
-                        print(user['fief_id'])
                         user['fief_id'] = Binary.from_uuid(
                             UUID(user['fief_id']))
 
@@ -104,14 +127,32 @@ async def restore_json_mock_data(directory):
 
 async def restore_mongodb_data(directory):
     """Restore MongoDB data with mongorestore."""
-    logger.info("Resetting MongoDB database with mongorestore.")
-    os.system(
-        "mongosh --eval 'use Lockeroo' --eval 'db.dropDatabase()' > /dev/null 2>&1")
-    os.system(f"mongorestore --drop {directory} > /dev/null 2>&1")
+    logger.info(">>>Resetting database from mongodump")
+    path = Path(__file__).resolve().parent.parent.parent/directory
 
+    dropAllCmd = (
+        f"mongosh --host {mongo_conn['host']} --port {mongo_conn['port']} "
+        f"--username {mongo_conn['user']} --password {mongo_conn['password']} "
+        f"--authenticationDatabase {mongo_conn['auth_db']} "
+        f"--eval 'use Lockeroo' "
+        f"--eval 'db.dropDatabase()' "
+    )
+    restoreAllCmd = (
+        f"mongorestore "
+        f"--host {mongo_conn['host']} "
+        f"--port {mongo_conn['port']} "
+        f"--username {mongo_conn['user']} "
+        f"--password '{mongo_conn['password']}' "
+        f"--authenticationDatabase {mongo_conn['auth_db']} "
+        f"--drop {path} "
+        f"> /dev/null")
+    os.system(dropAllCmd)
+    os.system(restoreAllCmd)
 
-URI = f"mongodb://{os.getenv('DB_USER')
-                   }:{os.getenv('DB_PASS')}@{os.getenv('DB_HOST')}"
+    await db['stations'].create_index([("location", "2dsphere")])
+
+URI = (
+    f"mongodb://{mongo_conn['user']}:{mongo_conn['password']}@"f"{mongo_conn['host']}")
 client = AsyncIOMotorClient(URI)
 
 db = client["Lockeroo"]

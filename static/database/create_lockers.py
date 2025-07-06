@@ -1,7 +1,6 @@
 import yaml
 import json
-from typing import List, Dict, Any
-from datetime import datetime
+from typing import List, Dict
 
 
 def load_yaml(file_path: str) -> Dict:
@@ -35,29 +34,30 @@ def generate_locker_configs(stations: List[Dict], station_types: Dict) -> List[D
 
         # Generate lockers based on layout
         locker_index = 1
-        for row_idx, row in enumerate(layout['layout'], 1):
-            for col_idx, locker_type in enumerate(row, 1):
-                locker = {
-                    "station": {
-                        "$ref": "stations",
-                        "$callsign": station['callsign'],
-                        "$db": "lockeroo"
-                    },
-                    "callsign": f"{station['callsign']}#{locker_index:03d}",
-                    "station_index": locker_index,
-                    "position": [row_idx, col_idx],
-                    "locker_type": locker_type,
-                    "pricing_model": f"storage-{locker_type}",
-                    "availability": "operational",
-                    "locker_state": "locked",
-                    "charger_installed": True,
-                    "charger_available": True,
-                    "last_service_at": station['last_service_date'],
-                    "total_session_count": 0,
-                    "total_session_duration": 0
-                }
-                lockers.append(locker)
-                locker_index += 1
+        for row_idx, row in enumerate(layout['layout']):
+            for col_idx, locker_type in enumerate(row):
+                if locker_type != None:
+                    locker = {
+                        "station": {
+                            "$ref": "stations",
+                            "$callsign": station['callsign'],
+                            "$db": "lockeroo"
+                        },
+                        "callsign": f"{station['callsign']}.{locker_index:03d}",
+                        "station_index": locker_index,
+                        "position": [row_idx, col_idx],
+                        "locker_type": locker_type,
+                        "pricing_model": f"storage-{locker_type}",
+                        "availability": "operational",
+                        "locker_state": "locked",
+                        "charger_installed": True,
+                        "charger_available": True,
+                        "last_service_at": station['last_service_date'],
+                        "total_session_count": 0,
+                        "total_session_duration": 0
+                    }
+                    lockers.append(locker)
+                    locker_index += 1
 
     return lockers
 

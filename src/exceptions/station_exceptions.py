@@ -1,16 +1,16 @@
 """This module provides exception classes for station management."""
 # Types
 # Log level
-from logging import INFO, WARNING
+from logging import WARNING
 from typing import List
 
-# Beanie
+# beanie
 from beanie import PydanticObjectId as ObjId
 # Exceptions
 from fastapi import HTTPException
 
 # Models
-from src.models.station_models import TerminalState
+from lockeroo_models.station_models import TerminalState
 
 
 class StationNotFoundException(Exception):
@@ -77,5 +77,5 @@ class InvalidTerminalStateException(Exception):
             raise HTTPException(status_code=400, detail=self.__str__())
 
     def __str__(self):
-        return (f"Invalid terminal state at station '{self.station_callsign}'."
-                f" Expected '{[state for state in self.expected_states]}', got '{self.actual_state}'.")
+        return (f"Invalid terminal state at station '{self.station_callsign}'. "
+                f"Expected '{[state for state in self.expected_states]}', got '{self.actual_state}'.")

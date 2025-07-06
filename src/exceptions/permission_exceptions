@@ -1,12 +1,12 @@
 """This module provides exception classes for permission management."""
 # Types
 from typing import List
-# Beanie
+# beanie
 from beanie import PydanticObjectId as ObjId
 # Exceptions
 from fastapi import HTTPException
 # Models
-from src.models.permission_models import PERMISSION
+from lockeroo_models.permission_models import PERMISSION
 
 
 class InvalidPermissionException(Exception):

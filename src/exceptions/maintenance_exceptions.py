@@ -1,5 +1,5 @@
 """This module provides exception classes for maintenance management."""
-# Beanie
+# beanie
 # Log levels
 from logging import INFO, WARNING
 
@@ -8,7 +8,7 @@ from beanie import PydanticObjectId as ObjId
 from fastapi import HTTPException
 
 # Models
-from src.models.maintenance_models import MaintenanceState
+from lockeroo_models.maintenance_models import MaintenanceSessionState
 
 
 class MaintenanceNotFoundException(Exception):
@@ -25,12 +25,12 @@ class MaintenanceNotFoundException(Exception):
         return f"Cannot find maintenance '#{self.maintenance_id}' in database.)"
 
 
-class InvalidMaintenanceStateException(Exception):
+class InvalidMaintenanceSessionStateException(Exception):
     """Exception raised when an invalid maintenance state is provided."""
 
     def __init__(self, maintenance_id: ObjId,
-                 expected_state: MaintenanceState,
-                 actual_state: MaintenanceState):
+                 expected_state: MaintenanceSessionState,
+                 actual_state: MaintenanceSessionState):
         self.maintenance_id = maintenance_id
         self.expected_state = expected_state
         self.actual_state = actual_state

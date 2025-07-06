@@ -1,12 +1,12 @@
 """This module provides exception classes for locker management."""
 # Types
 from typing import Optional
-# Beanie
+# beanie
 from beanie import PydanticObjectId as ObjId
 # Exceptions
 from fastapi import HTTPException
 # Models
-from src.models.locker_models import LockerState, LockerType
+from lockeroo_models.locker_models import LockerState, LockerType
 # Logging
 from src.services.logging_services import logger
 
@@ -95,17 +95,13 @@ class InvalidLockerReportException(Exception):
     """Exception raised when a locker report is not valid."""
 
     def __init__(self,
-                 locker_id:  Optional[ObjId] = None,
-                 station_index: Optional[int] = None,
+                 callsign:  Optional[str] = None,
                  raise_http: bool = True):
-        self.locker_id = locker_id
-        self.station_index = station_index
+        self.callsign = callsign
 
         if raise_http:
             raise HTTPException(status_code=400, detail=self.__str__())
 
     def __str__(self):
-        if self.locker_id:
-            return f"Invalid locker report for locker '#{self.locker_id}'."
-        elif self.station_index:
-            return f"Invalid locker report for locker index '{self.station_index}'."
+        if self.callsign:
+            return f"Invalid locker report for locker '{self.callsign}'."

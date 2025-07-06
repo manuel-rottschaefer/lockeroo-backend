@@ -1,11 +1,20 @@
-"""This module provides services for payments."""
+"""
+Lockeroo.payment_services
+-------------------------
+This module provides utilities for payment handling
+
+Key Features:
+    - Imports pricing models from static configuration files
+    
+Dependencies:
+    - yaml
+"""
 # Basics
-from pathlib import Path
 import yaml
-# Types
+from pathlib import Path
 from typing import Dict
 # Models
-from src.models.payment_models import PricingModel
+from lockeroo_models.locker_models import PricingModel
 # Services
 from src.services.logging_services import logger_service as logger
 
@@ -14,6 +23,7 @@ PRICING_MODELS: Dict[str, PricingModel] = None
 
 
 def load_pricing_models(path: str) -> Dict[str, PricingModel]:
+    # TODO: Why is this not referenced anywhere?
     """Loads pricing models from a YAML configuration file.
 
     Args:

@@ -1,10 +1,24 @@
-"""This file is used to create a MQTT client instance."""
+"""
+Lockeroo.mqtt_services
+-------------------------
+This module provides utilities for mqtt messaging tasks
+
+Key Features:
+    - Configures the MQTT client on startup
+    - Handles connect/disconnect events
+    - Provides a MQTT message validator
+
+Dependencies:
+    - fastapi_mqtt
+    - gmqtt
+"""
 # Basics
-import logging
 import re
+import logging
 from functools import wraps
+from os import getenv
 from typing import Any
-# FastAPI
+# MQTT
 from fastapi_mqtt import FastMQTT, MQTTConfig
 from gmqtt import Client as MQTTClient
 # Logging
@@ -46,7 +60,8 @@ logging.getLogger("gmqtt.mqtt.protocol").setLevel(logging.WARNING)
 
 # Configure the MQTT Client
 mqtt_config = MQTTConfig(
-    host="localhost",
+    host=getenv("MQTT_URL", "localhost"),
+    username="LockerooBackend",
     port=1883,
     keepalive=60,
     version=5,

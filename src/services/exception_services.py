@@ -1,22 +1,28 @@
-"""Provides custom service exceptions for the backend."""
-##########
-# In HTTP services, we raise custom exceptions if something actually unexpected happens
-# and http exceptions if the user requested weird shit.
-#########
+"""
+Lockeroo.auth_services
+-------------------------
+This module provides exception handling services
 
-import traceback
+Key Features:
+    - Adds exception handling to the FastAPI app
+
+Dependencies:
+    - fastapi
+"""
+
 # Basics
 from functools import wraps
-
-# Exceptions
+from traceback import format_exc
+# FastAPI
 from fastapi import HTTPException
-
+# Exceptions
 from src.exceptions.station_exceptions import InvalidTerminalStateException
 from src.exceptions.locker_exceptions import LockerNotAvailableException
 
 
 def handle_exceptions(logging_service):
     """Handle FastAPI Endpoint Exceptions."""
+    # TODO: Check if this overlaps with other handlers
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -31,7 +37,7 @@ def handle_exceptions(logging_service):
                 logging_service.debug(str(e))
             except Exception as e:
                 logging_service.error(
-                    (f"Unhandled exception: {traceback.format_exc()}"))
+                    (f"Unhandled exception: {format_exc()}"))
                 raise HTTPException(
                     status_code=500, detail="Internal Server Error") from e
         return wrapper

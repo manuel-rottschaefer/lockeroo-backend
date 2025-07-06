@@ -1,5 +1,14 @@
 """
-    This module contains the FastAPI router for handling reviews.
+Lockeroo.review_router
+-------------------------
+This module provides endpoint routing for review functionalities
+
+Key Features:
+    - Provides various review endpoints
+
+Dependencies:
+    - fastapi
+    - beanie
 """
 # Types
 from typing import Annotated
@@ -8,7 +17,7 @@ from beanie import PydanticObjectId as ObjId
 # FastAPI
 from fastapi import APIRouter, Depends, Path, Query, status
 # Models
-from src.models.review_models import ReviewView
+from lockeroo_models.review_models import ReviewView
 from src.services import review_services
 from src.services.auth_services import auth_check
 # Entities
@@ -22,7 +31,6 @@ review_router = APIRouter()
 
 @review_router.get(
     '/{session_id}',
-    tags=['review'],
     response_model=ReviewView,
     status_code=status.HTTP_200_OK,
     description='Get the review of a session.')
@@ -42,7 +50,6 @@ async def get_review(
 
 @review_router.put(
     '/{session_id}/submit',
-    tags=['review'],
     response_model=ReviewView,
     status_code=status.HTTP_201_CREATED,
     description='Submit a review for a completed session.')

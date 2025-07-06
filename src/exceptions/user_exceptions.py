@@ -1,6 +1,6 @@
 """This module provides exception classes for task management."""
 
-# Beanie
+# beanie
 # Exceptions
 from beanie import PydanticObjectId as ObjId
 from fastapi import HTTPException
@@ -25,7 +25,7 @@ class UserNotAuthorizedException(Exception):
         raise HTTPException(status_code=401, detail=self.__str__())
 
     def __str__(self):
-        return (f"User '#{self.user_id}' is not authorized to perform this action.")
+        return (f"User '{self.user_id}' is not authorized to perform this action.")
 
 
 class UserHasActiveSessionException(Exception):
@@ -36,4 +36,4 @@ class UserHasActiveSessionException(Exception):
         raise HTTPException(status_code=400, detail=self.__str__())
 
     def __str__(self):
-        return (f"User '#{self.user_id}' has an active session.")
+        return (f"User '{self.user_id}' has an active session.")

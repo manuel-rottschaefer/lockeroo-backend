@@ -8,6 +8,12 @@
     "installed_at": "2024-09-01T00:00:00Z",
     "station_state": "available",
     "terminal_state": "idle",
+    "available_payment_methods": [
+      "creditcard",
+      "paypal",
+      "googlepay",
+      "applepay"
+    ],
     "scheduled_maintenance_at": "2024-12-01T00:00:00Z",
     "maintenance_due_at": "false",
     "total_session_count": 0,
@@ -35,6 +41,12 @@
     "installed_at": "2024-10-01T00:00:00Z",
     "station_state": "available",
     "terminal_state": "idle",
+    "available_payment_methods": [
+      "creditcard",
+      "paypal",
+      "googlepay",
+      "applepay"
+    ],
     "scheduled_maintenance_at": "2024-12-01T00:00:00Z",
     "maintenance_due_at": "false",
     "total_session_count": 0,
@@ -62,6 +74,12 @@
     "installed_at": "2024-11-01T00:00:00Z",
     "station_state": "available",
     "terminal_state": "idle",
+    "available_payment_methods": [
+      "creditcard",
+      "paypal",
+      "googlepay",
+      "applepay"
+    ],
     "scheduled_maintenance_at": "2024-12-01T00:00:00Z",
     "maintenance_due_at": "false",
     "total_session_count": 0,
@@ -89,6 +107,12 @@
     "installed_at": "2024-11-01T00:00:00Z",
     "station_state": "available",
     "terminal_state": "idle",
+    "available_payment_methods": [
+      "creditcard",
+      "paypal",
+      "googlepay",
+      "applepay"
+    ],
     "scheduled_maintenance_at": "2024-12-01T00:00:00Z",
     "maintenance_due_at": "false",
     "total_session_count": 0,
@@ -116,6 +140,12 @@
     "installed_at": "2024-11-01T00:00:00Z",
     "station_state": "available",
     "terminal_state": "idle",
+    "available_payment_methods": [
+      "creditcard",
+      "paypal",
+      "googlepay",
+      "applepay"
+    ],
     "scheduled_maintenance_at": "2024-12-01T00:00:00Z",
     "maintenance_due_at": "false",
     "total_session_count": 0,

@@ -1,10 +1,18 @@
 """
-This file contains the router for the authentification related endpoints
+Lockeroo.auth_router
+-------------------------
+This module provides routing endpoints for authentication using OAuth2 with Fief.
+
+Key Features:
+    - Provides callback endpoint for handling OAuth2 authentication.
+
+Dependencies:
+    - fastapi
 """
-# Basics
-import os
 # FastAPI
 from fastapi import APIRouter, Request
+# Services
+from src.services.config_services import cfg
 
 
 # Create the router
@@ -17,6 +25,6 @@ async def auth_callback(code: str, request: Request):
     """Handle the OAuth2 callback"""
     token = await request.app.state.fief.auth_callback(
         code,
-        redirect_uri=f"{os.getenv('API_BASE_URL')}/auth/callback"
+        redirect_uri=f"{cfg.get('ENDPOINTS', 'API_BASE_URL')}/auth/callback"
     )
     return token

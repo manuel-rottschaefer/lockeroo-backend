@@ -1,11 +1,25 @@
-"""Provides utility functions for the station management backend."""
+"""
+Lockeroo.station_services
+-------------------------
+This module provides utilities and handlers for station endpoints
+
+Key Features:
+    - Import station type configuration from .env file
+    - Provide station endpoints
+
+Dependencies:
+    - fastapi
+    - fastapi.websockets
+    - beanie
+"""
 
 # Basics
-from datetime import datetime
 from typing import Dict, List, Optional
+from datetime import datetime, timezone
 from collections import Counter
 import yaml
-# Beanie
+# FastAPI & Beanie
+from fastapi import Response, status
 from beanie import SortDirection
 from beanie.operators import In, Near, Set
 # Entities
@@ -14,41 +28,46 @@ from src.entities.locker_entity import Locker
 from src.entities.session_entity import Session
 from src.entities.station_entity import Station
 from src.entities.task_entity import Task
-# Services
-from src.services.auth_services import permission_check
 # Models
-from src.models.locker_models import (
+from lockeroo_models.permission_models import PERMISSION
+from lockeroo_models.locker_models import (
     LockerModel,
+    LockerView,
+    LockerState,
     LockerType,
-    LOCKER_TYPES,
-    ReducedLockerView,
+    ReducedLockerAvailabilityView,
     LockerTypeAvailabilityView)
-from src.models.session_models import (
+from lockeroo_models.session_models import (
     ACTIVE_SESSION_STATES, SessionModel,
     SessionState)
-from src.models.station_models import (
+from lockeroo_models.station_models import (
     StationModel,
     StationState,
     StationType,
-    StationView,
+    StationDetailedView,
+    StationLocationView,
+    StationDashboardView,
     TerminalState)
-from src.models.task_models import (
+from lockeroo_models.task_models import (
     TaskItemModel,
     TaskState,
     TaskTarget,
     TaskType)
-from src.models.permission_models import PERMISSION
+# Services
+from src.services.task_services import task_manager
+from src.services.locker_services import LOCKER_TYPES
+from src.services.auth_services import permission_check
+from src.services.logging_services import logger_service as logger
+from src.services.exception_services import handle_exceptions
 # Exceptions
+from src.exceptions.task_exceptions import TaskNotFoundException
 from src.exceptions.locker_exceptions import LockerNotFoundException
 from src.exceptions.session_exceptions import InvalidSessionStateException
 from src.exceptions.station_exceptions import (
     InvalidTerminalStateException)
-from src.exceptions.task_exceptions import TaskNotFoundException
-from src.exceptions.locker_exceptions import LockerNotAvailableException
-# Services
-from src.services.logging_services import logger_service as logger
 
-# Singleton for pricing models
+
+# Singleton for station types
 STATION_TYPES: Dict[str, StationType] = None
 
 CONFIG_PATH = 'src/config/station_types.yml'
@@ -70,47 +89,47 @@ if STATION_TYPES is None:
         STATION_TYPES = {}
 
 
-async def get_all_stations(user: User) -> List[StationView]:
+async def get_all_stations(user: User) -> List[StationDetailedView]:
     """Returns a list of all installed stations."""
     # 1: Verify permissions
     permission_check([PERMISSION.STATION_VIEW_BASIC], user.doc.permissions)
 
     # 2: Return stations
-    stations: List[StationView] = await StationModel.find_all(
+    stations: List[StationDetailedView] = await StationModel.find_all(
         # StationModel.installed_at < datetime.now()
-    ).limit(100).project(StationView).to_list()
+    ).limit(100).project(StationDetailedView).to_list()
     return stations
 
 
 async def discover(user: User, lat: float, lon: float, radius: int,
-                   amount: int) -> List[StationView]:
+                   amount: int) -> List[StationLocationView]:
     """Return a list of stations within a given range around a location"""
     # 1: Verify permissions
     permission_check([PERMISSION.STATION_VIEW_BASIC], user.doc.permissions)
 
     # 2: Return stations
-    stations: List[StationView] = await StationModel.find(
+    stations: List[StationLocationView] = await StationModel.find(
         Near(StationModel.location, lat, lon, max_distance=radius)
-    ).limit(amount).project(StationView).to_list()
+    ).limit(amount).project(StationLocationView).to_list()
     return stations
 
 
-async def get_details(user: User, callsign: str) -> Optional[StationView]:
+async def get_details(user: User, callsign: str) -> Optional[StationDetailedView]:
     """Get detailed information about a station."""
     # 1: Verify permissions
-    permission_check([PERMISSION.STATION_VIEW_ADVANCED], user.doc.permissions)
+    permission_check([PERMISSION.STATION_VIEW_ALL], user.doc.permissions)
 
     # 2: station data from the database
-    station: StationView = await StationModel.find(
+    station: StationDetailedView = await StationModel.find(
         StationModel.callsign == callsign
-    ).project(StationView).first_or_none()
+    ).project(StationDetailedView).first_or_none()
     return station
 
 
 async def get_station_state(user: User, callsign: str) -> Optional[StationState]:
     """Get the state of a station."""
     # 1: Verify permissions
-    permission_check([PERMISSION.STATION_VIEW_ADVANCED], user.doc.permissions)
+    permission_check([PERMISSION.STATION_VIEW_ALL], user.doc.permissions)
 
     # 2: Return station state
     station: Station = Station(await StationModel.find(
@@ -121,23 +140,42 @@ async def get_station_state(user: User, callsign: str) -> Optional[StationState]
     return station.station_state
 
 
-async def get_active_session_count(user: User, callsign: str) -> Optional[int]:
-    """Get the amount of currently active sessions at this station."""
-    # 1: Verify permissions
-    permission_check([PERMISSION.STATION_VIEW_ADVANCED], user.doc.permissions)
-
-    # 2: Find station
+async def get_dashboard_view(user: User, callsign: str):
     station: Station = Station(await StationModel.find(
         StationModel.callsign == callsign).first_or_none(),
         callsign=callsign)
 
+    active_count = await get_active_session_count(station, user)
+
+    return StationDashboardView.from_document(station.doc, active_count)
+
+
+# TODO: Make this native class function.
+async def get_active_session_count(station: Station, user: User) -> Optional[int]:
+    """Get the amount of currently active sessions at this station."""
+    # 1: Verify permissions
+    permission_check([PERMISSION.STATION_VIEW_ALL], user.doc.permissions)
+
     # 3: Return Sessions
     return await SessionModel.find(
-        SessionModel.assigned_station == station.id,
+        SessionModel.assigned_station.id == station.id,
         In(SessionModel.session_state,
            ACTIVE_SESSION_STATES),  # pylint: disable=no-member
-        fetch_links=True
     ).count()
+
+
+async def get_lockers(user: User, callsign: str) -> List[LockerView]:
+    """Get all lockers at a station."""
+    # 1: Verify permissions
+    permission_check([PERMISSION.STATION_VIEW_BASIC], user.doc.permissions)
+
+    # 2: Get the lockers
+    lockers: List[LockerView] = await LockerModel.find(
+        LockerModel.station.callsign == callsign,   # pylint: disable=no-member
+        fetch_links=True
+    ).project(LockerView).to_list()
+
+    return lockers
 
 
 async def get_locker_by_index(
@@ -175,14 +213,14 @@ async def get_locker_overview(
         callsign=callsign)
 
     # 3: Find all active sessions at this station
-    available_lockers: List[ReducedLockerView] = await station.get_available_lockers()
+    available_lockers: List[ReducedLockerAvailabilityView] = await station.get_available_lockers()
     locker_type_counts = Counter(
         locker.locker_type for locker in available_lockers)
 
     # 4: Create a list of locker availabilities
     locker_availabilities: List[LockerTypeAvailabilityView] = [
         LockerTypeAvailabilityView(
-            issued_at=datetime.now(),
+            issued_at=datetime.now(timezone.utc),
             station=callsign,
             locker_type=locker_type,
             is_available=locker_type_counts[locker_type] > 0)
@@ -191,7 +229,7 @@ async def get_locker_overview(
     return locker_availabilities
 
 
-async def set_station_state(user: User, callsign: str, station_state: StationState) -> StationView:
+async def set_station_state(user: User, callsign: str, station_state: StationState) -> StationDetailedView:
     """Set the state of a station."""
     # 1: Verify permissions
     permission_check([PERMISSION.STATION_OPERATE], user.doc.permissions)
@@ -203,10 +241,10 @@ async def set_station_state(user: User, callsign: str, station_state: StationSta
 
     # 3: Modify station state
     await station.register_station_state(station_state)
-    return StationView.from_document(station.doc)
+    return StationDetailedView.from_document(station.doc)
 
 
-async def reset_queue(user: User, callsign: str) -> StationView:
+async def reset_queue(_user: User, callsign: str) -> StationDetailedView:
     """Reset the queue of the station by putting all queue
     items in state QUEUED and re-evaluating the queue."""
     # 1: Find the assigned station
@@ -227,18 +265,19 @@ async def reset_queue(user: User, callsign: str) -> StationView:
 
     # 4: Re-evaluate the queue
     first_task: Task = Task(tasks[0])
-    await first_task.activate()
+    await first_task.activate(task_manager=task_manager)
 
 
 async def handle_reservation_request(
-        user: User, callsign: str, locker_type: str
-) -> None:
+        user: User, callsign: str,
+        locker_type_name: str, response: Response
+):
     """Evaluates a reservation request at a station.
     First checks if the station is available and whether
     a locker of the requested type is available. If so,
     create a reservation task at the station and activate it."""
     # 1: Verify permissions
-    permission_check([PERMISSION.SESSION_ACTIONS], user.doc.permissions)
+    # permission_check([PERMISSION.SESSION_MODIFY], user.doc.permissions)
 
     # 2: Find the assigned station
     station: Station = Station(await StationModel.find(
@@ -255,36 +294,40 @@ async def handle_reservation_request(
 
     # 4: Check if a locker of the requested type is available
     locker_type_map = {locker.name.lower(): locker for locker in LOCKER_TYPES}
-    locker_type: LockerType = locker_type_map.get(locker_type.lower(), None)
-    available_locker = await Locker.find_available(station, locker_type)
+    locker_type: LockerType = locker_type_map.get(
+        locker_type_name, None)
+    available_locker: Locker = await Locker.find_available(station, locker_type)
     if not available_locker.exists:
-        raise LockerNotAvailableException(
-            station_callsign=callsign,
-            locker_type=locker_type,
-            raise_http=True)
+        response.status_code = status.HTTP_404_NOT_FOUND
+        return
+        # raise LockerNotAvailableException(
+        #    station_callsign=callsign,
+        #    locker_type=locker_type,
+        #    raise_http=True)
 
     # 5: Create a reservation task, to be completed by a session creation
     logger.info((
         f"Created reservation for user '{user.doc.fief_id}' "
         f"at locker '#{available_locker.id}'."))
-    await Task(await TaskItemModel(
+    task = await Task(TaskItemModel(
         target=TaskTarget.USER,
         task_type=TaskType.RESERVATION,
         assigned_user=user.doc,
         assigned_station=station.doc,
         assigned_locker=available_locker.doc,
         timeout_states=[SessionState.EXPIRED],
-    ).insert()).activate()
+    )).insert()
+    await task.activate(task_manager=task_manager)
 
 
 async def handle_reservation_cancel_request(
         user: User, callsign: str
-) -> None:
+):
     """Evaluates a reservation cancel request at a station.
     First checks if a reservation is currently pending for the user,
     and if so, cancels it."""
     # 1: Verify permissions
-    permission_check([PERMISSION.SESSION_ACTIONS], user.doc.permissions)
+    permission_check([PERMISSION.SESSION_MODIFY], user.doc.permissions)
 
     # 2: Find the assigned station
     station: Station = Station(await StationModel.find(
@@ -311,14 +354,15 @@ async def handle_reservation_cancel_request(
             raise_http=False)
 
     # 4: Cancel the reservation task
-    await task.cancel()
+    await task.cancel(task_manager=task_manager)
 
 
+@handle_exceptions(logger)
 async def handle_terminal_report(
         callsign: str,
         expected_session_state: SessionState,
         expected_terminal_state: TerminalState
-) -> None:
+):
     """This handler processes reports of completed actions at a station.
         It verifies the authenticity of the report and then updates the state
         values for the station and the assigned session as well as notifies
@@ -368,18 +412,21 @@ async def handle_terminal_report(
             raise_http=False)
 
     # 6: Await terminal to confirm idle
-    await Task(await TaskItemModel(
+    new_task = await Task(TaskItemModel(
         target=TaskTarget.TERMINAL,
         task_type=TaskType.CONFIRMATION,
-        assigned_user=session.assigned_user,
-        assigned_station=station.doc,
         assigned_session=session.doc,
+        assigned_user=session.doc.assigned_user,
+        assigned_station=session.doc.assigned_station,
         timeout_states=[SessionState.ABORTED],
-    ).insert()).activate()
+        queued_state=TerminalState.IDLE
+    )).insert()
+    await new_task.activate(task_manager=task_manager)
 
-    await task.complete()
+    await task.complete(task_manager=task_manager)
 
 
+@handle_exceptions(logger)
 async def handle_terminal_state_confirmation(
         callsign: str, confirmed_state: TerminalState):
     """Process a station report about its terminal state."""
@@ -392,11 +439,14 @@ async def handle_terminal_state_confirmation(
         StationModel.callsign == callsign).first_or_none(),
         callsign=callsign)
     if station.terminal_state == confirmed_state:
-        raise InvalidTerminalStateException(
-            station_callsign=callsign,
-            expected_states=[
-                state for state in TerminalState if state != confirmed_state],
-            actual_state=confirmed_state)
+        logger.warning((
+            f"Station '{callsign}' is already in state "
+            f"{confirmed_state}. Ignoring report."))
+        # raise InvalidTerminalStateException(
+        #    station_callsign=callsign,
+        #    expected_states=[
+        #        state for state in TerminalState if state != confirmed_state],
+        #    actual_state=confirmed_state)
 
     # 2: Find the pending task for this station
     pending_task: Task = Task(await TaskItemModel.find(
@@ -427,10 +477,10 @@ async def handle_terminal_state_confirmation(
     session: Session = Session(pending_task.doc.assigned_session)
 
     if confirmed_state == TerminalState.IDLE:  # Evaluate the next task
-        await pending_task.evaluate_next()
+        await pending_task.evaluate_queue(task_manager=task_manager)
 
     # 6: Complete previous task
-    await pending_task.complete()
+    await pending_task.complete(task_manager=task_manager)
 
     # 7: Do not create followup tasks if the session is canceled
     if session.doc.session_state not in ACTIVE_SESSION_STATES:
@@ -438,7 +488,7 @@ async def handle_terminal_state_confirmation(
 
     # 8: Create next task according to the session context
     if confirmed_state == TerminalState.VERIFICATION:
-        await Task(await TaskItemModel(
+        task = await Task(TaskItemModel(
             target=TaskTarget.TERMINAL,
             task_type=TaskType.REPORT,
             queued_state=session.next_state,
@@ -447,10 +497,11 @@ async def handle_terminal_state_confirmation(
             assigned_session=session.doc,
             timeout_states=([SessionState.EXPIRED] if session.doc.timeout_count >= 1
                             else [SessionState.PAYMENT_SELECTED, SessionState.EXPIRED]),
-        ).insert()).activate()
+        )).insert()
+        await task.activate(task_manager=task_manager)
 
     elif confirmed_state == TerminalState.PAYMENT:
-        await Task(await TaskItemModel(
+        task = await Task(TaskItemModel(
             target=TaskTarget.TERMINAL,
             task_type=TaskType.REPORT,
             queued_state=session.next_state,
@@ -459,31 +510,37 @@ async def handle_terminal_state_confirmation(
             assigned_session=session.doc,
             timeout_states=([SessionState.EXPIRED] if session.timeout_count >= 1
                             else [session.doc.session_state, SessionState.EXPIRED]),
-        ).insert()).activate()
+        )).insert()
+        await task.activate(task_manager=task_manager)
 
     elif confirmed_state == TerminalState.IDLE:
         # TODO: Find a better way to check if the task is from an expired one
         if pending_task.doc.is_expiration_retry:
             # Create task for user to try the expired action again
-            await Task(await TaskItemModel(
+            task = await Task(TaskItemModel(
                 target=TaskTarget.USER,
                 task_type=TaskType.REPORT,
                 assigned_user=session.assigned_user,
                 assigned_station=station.doc,
                 assigned_session=session.doc,
                 timeout_states=[SessionState.EXPIRED],
-            ).insert()).activate()
+            )).insert()
+            await task.activate(task_manager=task_manager)
         else:
+            if session.doc.session_state not in [SessionState.VERIFICATION, SessionState.PAYMENT]:
+                return
             # Create a task to await the unlocking
-            await Task(await TaskItemModel(
+            task = await Task(TaskItemModel(
                 target=TaskTarget.LOCKER,
                 task_type=TaskType.CONFIRMATION,
                 assigned_user=session.assigned_user,
                 assigned_station=station.doc,
                 assigned_session=session.doc,
-                assigned_locker=session.assigned_locker,
+                assigned_locker=session.doc.assigned_locker,
                 timeout_states=[SessionState.ABORTED],
-            ).insert()).activate()
+                queued_state=LockerState.UNLOCKED,
+            )).insert()
+            await task.activate(task_manager=task_manager)
 
     else:
         raise InvalidTerminalStateException(

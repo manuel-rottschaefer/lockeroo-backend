@@ -1,44 +1,24 @@
 [
   {
     "fief_id": "b5af6309-8159-4b6e-bcf3-4a2971563419",
-    "firstName": "Manuel",
-    "lastName": "Rottschäfer",
+    "first_name": "Manuel",
+    "last_name": "Rottschäfer",
     "email": "manuel@rottscha.de",
-
     "hashed_password": "$2a$10$Q6",
-
-    "activeAuthMethod": "email",
-
-    "signedUpTS": "2024-09-01T00:00:00Z",
-    "totalSessionCount": 0,
-    "totalSessionDuration": 0
+    "auth_method": "email",
+    "signup_ts": "2024-09-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
   },
   {
     "fief_id": "5fcd8e86-4191-46cb-938c-0fa6a7ebded6",
-    "firstName": "Josephine",
-    "lastName": "Bresack",
+    "first_name": "Josephine",
+    "last_name": "Bresack",
     "email": "josephine@bresack.de",
-
     "hashed_password": "$2a$10$Q6",
-
-    "activeAuthMethod": "google",
-
-    "signedUpTS": "2024-010-01T00:00:00Z",
-    "totalSessionCount": 0,
-    "totalSessionDuration": 0
-  },
-  {
-    "fief_id": "451a9b57-91ea-4ee0-828b-7880a4532023",
-    "firstName": "Deine",
-    "lastName": "Mum",
-    "email": "deine.mum@unexcellent.de",
-
-    "hashed_password": "$2a$10$Q6",
-
-    "activeAuthMethod": "email",
-
-    "signedUpTS": "2024-10-16T00:00:00Z",
-    "totalSessionCount": 0,
-    "totalSessionDuration": 0
+    "auth_method": "google",
+    "signup_ts": "2024-010-01T00:00:00Z",
+    "total_session_count": 0,
+    "total_session_duration": 0
   }
 ]
